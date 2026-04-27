@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
-import { ArrowLeft, Plus, X, UserCheck, UserX, RefreshCw, Pencil, Settings, Layers, UserMinus } from 'lucide-react'
+import { ArrowLeft, Plus, X, UserCheck, UserX, RefreshCw, Pencil, Settings, Layers, UserMinus, Trash2 } from 'lucide-react'
 import './Adm.css'
 
 const SECTOR_COLORS = [
@@ -30,6 +30,8 @@ function generatePassword(companyName) {
 export default function AdmCompanyDetail() {
   const { id } = useParams()
   const { db, loadDB, addUser, updateUser, toggleUserActive } = useAuth()
+  const [deletingUser, setDeletingUser] = useState(null)
+  const [deleteErr, setDeleteErr] = useState('')
   const navigate = useNavigate()
   const [showModal, setShowModal] = useState(false)
   const [editModal, setEditModal] = useState(null) // usuário sendo editado
@@ -124,6 +126,19 @@ export default function AdmCompanyDetail() {
     setEditForm({ name: user.name, email: user.email, password: '', role: user.role })
     setEditErr('')
     setEditModal(user)
+  }
+
+  async function handleDeleteUser() {
+    if (!deletingUser) return
+    setSaving(true)
+    setDeleteErr('')
+    // Limpa vínculos de setor antes de excluir
+    await supabase.from('sector_members').delete().eq('user_id', deletingUser.id)
+    const { error } = await supabase.from('users').delete().eq('id', deletingUser.id)
+    setSaving(false)
+    if (error) { setDeleteErr('Erro: ' + error.message); return }
+    setDeletingUser(null)
+    await loadDB()
   }
 
   async function handleEditUser() {
@@ -253,6 +268,9 @@ export default function AdmCompanyDetail() {
                       <button className={`table-action ${u.active ? 'danger' : ''}`} onClick={() => toggleUserActive(company.id, u.id)}>
                         {u.active ? <><UserX size={12} /> Desativar</> : <><UserCheck size={12} /> Ativar</>}
                       </button>
+                      <button className="table-action danger" onClick={() => { setDeleteErr(''); setDeletingUser(u) }}>
+                        <Trash2 size={12} /> Excluir
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -329,6 +347,44 @@ export default function AdmCompanyDetail() {
           )}
         </div>
       )}
+
+      {deletingUser && createPortal(
+        <div style={{
+          position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.4)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999,
+          backdropFilter: 'blur(4px)', padding: '1.5rem',
+        }}>
+          <div className="nx-card" style={{ width: '100%', maxWidth: 400 }}>
+            <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: 15, color: '#DC2626' }}>Excluir usuário</div>
+                <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>Esta ação não pode ser desfeita.</div>
+              </div>
+              <button style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }} onClick={() => setDeletingUser(null)}>
+                <X size={16} />
+              </button>
+            </div>
+            <div style={{ padding: '1.25rem 1.5rem' }}>
+              <div style={{ fontSize: 13, color: 'var(--text-primary)', lineHeight: 1.6 }}>
+                Excluir permanentemente o usuário <strong>{deletingUser.name}</strong> ({deletingUser.email})?
+              </div>
+              {deleteErr && (
+                <div style={{ marginTop: 12, background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 8, padding: '8px 12px', fontSize: 12, color: '#DC2626' }}>
+                  {deleteErr}
+                </div>
+              )}
+            </div>
+            <div style={{ padding: '1rem 1.5rem', borderTop: '1px solid var(--border)', display: 'flex', gap: 10 }}>
+              <button className="nx-btn-ghost" style={{ flex: 1 }} onClick={() => setDeletingUser(null)}>Cancelar</button>
+              <button
+                style={{ flex: 1, justifyContent: 'center', display: 'inline-flex', alignItems: 'center', gap: 6, background: '#DC2626', color: '#fff', border: 'none', borderRadius: 8, padding: '9px 14px', fontSize: 13, fontWeight: 600, cursor: 'pointer', opacity: saving ? 0.6 : 1 }}
+                onClick={handleDeleteUser} disabled={saving}>
+                <Trash2 size={13} /> {saving ? 'Excluindo...' : 'Excluir'}
+              </button>
+            </div>
+          </div>
+        </div>
+      , document.body)}
 
       {editModal && createPortal(
         <div style={{
