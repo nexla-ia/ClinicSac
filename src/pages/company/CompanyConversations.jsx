@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
-import { MessageSquare, Bot, User, PhoneCall, CheckCircle2, X, Send, Headset, Sparkles, Inbox, UserCheck, Archive } from 'lucide-react'
+import { MessageSquare, Bot, User, PhoneCall, CheckCircle2, X, Send, Headset, Sparkles, Inbox, UserCheck, Archive, Mic, Square, Trash2 } from 'lucide-react'
 import './Company.css'
 
 const CONV_TABLE = 'mensagens_geral'
@@ -114,6 +114,13 @@ export default function CompanyConversations() {
   const [sending, setSending]         = useState(false)
   const [closedLoaded, setClosedLoaded] = useState(false)
   const [lightbox, setLightbox]       = useState(null)
+  const [recording, setRecording]     = useState(false)
+  const [recordedAudio, setRecordedAudio] = useState(null) // { base64, mime, duration }
+  const [recordTime, setRecordTime]   = useState(0)
+  const mediaRecorderRef = useRef(null)
+  const audioChunksRef   = useRef([])
+  const recordTimerRef   = useRef(null)
+  const recordStartRef   = useRef(0)
   const bottomRef    = useRef(null)
   const selectedRef  = useRef(null)
   const autoCloseDone = useRef(false)
@@ -348,25 +355,84 @@ export default function CompanyConversations() {
     setAssuming(null)
   }
 
+  async function startRecording() {
+    if (recording) return
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+        ? 'audio/webm;codecs=opus'
+        : MediaRecorder.isTypeSupported('audio/ogg;codecs=opus')
+          ? 'audio/ogg;codecs=opus'
+          : 'audio/webm'
+      const mr = new MediaRecorder(stream, { mimeType })
+      audioChunksRef.current = []
+      mr.ondataavailable = e => { if (e.data.size > 0) audioChunksRef.current.push(e.data) }
+      mr.onstop = async () => {
+        const blob = new Blob(audioChunksRef.current, { type: mimeType })
+        const buf = await blob.arrayBuffer()
+        const bytes = new Uint8Array(buf)
+        let bin = ''
+        for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i])
+        const base64 = btoa(bin)
+        const duration = Math.floor((Date.now() - recordStartRef.current) / 1000)
+        setRecordedAudio({ base64, mime: mimeType, duration })
+        stream.getTracks().forEach(t => t.stop())
+      }
+      mediaRecorderRef.current = mr
+      recordStartRef.current = Date.now()
+      mr.start()
+      setRecording(true)
+      setRecordTime(0)
+      recordTimerRef.current = setInterval(() => {
+        setRecordTime(Math.floor((Date.now() - recordStartRef.current) / 1000))
+      }, 500)
+    } catch (e) {
+      console.error('Erro ao acessar microfone:', e)
+      setToast({ message: 'Não foi possível acessar o microfone', color: '#DC2626' })
+      setTimeout(() => setToast(null), 3000)
+    }
+  }
+
+  function stopRecording() {
+    if (!recording) return
+    mediaRecorderRef.current?.stop()
+    if (recordTimerRef.current) { clearInterval(recordTimerRef.current); recordTimerRef.current = null }
+    setRecording(false)
+  }
+
+  function discardAudio() {
+    setRecordedAudio(null)
+    setRecordTime(0)
+  }
+
   async function handleSend() {
-    if (!msgText.trim() || !selected || sending) return
+    if ((!msgText.trim() && !recordedAudio) || !selected || sending) return
     setSending(true)
     try {
       const text = msgText.trim()
+      const audio = recordedAudio
       setMsgText('')
+      setRecordedAudio(null)
+      setRecordTime(0)
+
+      const mensagemPayload = audio ? (text || '🎤 Áudio') : text
       const { error: insErr } = await supabase.rpc('send_mensagem_geral', {
         p_instancia: instance,
         p_numero: selected.session_id,
-        p_mensagem: text,
+        p_mensagem: mensagemPayload,
         p_type: 'atendente',
         p_hora: new Date().toISOString(),
       })
       if (insErr) console.error('send_mensagem_geral:', insErr)
+
       fetch('https://n8n.nexladesenvolvimento.com.br/webhook/envioNexla', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           message: text,
+          audio_base64: audio?.base64 || null,
+          audio_mime: audio?.mime || null,
+          audio_duration: audio?.duration || null,
           session_id: selected.session_id,
           phone: selected.phone,
           instancia: instance,
@@ -678,21 +744,72 @@ export default function CompanyConversations() {
 
             {!isClosed && (
               <div style={{ padding: '12px 18px', borderTop: '0.5px solid var(--border)', background: 'var(--bg-surface)', flexShrink: 0 }}>
+                {recordedAudio && (
+                  <div style={{
+                    display: 'flex', alignItems: 'center', gap: 10,
+                    background: '#F0FDF4', border: '1px solid #BBF7D0',
+                    borderRadius: 8, padding: '8px 12px', marginBottom: 8,
+                  }}>
+                    <audio controls src={`data:${recordedAudio.mime};base64,${recordedAudio.base64}`}
+                      style={{ flex: 1, height: 32 }} />
+                    <button onClick={discardAudio} title="Descartar áudio"
+                      style={{
+                        display: 'inline-flex', alignItems: 'center', gap: 4,
+                        background: '#FEF2F2', border: '1px solid #FECACA',
+                        color: '#DC2626', borderRadius: 6, padding: '5px 10px',
+                        fontSize: 11, fontWeight: 600, cursor: 'pointer', flexShrink: 0,
+                      }}>
+                      <Trash2 size={11} /> Descartar
+                    </button>
+                  </div>
+                )}
+                {recording && (
+                  <div style={{
+                    display: 'flex', alignItems: 'center', gap: 10,
+                    background: '#FEF2F2', border: '1px solid #FECACA',
+                    borderRadius: 8, padding: '8px 12px', marginBottom: 8,
+                    fontSize: 12, color: '#DC2626', fontWeight: 600,
+                  }}>
+                    <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#DC2626', animation: 'pulse-dot 1.2s infinite' }} />
+                    Gravando... {String(Math.floor(recordTime / 60)).padStart(2, '0')}:{String(recordTime % 60).padStart(2, '0')}
+                    <button onClick={stopRecording} style={{
+                      marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 5,
+                      background: '#DC2626', color: '#fff', border: 'none',
+                      borderRadius: 6, padding: '5px 12px', fontSize: 11, fontWeight: 700, cursor: 'pointer',
+                    }}>
+                      <Square size={11} /> Parar
+                    </button>
+                  </div>
+                )}
                 <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
                   <input
                     className="nx-input"
                     style={{ flex: 1, fontSize: 13 }}
-                    placeholder="Digite uma mensagem..."
+                    placeholder={recordedAudio ? "Mensagem opcional para acompanhar o áudio..." : "Digite uma mensagem..."}
                     value={msgText}
                     onChange={e => setMsgText(e.target.value)}
                     onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleSend()}
-                    disabled={sending}
+                    disabled={sending || recording}
                   />
+                  {!recording && !recordedAudio && (
+                    <button
+                      onClick={startRecording}
+                      title="Gravar áudio"
+                      style={{
+                        padding: '0 14px', flexShrink: 0,
+                        background: '#fff', border: '1px solid var(--border)',
+                        borderRadius: 8, color: '#6B7280', cursor: 'pointer',
+                        display: 'inline-flex', alignItems: 'center',
+                      }}
+                    >
+                      <Mic size={15} />
+                    </button>
+                  )}
                   <button
                     className="nx-btn-primary"
                     style={{ padding: '0 16px', flexShrink: 0 }}
                     onClick={handleSend}
-                    disabled={!msgText.trim() || sending}
+                    disabled={(!msgText.trim() && !recordedAudio) || sending || recording}
                   >
                     <Send size={14} />
                   </button>
