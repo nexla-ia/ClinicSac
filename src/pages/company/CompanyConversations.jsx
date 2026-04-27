@@ -595,6 +595,17 @@ export default function CompanyConversations() {
     }
   }
 
+  async function handleReopen(contact) {
+    if (!contact || !instance) return
+    await supabase.from('conversations').delete().eq('session_id', contact.session_id).eq('instancia', instance)
+    await supabase.from('attendances').delete().eq('numero', contact.session_id).eq('instancia', instance)
+    setClosedMap(prev => { const n = { ...prev }; delete n[contact.session_id]; return n })
+    setAttendancesMap(prev => { const n = { ...prev }; delete n[contact.session_id]; return n })
+    setTab('recepcao')
+    setToast({ message: 'Conversa reaberta', color: '#16A34A' })
+    setTimeout(() => setToast(null), 2500)
+  }
+
   async function handleClose() {
     if (!reason || !closeModal) return
     setClosing(true)
@@ -841,7 +852,20 @@ export default function CompanyConversations() {
                 fontSize: 12, color: 'var(--text-muted)',
               }}>
                 <Archive size={13} />
-                Conversa encerrada. Se o cliente enviar nova mensagem, um novo ticket será aberto automaticamente.
+                <span style={{ flex: 1 }}>
+                  Conversa encerrada. Se o cliente enviar nova mensagem, um novo ticket será aberto automaticamente.
+                </span>
+                <button
+                  onClick={() => handleReopen(selected)}
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 5,
+                    background: '#2563EB', color: '#fff', border: 'none',
+                    borderRadius: 6, padding: '5px 12px',
+                    fontSize: 11, fontWeight: 700, cursor: 'pointer', flexShrink: 0,
+                  }}
+                >
+                  <MessageSquare size={11} /> Reabrir conversa
+                </button>
               </div>
             )}
 
