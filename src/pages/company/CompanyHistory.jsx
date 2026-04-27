@@ -443,8 +443,13 @@ export default function CompanyHistory() {
                     <div className={`msg-row ${isHuman ? 'ai' : 'client'}`}>
                       {(() => {
                         const media = detectMedia(msg.base64)
-                        const isPlaceholder = media && /^(🎤 Áudio|🖼️ |📄 |📎 )/.test(msg.content || '')
-                        const hasOnlyMedia = media && (!msg.content || isPlaceholder)
+                        const rawContent = msg.content || ''
+                        const fileLineMatch = rawContent.match(/^(🎤 Áudio|🖼️ [^\n]+|📄 [^\n]+|📎 [^\n]+)(\n([\s\S]*))?$/)
+                        const fileLine = fileLineMatch?.[1] || null
+                        const extraText = fileLineMatch?.[3]?.trim() || ''
+                        const isPlaceholder = !!fileLine
+                        const displayContent = isPlaceholder ? extraText : rawContent
+                        const hasOnlyMedia = media && !displayContent
                         const bubbleStyle = hasOnlyMedia
                           ? { background: 'transparent', padding: 0, boxShadow: 'none', border: 'none' }
                           : {}
@@ -460,7 +465,7 @@ export default function CompanyHistory() {
                                   onClick={() => setLightbox(src)} />
                               )
                               if (media.type === 'pdf') {
-                                const fileName = (msg.content || '').replace(/^📄\s*/, '').trim() || 'documento.pdf'
+                                const fileName = (fileLine || '').replace(/^📄\s*/, '').trim() || 'documento.pdf'
                                 return (
                                   <a href={src} download={fileName} target="_blank" rel="noreferrer"
                                     style={{
@@ -493,8 +498,8 @@ export default function CompanyHistory() {
                                 borderRadius: 6, padding: '2px 8px', marginBottom: 6,
                               }}>🖼️ Imagem enviada</div>
                             )}
-                            {msg.content && !isPlaceholder && (
-                              <span style={{ whiteSpace: 'pre-wrap' }}>{msg.content}</span>
+                            {displayContent && (
+                              <span style={{ whiteSpace: 'pre-wrap' }}>{displayContent}</span>
                             )}
                           </div>
                         )
