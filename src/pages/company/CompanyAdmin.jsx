@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
+import ConfirmModal from '../../components/ConfirmModal'
 import { Plus, X, UserMinus, RefreshCw, UserCheck, UserX, Pencil, QrCode, Wifi, WifiOff, LogOut, Trash2 } from 'lucide-react'
 import './Company.css'
 
@@ -55,6 +56,8 @@ export default function CompanyAdmin() {
   const [qrBase64, setQrBase64]     = useState(null)
   const [qrLoading, setQrLoading]   = useState(false)
   const [qrErr, setQrErr]           = useState('')
+  const [confirmLogout, setConfirmLogout] = useState(false)
+  const [loggingOut, setLoggingOut] = useState(false)
 
   async function fetchState() {
     if (!evolutionUrl || !instance || !apiKey) return null
@@ -112,9 +115,12 @@ export default function CompanyAdmin() {
     }
   }
 
-  async function handleLogout() {
+  function handleLogout() {
     if (!evolutionUrl || !instance || !apiKey) return
-    if (!confirm('Desconectar a instância do WhatsApp? Será necessário escanear o QR novamente para reconectar.')) return
+    setConfirmLogout(true)
+  }
+  async function confirmLogoutAction() {
+    setLoggingOut(true)
     try {
       await fetch(`${evolutionUrl}/instance/logout/${instance}`, {
         method: 'DELETE', headers: { apikey: apiKey },
@@ -124,6 +130,8 @@ export default function CompanyAdmin() {
     } catch (e) {
       setQrErr('Erro ao desconectar: ' + e.message)
     }
+    setLoggingOut(false)
+    setConfirmLogout(false)
   }
 
   useEffect(() => {
@@ -496,6 +504,17 @@ export default function CompanyAdmin() {
           )}
         </div>
       </div>
+
+      <ConfirmModal
+        open={confirmLogout}
+        variant="warning"
+        title="Desconectar WhatsApp"
+        message={`Tem certeza que deseja desconectar a instância "${instance}"? Você precisará escanear o QR Code novamente para reconectar.`}
+        confirmLabel="Desconectar"
+        loading={loggingOut}
+        onConfirm={confirmLogoutAction}
+        onCancel={() => setConfirmLogout(false)}
+      />
 
       {/* Modal criar setor */}
       {sectorModal && createPortal(

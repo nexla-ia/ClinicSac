@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
+import ConfirmModal from '../../components/ConfirmModal'
 import { Contact2, Search, Pencil, Trash2, X, Plus, Phone, Copy, Check, MessageSquare } from 'lucide-react'
 import './Company.css'
 
@@ -18,6 +19,8 @@ export default function CompanyContacts() {
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState('')
   const [copiedId, setCopiedId] = useState(null)
+  const [confirmDelete, setConfirmDelete] = useState(null)
+  const [deletingNow, setDeletingNow] = useState(false)
 
   useEffect(() => {
     if (!instance) return
@@ -77,9 +80,15 @@ export default function CompanyContacts() {
     setEditing(null)
   }
 
-  async function handleDelete(id) {
-    if (!confirm('Excluir este contato?')) return
-    await supabase.from('saved_contacts').delete().eq('id', id)
+  function handleDelete(contact) {
+    setConfirmDelete(contact)
+  }
+  async function confirmDeleteAction() {
+    if (!confirmDelete) return
+    setDeletingNow(true)
+    await supabase.from('saved_contacts').delete().eq('id', confirmDelete.id)
+    setDeletingNow(false)
+    setConfirmDelete(null)
   }
 
   function copyNumber(id, num) {
@@ -184,7 +193,7 @@ export default function CompanyContacts() {
                       <button className="table-action" onClick={() => openEdit(c)}>
                         <Pencil size={11} /> Editar
                       </button>
-                      <button className="table-action danger" onClick={() => handleDelete(c.id)}>
+                      <button className="table-action danger" onClick={() => handleDelete(c)}>
                         <Trash2 size={11} /> Excluir
                       </button>
                     </div>
@@ -195,6 +204,17 @@ export default function CompanyContacts() {
           </table>
         </div>
       )}
+
+      <ConfirmModal
+        open={!!confirmDelete}
+        variant="delete"
+        title="Excluir contato"
+        message={`Tem certeza que deseja excluir o contato "${confirmDelete?.nome || ''}"? Essa ação não pode ser desfeita.`}
+        confirmLabel="Excluir contato"
+        loading={deletingNow}
+        onConfirm={confirmDeleteAction}
+        onCancel={() => setConfirmDelete(null)}
+      />
 
       {editing && createPortal(
         <div style={{

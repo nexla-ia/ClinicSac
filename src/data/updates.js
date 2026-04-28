@@ -5,6 +5,18 @@
 export const UPDATES = [
   {
     date: '2026-04-28',
+    title: 'Diálogos de confirmação estilizados',
+    type: 'improvement',
+    tags: ['Geral'],
+    items: [
+      'Substituídos os pop-ups nativos do navegador (cinzas, feios) por modais bonitos e consistentes com o resto da plataforma',
+      'Aplicado em: excluir coluna/card no Kanban, excluir agenda/agendamento, excluir contato e desconectar WhatsApp',
+      'Variantes de cor (vermelho para exclusão, amarelo para aviso) e ícone contextual',
+      'Estado de loading durante a ação',
+    ],
+  },
+  {
+    date: '2026-04-28',
     title: 'Métricas reformuladas com 6 abas de análise',
     type: 'feature',
     tags: ['Métricas'],

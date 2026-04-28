@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
+import ConfirmModal from '../../components/ConfirmModal'
 import {
   Plus, X, Trash2, Pencil, Calendar, User as UserIcon, Flag,
   GripVertical, MoreVertical, Tag, ChevronRight,
@@ -63,6 +64,9 @@ export default function CompanyKanban() {
   const [cardModal, setCardModal]     = useState(null)
   const [cardErr, setCardErr]         = useState('')
   const [savingCard, setSavingCard]   = useState(false)
+  const [confirmDeleteCol, setConfirmDeleteCol] = useState(null)
+  const [confirmDeleteCard, setConfirmDeleteCard] = useState(false)
+  const [deletingNow, setDeletingNow] = useState(false)
 
   const dragCard = useRef(null)
   const [dragOver, setDragOver] = useState({ columnId: null, position: null })
@@ -134,9 +138,15 @@ export default function CompanyKanban() {
     if (error) { setColumnErr('Erro: ' + error.message); return }
     setColumnModal(null)
   }
-  async function handleDeleteColumn(id) {
-    if (!confirm('Excluir esta coluna? Todos os cards dela serão excluídos também.')) return
-    await supabase.from('kanban_columns').delete().eq('id', id)
+  function handleDeleteColumn(col) {
+    setConfirmDeleteCol(col)
+  }
+  async function confirmDeleteColumn() {
+    if (!confirmDeleteCol) return
+    setDeletingNow(true)
+    await supabase.from('kanban_columns').delete().eq('id', confirmDeleteCol.id)
+    setDeletingNow(false)
+    setConfirmDeleteCol(null)
   }
   async function createDefaults() {
     setSavingColumn(true)
@@ -184,10 +194,16 @@ export default function CompanyKanban() {
     if (error) { setCardErr('Erro: ' + error.message); return }
     setCardModal(null)
   }
-  async function handleDeleteCard() {
+  function handleDeleteCard() {
     if (!cardModal?.id) return
-    if (!confirm('Excluir este card?')) return
+    setConfirmDeleteCard(true)
+  }
+  async function confirmDeleteCardAction() {
+    if (!cardModal?.id) return
+    setDeletingNow(true)
     await supabase.from('kanban_cards').delete().eq('id', cardModal.id)
+    setDeletingNow(false)
+    setConfirmDeleteCard(false)
     setCardModal(null)
   }
 
@@ -330,7 +346,7 @@ export default function CompanyKanban() {
                         style={{ background: 'transparent', border: 'none', color: '#64748B', cursor: 'pointer', padding: 3 }}>
                         <Pencil size={11} />
                       </button>
-                      <button onClick={() => handleDeleteColumn(col.id)} title="Excluir coluna"
+                      <button onClick={() => handleDeleteColumn(col)} title="Excluir coluna"
                         style={{ background: 'transparent', border: 'none', color: '#DC2626', cursor: 'pointer', padding: 3 }}>
                         <Trash2 size={11} />
                       </button>
@@ -461,6 +477,28 @@ export default function CompanyKanban() {
           </div>
         </div>
       , document.body)}
+
+      <ConfirmModal
+        open={!!confirmDeleteCol}
+        variant="delete"
+        title="Excluir coluna"
+        message={`Tem certeza que deseja excluir a coluna "${confirmDeleteCol?.name || ''}"? Todos os cards dentro dela serão removidos junto. Essa ação não pode ser desfeita.`}
+        confirmLabel="Excluir coluna"
+        loading={deletingNow}
+        onConfirm={confirmDeleteColumn}
+        onCancel={() => setConfirmDeleteCol(null)}
+      />
+
+      <ConfirmModal
+        open={confirmDeleteCard}
+        variant="delete"
+        title="Excluir card"
+        message="Tem certeza que deseja excluir este card? Essa ação não pode ser desfeita."
+        confirmLabel="Excluir card"
+        loading={deletingNow}
+        onConfirm={confirmDeleteCardAction}
+        onCancel={() => setConfirmDeleteCard(false)}
+      />
 
       {/* Modal card */}
       {cardModal && createPortal(

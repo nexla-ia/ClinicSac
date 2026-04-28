@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
+import ConfirmModal from '../../components/ConfirmModal'
 import {
   Calendar, Plus, X, Pencil, Trash2, ChevronLeft, ChevronRight,
   Clock, User as UserIcon, Phone, ListChecks, CheckCircle2, XCircle, AlertCircle, Settings,
@@ -95,6 +96,9 @@ export default function CompanyAgenda() {
   const [savingAppt, setSavingAppt]   = useState(false)
   const [patientHistory, setPatientHistory] = useState([])
   const [loadingHistory, setLoadingHistory] = useState(false)
+  const [confirmDeleteAgenda, setConfirmDeleteAgenda] = useState(null)
+  const [confirmDeleteAppt, setConfirmDeleteAppt] = useState(false)
+  const [deletingNow, setDeletingNow] = useState(false)
 
   // Carrega agendas + agendamentos + contatos
   useEffect(() => {
@@ -190,12 +194,19 @@ export default function CompanyAgenda() {
     setAgendaModal(null)
   }
 
-  async function handleDeleteAgenda(id) {
-    if (!confirm('Excluir esta agenda? Todos os agendamentos vinculados também serão excluídos.')) return
+  function handleDeleteAgenda(agenda) {
+    setConfirmDeleteAgenda(agenda)
+  }
+  async function confirmDeleteAgendaAction() {
+    if (!confirmDeleteAgenda) return
+    setDeletingNow(true)
+    const id = confirmDeleteAgenda.id
     await supabase.from('agendas').delete().eq('id', id)
     setAgendas(prev => prev.filter(a => a.id !== id))
     setAppointments(prev => prev.filter(a => a.agenda_id !== id))
     if (selectedAgendaId === id) setSelectedAgendaId(agendas.find(a => a.id !== id)?.id || null)
+    setDeletingNow(false)
+    setConfirmDeleteAgenda(null)
   }
 
   function openNewAppt(date, hhmm, prefill = {}) {
@@ -336,10 +347,16 @@ export default function CompanyAgenda() {
     setApptModal(null)
   }
 
-  async function handleDeleteAppt() {
+  function handleDeleteAppt() {
     if (!apptModal?.id) return
-    if (!confirm('Excluir este agendamento?')) return
+    setConfirmDeleteAppt(true)
+  }
+  async function confirmDeleteApptAction() {
+    if (!apptModal?.id) return
+    setDeletingNow(true)
     await supabase.from('appointments').delete().eq('id', apptModal.id)
+    setDeletingNow(false)
+    setConfirmDeleteAppt(false)
     setApptModal(null)
   }
 
@@ -424,7 +441,7 @@ export default function CompanyAgenda() {
                       <button className="table-action" onClick={() => openEditAgenda(a)}>
                         <Pencil size={11} /> Editar
                       </button>
-                      <button className="table-action danger" onClick={() => handleDeleteAgenda(a.id)}>
+                      <button className="table-action danger" onClick={() => handleDeleteAgenda(a)}>
                         <Trash2 size={11} /> Excluir
                       </button>
                     </div>
@@ -657,6 +674,28 @@ export default function CompanyAgenda() {
           </div>
         </div>
       , document.body)}
+
+      <ConfirmModal
+        open={!!confirmDeleteAgenda}
+        variant="delete"
+        title="Excluir agenda"
+        message={`Tem certeza que deseja excluir a agenda "${confirmDeleteAgenda?.name || ''}"? Todos os agendamentos vinculados serão removidos. Essa ação não pode ser desfeita.`}
+        confirmLabel="Excluir agenda"
+        loading={deletingNow}
+        onConfirm={confirmDeleteAgendaAction}
+        onCancel={() => setConfirmDeleteAgenda(null)}
+      />
+
+      <ConfirmModal
+        open={confirmDeleteAppt}
+        variant="delete"
+        title="Excluir agendamento"
+        message="Tem certeza que deseja excluir este agendamento? Essa ação não pode ser desfeita."
+        confirmLabel="Excluir"
+        loading={deletingNow}
+        onConfirm={confirmDeleteApptAction}
+        onCancel={() => setConfirmDeleteAppt(false)}
+      />
 
       {/* Modal agendamento */}
       {apptModal && createPortal(
