@@ -519,7 +519,7 @@ export default function CompanyAgenda() {
                           <div key={i}
                             onClick={() => working && (appt ? openEditAppt(appt) : openNewAppt(d, hhmm))}
                             style={{
-                              minHeight: 38, borderLeft: '1px solid var(--border)',
+                              minHeight: 46, borderLeft: '1px solid var(--border)',
                               background: !working ? '#F9FAFB' : 'transparent',
                               cursor: working ? 'pointer' : 'not-allowed',
                               padding: 3, position: 'relative',
@@ -529,12 +529,23 @@ export default function CompanyAgenda() {
                           >
                             {appt && status && (
                               <div style={{
-                                background: status.bg, border: `1px solid ${status.border}`,
-                                color: status.color, borderRadius: 6, padding: '4px 8px',
-                                fontSize: 11, fontWeight: 600, lineHeight: 1.3,
-                                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                                background: status.color,
+                                color: '#fff',
+                                borderLeft: `3px solid ${status.color}`,
+                                borderRadius: 5,
+                                padding: '5px 8px',
+                                fontSize: 11, fontWeight: 700, lineHeight: 1.3,
+                                height: '100%',
+                                display: 'flex', flexDirection: 'column', justifyContent: 'center',
+                                overflow: 'hidden',
+                                boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
                               }}>
-                                {appt.contact_nome}
+                                <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                  {appt.contact_nome}
+                                </div>
+                                <div style={{ fontSize: 9, fontWeight: 600, opacity: 0.85, marginTop: 1 }}>
+                                  {hhmm} · {status.label}
+                                </div>
                               </div>
                             )}
                           </div>
