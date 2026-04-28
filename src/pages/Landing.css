@@ -429,6 +429,8 @@
   grid-template-columns: 180px 1fr;
   background: white;
   animation: sceneFade 0.4s ease-out;
+  min-width: 0;
+  overflow: hidden;
 }
 @keyframes sceneFade {
   from { opacity: 0; transform: translateX(8px); }
@@ -437,33 +439,46 @@
 
 /* Cabeçalho comum das cenas */
 .lp-scene-header {
-  padding: 12px 14px;
+  padding: 10px 12px;
   border-bottom: 1px solid var(--lp-line);
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+  min-width: 0;
+}
+.lp-scene-header > div:first-child {
+  min-width: 0;
+  flex: 1;
 }
 .lp-scene-title {
   font-size: 12px;
   font-weight: 700;
   color: var(--lp-text);
   letter-spacing: -0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .lp-scene-sub {
   font-size: 9px;
   color: var(--lp-text-mute);
   margin-top: 1px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .lp-scene-pill {
-  font-size: 9px;
+  font-size: 8px;
   font-weight: 700;
-  padding: 2px 8px;
+  padding: 3px 8px;
   border-radius: 999px;
   background: rgba(139, 92, 246, 0.12);
   color: var(--lp-violet);
   text-transform: uppercase;
   letter-spacing: 0.04em;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 .lp-scene-pill.green {
   background: rgba(74, 222, 128, 0.18);
@@ -523,6 +538,8 @@
   min-height: 28px;
   padding: 3px;
   position: relative;
+  min-width: 0;
+  overflow: hidden;
 }
 .lp-cal-appt {
   border-radius: 4px;
@@ -534,6 +551,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  max-width: 100%;
 }
 
 /* ─── Cena: MÉTRICAS ──────────────────────────────────────────────────────── */
@@ -627,13 +645,15 @@
   gap: 4px;
 }
 .lp-proc-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: 26px 1fr auto;
   align-items: center;
   gap: 10px;
   padding: 9px 10px;
   border-radius: 8px;
   background: #FAFAFC;
   border: 1px solid var(--lp-line);
+  min-width: 0;
 }
 .lp-proc-icon {
   width: 26px;
@@ -644,12 +664,18 @@
   justify-content: center;
   flex-shrink: 0;
 }
-.lp-proc-content { flex: 1; min-width: 0; }
+.lp-proc-content {
+  min-width: 0;
+  overflow: hidden;
+}
 .lp-proc-name {
   font-size: 10px;
   font-weight: 700;
   color: var(--lp-text);
-  margin-bottom: 2px;
+  margin-bottom: 3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .lp-proc-meta {
   display: flex;
@@ -662,6 +688,8 @@
   font-weight: 800;
   color: var(--lp-text);
   letter-spacing: -0.01em;
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 /* ─── Cena: EQUIPE ────────────────────────────────────────────────────────── */
