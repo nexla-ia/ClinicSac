@@ -155,7 +155,7 @@ export default function CompanyMetrics() {
   const range = useMemo(() => getPeriodRange(period), [period])
 
   return (
-    <div className="page-enter" style={{ padding: '1.5rem', maxWidth: 1200 }}>
+    <div className="page-enter" style={{ padding: '1.5rem' }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 12 }}>
         <div>
@@ -175,11 +175,12 @@ export default function CompanyMetrics() {
         {PERIODS.map(p => (
           <button key={p.key} onClick={() => setPeriod(p.key)}
             style={{
-              padding: '6px 16px', borderRadius: 20, fontSize: 12, fontWeight: 600,
-              border: `1.5px solid ${period === p.key ? 'var(--primary)' : 'var(--border)'}`,
-              background: period === p.key ? 'var(--primary)' : 'var(--bg-surface)',
+              padding: '7px 18px', borderRadius: 20, fontSize: 12, fontWeight: 600,
+              border: `1.5px solid ${period === p.key ? '#2563EB' : 'var(--border)'}`,
+              background: period === p.key ? '#2563EB' : '#fff',
               color: period === p.key ? '#fff' : 'var(--text-secondary)',
               cursor: 'pointer', transition: 'all 0.15s',
+              boxShadow: period === p.key ? '0 1px 4px rgba(37,99,235,0.3)' : 'none',
             }}>{p.label}</button>
         ))}
       </div>
@@ -190,8 +191,8 @@ export default function CompanyMetrics() {
           <button key={t.key} onClick={() => setTab(t.key)}
             style={{
               padding: '10px 14px', border: 'none', background: 'none', cursor: 'pointer',
-              borderBottom: tab === t.key ? '2px solid var(--primary)' : '2px solid transparent',
-              color: tab === t.key ? 'var(--primary)' : 'var(--text-secondary)',
+              borderBottom: tab === t.key ? '2px solid #2563EB' : '2px solid transparent',
+              color: tab === t.key ? '#2563EB' : 'var(--text-secondary)',
               fontSize: 13, fontWeight: tab === t.key ? 700 : 500,
               display: 'inline-flex', alignItems: 'center', gap: 6, marginBottom: -1,
             }}>
@@ -270,7 +271,7 @@ function OverviewTab({ msgs, convs, atts, appts, alerts, kanbanCards, range, per
 
       <div className="nx-card" style={{ padding: '1.25rem', marginBottom: 16 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-          <Clock size={15} color="var(--primary)" />
+          <Clock size={15} color="#2563EB" />
           <div style={{ fontWeight: 700, fontSize: 14 }}>Mensagens por dia</div>
           <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--text-muted)' }}>{periodLabel(period)}</span>
         </div>
@@ -806,7 +807,7 @@ function KpiCard({ icon, bg, value, label, sub, loading, alert }) {
 function SectionTitle({ icon: Icon, text, right }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
-      <Icon size={15} color="var(--primary)" />
+      <Icon size={15} color="#2563EB" />
       <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--text-primary)' }}>{text}</div>
       {right && <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--text-muted)' }}>{right}</span>}
     </div>
@@ -825,13 +826,13 @@ function BarTimeline({ data }) {
     <div>
       <div style={{ display: 'flex', gap: 4, marginBottom: 4 }}>
         {data.map(([k, v]) => (
-          <div key={k} style={{ flex: 1, textAlign: 'center', fontSize: 10, fontWeight: 700, color: 'var(--primary)', minWidth: 0 }}>{v}</div>
+          <div key={k} style={{ flex: 1, textAlign: 'center', fontSize: 10, fontWeight: 700, color: '#2563EB', minWidth: 0 }}>{v}</div>
         ))}
       </div>
       <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4, height: BAR_H }}>
         {data.map(([k, v]) => (
           <div key={k} style={{ flex: 1, height: '100%', display: 'flex', alignItems: 'flex-end', minWidth: 0 }}>
-            <div style={{ width: '100%', height: `${Math.max((v / max) * 100, 5)}%`, background: 'var(--primary)', borderRadius: '4px 4px 0 0', opacity: 0.85 }} />
+            <div style={{ width: '100%', height: `${Math.max((v / max) * 100, 5)}%`, background: '#2563EB', borderRadius: '4px 4px 0 0', opacity: 0.85 }} />
           </div>
         ))}
       </div>
