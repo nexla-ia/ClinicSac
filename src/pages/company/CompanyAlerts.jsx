@@ -61,6 +61,7 @@ export default function CompanyAlerts() {
   const instance   = session?.company?.instance
   const currentUser = session?.user
   const companyUsers = (session?.company?.users || []).filter(u => u.active)
+  const aiEnabled = session?.company?.ai_enabled !== false
 
   const [alerts, setAlerts] = useState([])
   const [loading, setLoading] = useState(true)
@@ -125,9 +126,13 @@ export default function CompanyAlerts() {
         (payload) => {
           if (!payload.new) return
           setAlerts(prev => [payload.new, ...prev])
-          // Notifica com som se for encaminhado para mim OU alerta geral sem destinatário
-          const isForMe = !payload.new.forwarded_to_user_id || payload.new.forwarded_to_user_id === currentUser?.id
-          if (isForMe) {
+          // Sem IA: só notifica encaminhamentos para mim. Com IA: notifica alertas gerais e encaminhados.
+          const isForwardedToMe = payload.new.forwarded_to_user_id === currentUser?.id
+          const isGeneralAlert = !payload.new.forwarded_to_user_id
+          const shouldNotify = aiEnabled
+            ? (isGeneralAlert || isForwardedToMe)
+            : isForwardedToMe
+          if (shouldNotify) {
             setUnreadCount(c => c + 1)
             playNotificationSound()
           }
@@ -145,7 +150,7 @@ export default function CompanyAlerts() {
       })
 
     return () => { supabase.removeChannel(channel) }
-  }, [instance, currentUser?.id])
+  }, [instance, currentUser?.id, aiEnabled])
 
   async function resolve(id) {
     await supabase.from('alerts').update({ resolved: true }).eq('id', id)
@@ -174,10 +179,12 @@ export default function CompanyAlerts() {
 
   // Filtra: mostra alertas gerais + encaminhados para mim
   // Alertas encaminhados para outra pessoa somem da tela de quem encaminhou
+  // Quando IA está desativada, só mostra encaminhamentos (alertas da IA não devem aparecer)
   const visible = alerts.filter(a => {
-    if (!a.forwarded_to_user_id) return true                     // alerta geral, todos veem
-    if (a.forwarded_to_user_id === currentUser?.id) return true  // encaminhado para mim, vejo
-    return false                                                  // encaminhado para outro, não vejo
+    if (!aiEnabled && !a.forwarded_to_user_id) return false       // sem IA, esconde alertas gerais
+    if (!a.forwarded_to_user_id) return true                      // alerta geral, todos veem
+    if (a.forwarded_to_user_id === currentUser?.id) return true   // encaminhado para mim, vejo
+    return false                                                   // encaminhado para outro, não vejo
   })
 
   const filtered = visible.filter(a => {
@@ -194,7 +201,7 @@ export default function CompanyAlerts() {
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
         <div>
           <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '1.3rem', color: 'var(--text-primary)', marginBottom: 4 }}>
-            Alertas da IA
+            {aiEnabled ? 'Alertas da IA' : 'Encaminhamentos'}
             {unreadCount > 0 && (
               <span style={{
                 marginLeft: 8, background: '#DC2626', color: '#fff',
@@ -206,7 +213,11 @@ export default function CompanyAlerts() {
             )}
           </div>
           <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>
-            {loading ? 'Carregando...' : 'Avisos enviados pelo agente de IA'}
+            {loading
+              ? 'Carregando...'
+              : aiEnabled
+                ? 'Avisos enviados pelo agente de IA'
+                : 'Conversas encaminhadas por outros atendentes'}
           </div>
         </div>
 

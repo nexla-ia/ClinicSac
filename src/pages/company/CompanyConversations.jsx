@@ -112,6 +112,7 @@ export default function CompanyConversations() {
 
   const isAdmin = session?.user?.role === 'admin'
   const userSector = session?.user?.sector // { id, name, color } or null
+  const aiEnabled = session?.company?.ai_enabled !== false
 
   const [contacts, setContacts]         = useState([])
   const [closedMap, setClosedMap]       = useState({}) // session_id → reason
@@ -823,7 +824,7 @@ export default function CompanyConversations() {
                         <Calendar size={9} /> {formatApptShort(nextAppt.starts_at)}
                       </span>
                     )}
-                    {tab === 'recepcao' && (
+                    {tab === 'recepcao' && aiEnabled && (
                       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 10, fontWeight: 700, padding: '1px 7px', borderRadius: 20, color: '#2563EB', background: '#EFF6FF', border: '1px solid #BFDBFE', lineHeight: '16px' }}>
                         <Sparkles size={9} /> IA
                       </span>
@@ -929,12 +930,22 @@ export default function CompanyConversations() {
             {!isClosed && !attendancesMap[selected.session_id] && (
               <div style={{
                 display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                background: '#EFF6FF', borderBottom: '1px solid #BFDBFE',
+                background: aiEnabled ? '#EFF6FF' : '#F8FAFC',
+                borderBottom: `1px solid ${aiEnabled ? '#BFDBFE' : 'var(--border)'}`,
                 padding: '10px 20px', flexShrink: 0, gap: 12,
               }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#1E40AF' }}>
-                  <Sparkles size={15} style={{ color: '#2563EB' }} />
-                  <span>Conversa sob atendimento da <strong>IA</strong></span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: aiEnabled ? '#1E40AF' : 'var(--text-secondary)' }}>
+                  {aiEnabled ? (
+                    <>
+                      <Sparkles size={15} style={{ color: '#2563EB' }} />
+                      <span>Conversa sob atendimento da <strong>IA</strong></span>
+                    </>
+                  ) : (
+                    <>
+                      <Inbox size={15} style={{ color: '#64748B' }} />
+                      <span>Conversa aguardando atendimento</span>
+                    </>
+                  )}
                 </div>
                 <button
                   onClick={e => handleAssume(selected, e)}

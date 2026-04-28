@@ -43,23 +43,25 @@ export default function CompanyLayout() {
     return () => supabase.removeChannel(ch)
   }, [instance])
 
-  // Conta alertas pendentes reais
+  // Conta alertas pendentes reais (sem IA: conta só encaminhamentos para o usuário)
+  const userId = session?.user?.id
+  const aiOn = session?.company?.ai_enabled !== false
   useEffect(() => {
     if (!instance) return
-    supabase.from('alerts').select('id', { count: 'exact' })
-      .eq('instancia', instance).eq('resolved', false)
-      .then(({ count }) => setPendingAlerts(count || 0))
+    function countQuery() {
+      let q = supabase.from('alerts').select('id', { count: 'exact' })
+        .eq('instancia', instance).eq('resolved', false)
+      if (!aiOn && userId) q = q.eq('forwarded_to_user_id', userId)
+      return q
+    }
+    countQuery().then(({ count }) => setPendingAlerts(count || 0))
 
     const ch = supabase.channel('layout-alerts')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'alerts', filter: `instancia=eq.${instance}` },
-        () => {
-          supabase.from('alerts').select('id', { count: 'exact' })
-            .eq('instancia', instance).eq('resolved', false)
-            .then(({ count }) => setPendingAlerts(count || 0))
-        })
+        () => { countQuery().then(({ count }) => setPendingAlerts(count || 0)) })
       .subscribe()
     return () => supabase.removeChannel(ch)
-  }, [instance])
+  }, [instance, aiOn, userId])
 
   const isAdmin = session?.user?.role === 'admin'
   const aiEnabled = session?.company?.ai_enabled !== false

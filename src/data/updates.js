@@ -5,6 +5,30 @@
 export const UPDATES = [
   {
     date: '2026-04-28',
+    title: 'Empresas sem IA — interface adaptada',
+    type: 'improvement',
+    tags: ['Conversas', 'Alertas'],
+    items: [
+      'Empresas com IA desativada não veem mais a tag "IA" nas conversas em Recepção',
+      'Banner "Conversa sob atendimento da IA" trocado por "Conversa aguardando atendimento"',
+      'Aba "Alertas" passa a se chamar "Encaminhamentos" e mostra apenas conversas encaminhadas por outros atendentes',
+      'Notificações sonoras de alertas da IA são silenciadas para empresas sem IA',
+      'Badge de contagem no menu lateral também respeita o filtro',
+    ],
+  },
+  {
+    date: '2026-04-28',
+    title: 'Aba de Novidades',
+    type: 'feature',
+    tags: ['Geral'],
+    items: [
+      'Nova aba "Novidades" no menu lateral com timeline de todas as atualizações da plataforma',
+      'Badge "Novo" aparece no menu até o usuário visualizar pela primeira vez',
+      'Atualizações organizadas por data, com tipo (Novidade, Melhoria, Correção) e tags por módulo',
+    ],
+  },
+  {
+    date: '2026-04-28',
     title: 'Agenda integrada com Conversas',
     type: 'feature',
     tags: ['Agenda', 'Conversas'],
