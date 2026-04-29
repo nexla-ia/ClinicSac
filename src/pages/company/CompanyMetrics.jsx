@@ -784,7 +784,7 @@ function LeadsTab({ leads, range, period, loading, contactsTable }) {
 
   const origensMap = useMemo(() => {
     const map = {}
-    filtered.forEach(l => { const k = l.origem || 'Desconhecido'; map[k] = (map[k] || 0) + 1 })
+    filtered.forEach(l => { const k = l.origem || 'WhatsApp · origem não informada'; map[k] = (map[k] || 0) + 1 })
     return Object.entries(map).sort((a, b) => b[1] - a[1])
   }, [filtered])
 
