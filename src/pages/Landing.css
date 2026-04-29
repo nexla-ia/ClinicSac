@@ -73,13 +73,27 @@
   text-decoration: none;
   color: var(--lp-text);
 }
-.lp-brand-mark { display: flex; }
+.lp-brand-mark { display: flex; align-items: center; }
 .lp-brand-text {
   font-family: 'Bricolage Grotesque', sans-serif;
-  font-size: 22px;
+  font-size: 20px;
   font-weight: 700;
-  letter-spacing: -0.03em;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  display: block;
 }
+.lp-brand-tagline {
+  display: block;
+  font-family: 'Instrument Serif', serif;
+  font-style: italic;
+  font-size: 11px;
+  color: #C9A074;
+  letter-spacing: 0.02em;
+  margin-top: 3px;
+  font-weight: 400;
+  text-transform: lowercase;
+}
+.lp-footer .lp-brand-tagline { color: #C9A074; }
 .lp-nav-links {
   display: flex;
   gap: 32px;
@@ -1893,7 +1907,9 @@
   padding-bottom: 40px;
   border-bottom: 1px solid rgba(255,255,255,0.08);
 }
-.lp-footer-brand .lp-brand { color: white; }
+.lp-footer-brand .lp-brand { color: white; align-items: center; }
+.lp-footer-brand .lp-brand-text { color: white; }
+.lp-footer-brand .lp-brand-tagline { color: #C9A074; }
 .lp-footer-brand p {
   font-size: 14px;
   color: rgba(255,255,255,0.6);

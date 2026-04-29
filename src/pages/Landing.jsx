@@ -7,6 +7,7 @@ import {
   Building2, Network, Wallet, Bot as BotIcon, Instagram, BookUser, Image as ImageIcon,
   ScanLine, FileSearch,
 } from 'lucide-react'
+import BrandMark from '../components/BrandMark'
 import './Landing.css'
 
 const TESTIMONIALS = [
@@ -35,17 +36,9 @@ export default function Landing() {
         <div className="lp-nav-inner">
           <Link to="/" className="lp-brand">
             <div className="lp-brand-mark">
-              <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
-                <path d="M14 2 L26 14 L14 26 L2 14 Z" fill="url(#g1)" />
-                <defs>
-                  <linearGradient id="g1" x1="0" y1="0" x2="28" y2="28">
-                    <stop offset="0%" stopColor="#10B981" />
-                    <stop offset="100%" stopColor="#059669" />
-                  </linearGradient>
-                </defs>
-              </svg>
+              <BrandMark size={32} color="#0F0E1B" strokeWidth={1.6} />
             </div>
-            <span className="lp-brand-text">MedicinaMKT</span>
+            <span className="lp-brand-text">Medicina Marketing</span>
           </Link>
 
           <div className="lp-nav-links">
@@ -430,17 +423,12 @@ export default function Landing() {
             <div className="lp-footer-brand">
               <Link to="/" className="lp-brand">
                 <div className="lp-brand-mark">
-                  <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
-                    <path d="M14 2 L26 14 L14 26 L2 14 Z" fill="url(#g2)" />
-                    <defs>
-                      <linearGradient id="g2" x1="0" y1="0" x2="28" y2="28">
-                        <stop offset="0%" stopColor="#10B981" />
-                        <stop offset="100%" stopColor="#059669" />
-                      </linearGradient>
-                    </defs>
-                  </svg>
+                  <BrandMark size={32} color="#C9A074" strokeWidth={1.6} />
                 </div>
-                <span className="lp-brand-text">MedicinaMKT</span>
+                <div>
+                  <span className="lp-brand-text">Medicina Marketing</span>
+                  <span className="lp-brand-tagline">Lucro e ética andam juntos</span>
+                </div>
               </Link>
               <p>
                 A central de atendimento, agenda e gestão para clínicas que valorizam tempo, dinheiro e o paciente.
@@ -463,12 +451,12 @@ export default function Landing() {
             <div className="lp-footer-col">
               <h4>Falar com a gente</h4>
               <a href="https://wa.me/5561999999999"><Phone size={12} /> WhatsApp</a>
-              <a href="mailto:contato@medicinamkt.com"><Mail size={12} /> contato@medicinamkt.com</a>
+              <a href="mailto:contato@medicinamarketing.com.br"><Mail size={12} /> contato@medicinamarketing.com.br</a>
             </div>
           </div>
           <div className="lp-footer-bottom">
-            <span>© 2026 MedicinaMKT · Todos os direitos reservados</span>
-            <span className="lp-footer-made">Feito com <span className="lp-heart">♥</span> para a saúde</span>
+            <span>© 2026 Medicina Marketing · Todos os direitos reservados</span>
+            <span className="lp-footer-made">Lucro e ética andam juntos.</span>
           </div>
         </div>
       </footer>

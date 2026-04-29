@@ -5,6 +5,20 @@
 export const UPDATES = [
   {
     date: '2026-04-28',
+    title: 'Identidade visual oficial — Medicina Marketing',
+    type: 'improvement',
+    tags: ['Marca', 'Geral'],
+    items: [
+      'Logo oficial aplicado: monograma "MM" em traços finos cobre dentro de círculo',
+      'Componente reutilizável BrandMark — usado na sidebar, login, landing nav, footer e qualquer lugar que precisar',
+      'Wordmark padronizado: "Medicina Marketing" no lugar de "MedicinaMKT" nas áreas visíveis',
+      'Tagline oficial "Lucro e ética andam juntos" no footer da landing, login e como acento dourado discreto',
+      'Cor cobre/bronze (#C9A074) incorporada como cor de acento de marca em pontos editoriais',
+      'Title da aba do navegador atualizado para "Medicina Marketing — Lucro e ética andam juntos"',
+    ],
+  },
+  {
+    date: '2026-04-28',
     title: 'Landing — 5 novos features na seção principal',
     type: 'improvement',
     tags: ['Landing', 'Marketing'],

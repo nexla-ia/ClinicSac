@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { Eye, EyeOff, Loader2, ArrowLeft, Sparkles, Calendar, Bot, MessageSquare } from 'lucide-react'
+import BrandMark from '../components/BrandMark'
 import './LoginPage.css'
 
 export default function LoginPage() {
@@ -42,17 +43,11 @@ export default function LoginPage() {
         {/* COLUNA ESQUERDA — branding */}
         <div className="login-left">
           <Link to="/" className="login-brand">
-            <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
-              <path d="M14 2 L26 14 L14 26 L2 14 Z" fill="url(#logingrad)" />
-              <defs>
-                <linearGradient id="logingrad" x1="0" y1="0" x2="28" y2="28">
-                  <stop offset="0%" stopColor="#FDE047" />
-                  <stop offset="50%" stopColor="#4ADE80" />
-                  <stop offset="100%" stopColor="#22D3EE" />
-                </linearGradient>
-              </defs>
-            </svg>
-            <span>MedicinaMKT</span>
+            <BrandMark size={32} color="#0F0E1B" strokeWidth={1.6} />
+            <div className="login-brand-text">
+              <span>Medicina Marketing</span>
+              <small>Lucro e ética andam juntos</small>
+            </div>
           </Link>
 
           <div className="login-eyebrow">
