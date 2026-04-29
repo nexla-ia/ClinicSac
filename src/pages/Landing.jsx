@@ -485,6 +485,20 @@ export default function Landing() {
             />
           </div>
 
+          {/* Add-on de usuário */}
+          <div className="lp-addon">
+            <div className="lp-addon-icon">
+              <Users size={16} />
+            </div>
+            <div className="lp-addon-text">
+              <span className="lp-addon-title">Precisa de mais acessos sem mudar de plano?</span>
+              <span className="lp-addon-sub">
+                <strong>R$ 39 por usuário adicional/mês</strong> — disponível em Starter e Pro.
+                Profissionais cadastrados, WhatsApp e Instagram extras só via mudança de plano.
+              </span>
+            </div>
+          </div>
+
           {/* Tabela completa de comparação */}
           <details className="lp-compare">
             <summary className="lp-compare-toggle">
@@ -832,7 +846,8 @@ function ComparisonTable() {
   const groups = [
     { title: 'Plano e equipe', rows: [
       ['Profissionais cadastrados',     'Até 3',         'Até 25',          'Ilimitado'],
-      ['Usuários (equipe)',             '5',             '20',              'Ilimitado'],
+      ['Usuários (equipe)',             '5 inclusos',    '20 inclusos',     'Ilimitado'],
+      ['Usuário adicional',             'R$ 39/mês',     'R$ 39/mês',       'Incluso'],
       ['Pacientes cadastrados',         'Ilimitado',     'Ilimitado',       'Ilimitado'],
       ['Agendas',                       '1',             'Ilimitadas',      'Ilimitadas'],
     ]},
