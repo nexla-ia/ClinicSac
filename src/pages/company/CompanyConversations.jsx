@@ -805,7 +805,13 @@ export default function CompanyConversations() {
                   setContextMenu({ x: e.clientX, y: e.clientY, contact: c })
                 }}
               >
-                <div className="contact-avatar"><User size={14} style={{ opacity: 0.4 }} /></div>
+                <div className="contact-avatar" style={saved?.photo ? { background: 'transparent', overflow: 'hidden' } : {}}>
+                  {saved?.photo
+                    ? <img src={saved.photo} alt={saved.nome} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    : saved?.nome
+                      ? <span style={{ fontWeight: 700, fontSize: 12, color: '#2563EB' }}>{saved.nome.charAt(0).toUpperCase()}</span>
+                      : <User size={14} style={{ opacity: 0.4 }} />}
+                </div>
                 <div className="contact-info" style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap' }}>
                     <div className="contact-name" style={saved ? { fontWeight: 600 } : {}}>
@@ -874,22 +880,40 @@ export default function CompanyConversations() {
         ) : (
           <>
             <div className="chat-header">
-              <div className="contact-avatar" style={{ width: 38, height: 38 }}>
-                <User size={14} style={{ opacity: 0.4 }} />
-              </div>
               {(() => {
                 const cleanNum = selected.phone.replace(/\D/g, '')
                 const saved = savedContacts[cleanNum]
                 return (
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 500, fontSize: 14, color: 'var(--text-primary)' }}>
-                      {saved ? saved.nome : selected.phone}
+                  <>
+                    <div className="contact-avatar"
+                      style={{
+                        width: 38, height: 38,
+                        background: saved?.photo ? 'transparent' : undefined,
+                        overflow: 'hidden',
+                        cursor: saved ? 'pointer' : 'default',
+                      }}
+                      onClick={() => saved && navigate(`/painel/contatos/${saved.id}`)}
+                      title={saved ? 'Abrir ficha do paciente' : ''}
+                    >
+                      {saved?.photo
+                        ? <img src={saved.photo} alt={saved.nome} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        : saved?.nome
+                          ? <span style={{ fontWeight: 700, fontSize: 14, color: '#2563EB' }}>{saved.nome.charAt(0).toUpperCase()}</span>
+                          : <User size={14} style={{ opacity: 0.4 }} />}
                     </div>
-                    <div style={{ fontSize: 12, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 6 }}>
-                      {saved && <span style={{ fontFamily: 'monospace' }}>{selected.phone}</span>}
-                      {!loadingMsgs && <span>{messages.length} mensagem(ns)</span>}
+                    <div style={{ flex: 1 }}>
+                      <div
+                        style={{ fontWeight: 500, fontSize: 14, color: 'var(--text-primary)', cursor: saved ? 'pointer' : 'default' }}
+                        onClick={() => saved && navigate(`/painel/contatos/${saved.id}`)}
+                      >
+                        {saved ? saved.nome : selected.phone}
+                      </div>
+                      <div style={{ fontSize: 12, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                        {saved && <span style={{ fontFamily: 'monospace' }}>{selected.phone}</span>}
+                        {!loadingMsgs && <span>{messages.length} mensagem(ns)</span>}
+                      </div>
                     </div>
-                  </div>
+                  </>
                 )
               })()}
               {!isClosed && (() => {

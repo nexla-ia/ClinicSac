@@ -20,6 +20,9 @@ const STATUS_META = {
 }
 
 const GENDER_OPTIONS = ['Feminino', 'Masculino', 'Não-binário', 'Prefiro não informar']
+const MARITAL_OPTIONS = ['Solteiro(a)', 'Casado(a)', 'União estável', 'Divorciado(a)', 'Viúvo(a)']
+const BLOOD_OPTIONS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-']
+const REFERRAL_OPTIONS = ['Indicação', 'Instagram', 'Facebook', 'Google', 'Site', 'Convênio', 'Passou na frente', 'Outro']
 
 function fmtCpf(v) {
   const d = (v || '').replace(/\D/g, '').slice(0, 11)
@@ -131,22 +134,30 @@ export default function CompanyPatientDetail() {
     const payload = {
       numero,
       nome: editing.nome.trim(),
+      nome_social: editing.nome_social?.trim() || null,
       cpf,
       rg: editing.rg?.trim() || null,
       birth_date: editing.birth_date || null,
       gender: editing.gender || null,
+      marital_status: editing.marital_status || null,
       profession: editing.profession?.trim() || null,
       email: editing.email?.trim() || null,
       address: editing.address?.trim() || null,
       phone_secondary: editing.phone_secondary?.replace(/\D/g, '') || null,
       emergency_contact: editing.emergency_contact?.trim() || null,
       emergency_phone: editing.emergency_phone?.replace(/\D/g, '') || null,
+      guardian_name: editing.guardian_name?.trim() || null,
+      guardian_phone: editing.guardian_phone?.replace(/\D/g, '') || null,
       insurance_plan_id: editing.insurance_plan_id || null,
       insurance_card: editing.insurance_card?.trim() || null,
+      blood_type: editing.blood_type || null,
+      weight: editing.weight ? parseFloat(editing.weight) : null,
+      height: editing.height ? parseFloat(editing.height) : null,
       allergies: editing.allergies?.trim() || null,
       chronic_conditions: editing.chronic_conditions?.trim() || null,
       medications: editing.medications?.trim() || null,
       clinical_notes: editing.clinical_notes?.trim() || null,
+      referral_source: editing.referral_source || null,
       notes: editing.notes?.trim() || null,
       photo: editing.photo || null,
     }
@@ -349,11 +360,14 @@ export default function CompanyPatientDetail() {
             <SectionTitle icon={IdCard} title="Identificação" />
             <FieldGrid>
               <Field label="Nome completo" value={patient.nome} large />
+              {patient.nome_social && <Field label="Nome social" value={patient.nome_social} large />}
               <Field label="CPF" value={patient.cpf ? fmtCpf(patient.cpf) : '—'} mono />
               <Field label="RG" value={patient.rg || '—'} mono />
               <Field label="Data de nascimento" value={patient.birth_date ? `${fmtDate(patient.birth_date)} (${age} anos)` : '—'} />
               <Field label="Gênero" value={patient.gender || '—'} />
+              <Field label="Estado civil" value={patient.marital_status || '—'} />
               <Field label="Profissão" value={patient.profession || '—'} />
+              <Field label="Origem / Indicação" value={patient.referral_source || '—'} />
             </FieldGrid>
           </div>
 
@@ -366,6 +380,20 @@ export default function CompanyPatientDetail() {
               <Field label="Endereço" value={patient.address || '—'} large />
               <Field label="Contato de emergência" value={patient.emergency_contact || '—'} />
               <Field label="Telefone de emergência" value={patient.emergency_phone || '—'} mono />
+              <Field label="Responsável legal" value={patient.guardian_name || '—'} />
+              <Field label="Telefone do responsável" value={patient.guardian_phone || '—'} mono />
+            </FieldGrid>
+          </div>
+
+          <div className="pat-section-card">
+            <SectionTitle icon={Activity} title="Antropometria" />
+            <FieldGrid>
+              <Field label="Tipo sanguíneo" value={patient.blood_type || '—'} />
+              <Field label="Peso" value={patient.weight ? `${patient.weight} kg` : '—'} />
+              <Field label="Altura" value={patient.height ? `${patient.height} m` : '—'} />
+              {patient.weight && patient.height && (
+                <Field label="IMC" value={`${(patient.weight / (patient.height * patient.height)).toFixed(1)}`} />
+              )}
             </FieldGrid>
           </div>
 
@@ -579,6 +607,9 @@ function EditModal({ editing, setEditing, insurancePlans, onSave, onClose, savin
               <ModalField label="Nome completo">
                 <input className="nx-input" autoFocus value={editing.nome || ''} onChange={e => update('nome', e.target.value)} />
               </ModalField>
+              <ModalField label="Nome social (opcional)">
+                <input className="nx-input" placeholder="Como o paciente prefere ser chamado" value={editing.nome_social || ''} onChange={e => update('nome_social', e.target.value)} />
+              </ModalField>
               <Row>
                 <ModalField label="CPF">
                   <input className="nx-input" placeholder="000.000.000-00" value={fmtCpf(editing.cpf || '')} onChange={e => update('cpf', e.target.value)} />
@@ -598,8 +629,22 @@ function EditModal({ editing, setEditing, insurancePlans, onSave, onClose, savin
                   </select>
                 </ModalField>
               </Row>
-              <ModalField label="Profissão">
-                <input className="nx-input" value={editing.profession || ''} onChange={e => update('profession', e.target.value)} />
+              <Row>
+                <ModalField label="Estado civil">
+                  <select className="nx-select" value={editing.marital_status || ''} onChange={e => update('marital_status', e.target.value)}>
+                    <option value="">—</option>
+                    {MARITAL_OPTIONS.map(m => <option key={m}>{m}</option>)}
+                  </select>
+                </ModalField>
+                <ModalField label="Profissão">
+                  <input className="nx-input" value={editing.profession || ''} onChange={e => update('profession', e.target.value)} />
+                </ModalField>
+              </Row>
+              <ModalField label="Origem / Como conheceu a clínica">
+                <select className="nx-select" value={editing.referral_source || ''} onChange={e => update('referral_source', e.target.value)}>
+                  <option value="">—</option>
+                  {REFERRAL_OPTIONS.map(r => <option key={r}>{r}</option>)}
+                </select>
               </ModalField>
             </div>
           )}
@@ -628,6 +673,14 @@ function EditModal({ editing, setEditing, insurancePlans, onSave, onClose, savin
                   <input className="nx-input" value={editing.emergency_phone || ''} onChange={e => update('emergency_phone', e.target.value)} />
                 </ModalField>
               </Row>
+              <Row>
+                <ModalField label="Responsável legal (menor de idade)">
+                  <input className="nx-input" value={editing.guardian_name || ''} onChange={e => update('guardian_name', e.target.value)} />
+                </ModalField>
+                <ModalField label="Telefone do responsável">
+                  <input className="nx-input" value={editing.guardian_phone || ''} onChange={e => update('guardian_phone', e.target.value)} />
+                </ModalField>
+              </Row>
             </div>
           )}
 
@@ -647,6 +700,20 @@ function EditModal({ editing, setEditing, insurancePlans, onSave, onClose, savin
 
           {section === 'saude' && (
             <div className="pat-modal-fields">
+              <Row>
+                <ModalField label="Tipo sanguíneo">
+                  <select className="nx-select" value={editing.blood_type || ''} onChange={e => update('blood_type', e.target.value)}>
+                    <option value="">—</option>
+                    {BLOOD_OPTIONS.map(b => <option key={b}>{b}</option>)}
+                  </select>
+                </ModalField>
+                <ModalField label="Peso (kg)">
+                  <input className="nx-input" type="number" step="0.1" placeholder="Ex: 72.5" value={editing.weight || ''} onChange={e => update('weight', e.target.value)} />
+                </ModalField>
+                <ModalField label="Altura (m)">
+                  <input className="nx-input" type="number" step="0.01" placeholder="Ex: 1.78" value={editing.height || ''} onChange={e => update('height', e.target.value)} />
+                </ModalField>
+              </Row>
               <ModalField label="Alergias">
                 <textarea className="nx-input" rows={2} placeholder="Ex: penicilina, dipirona..." value={editing.allergies || ''} onChange={e => update('allergies', e.target.value)} />
               </ModalField>

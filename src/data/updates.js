@@ -5,6 +5,20 @@
 export const UPDATES = [
   {
     date: '2026-04-28',
+    title: 'Ficha do paciente turbinada — foto na conversa, autocomplete e mais campos',
+    type: 'improvement',
+    tags: ['Pacientes'],
+    items: [
+      'Cliquem agora no nome do paciente lá na lista e vocês caem direto na ficha completa. Sem modal feio no caminho.',
+      'A foto que vocês cadastram na ficha aparece como avatar do paciente nas conversas e no header do chat — clica nela e abre a ficha.',
+      'Cadastrando paciente novo: comecem a digitar o telefone e a gente sugere automaticamente os números que já conversaram com a clínica e ainda não foram cadastrados. Acelera muito.',
+      'Adicionamos campos que toda clínica tem na ficha: nome social, estado civil, tipo sanguíneo, peso, altura (com IMC calculado), responsável legal e telefone do responsável.',
+      'Aba "Origem / Indicação": vocês escolhem como o paciente conheceu a clínica (Instagram, Facebook, Google, indicação...) — pra rastrear depois nas métricas.',
+      'O modal de "Novo paciente" ficou só com nome + telefone — depois vocês são levados pra ficha completa pra preencher o resto. Sem ter que fazer cadastro gigante de uma vez só.',
+    ],
+  },
+  {
+    date: '2026-04-28',
     title: 'Ficha de paciente completa — prontuário, foto e linha do tempo',
     type: 'feature',
     tags: ['Pacientes', 'Saúde'],

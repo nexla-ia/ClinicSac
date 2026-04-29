@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
@@ -6,7 +6,7 @@ import { supabase } from '../../lib/supabase'
 import ConfirmModal from '../../components/ConfirmModal'
 import {
   Users, Search, Pencil, Trash2, X, Plus, Phone, Copy, Check, MessageSquare,
-  Mail, Calendar, MapPin, ShieldCheck, FileText, IdCard, User as UserIcon,
+  Mail, ShieldCheck, Sparkles,
 } from 'lucide-react'
 import './Company.css'
 
@@ -18,19 +18,15 @@ function fmtCpf(v) {
     .replace(/(\d{3})(\d{1,2})$/, '$1-$2')
 }
 
-function fmtDateBR(d) {
-  if (!d) return ''
-  const dt = new Date(`${d}T12:00:00`)
-  if (isNaN(dt.getTime())) return ''
-  return dt.toLocaleDateString('pt-BR')
-}
-
 function calcAge(d) {
   if (!d) return null
   const dt = new Date(`${d}T12:00:00`)
   if (isNaN(dt.getTime())) return null
-  const diff = Date.now() - dt.getTime()
-  return Math.floor(diff / (365.25 * 86400000))
+  const now = new Date()
+  let age = now.getFullYear() - dt.getFullYear()
+  const m = now.getMonth() - dt.getMonth()
+  if (m < 0 || (m === 0 && now.getDate() < dt.getDate())) age--
+  return age
 }
 
 const labelStyle = {
@@ -46,14 +42,16 @@ export default function CompanyContacts() {
 
   const [patients, setPatients] = useState([])
   const [insurancePlans, setInsurancePlans] = useState([])
+  const [chatPhones, setChatPhones] = useState([]) // números das conversas que não estão salvos
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
-  const [editing, setEditing] = useState(null)
+  const [newModal, setNewModal] = useState(null)
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState('')
   const [copiedId, setCopiedId] = useState(null)
   const [confirmDelete, setConfirmDelete] = useState(null)
   const [deletingNow, setDeletingNow] = useState(false)
+  const [phoneFocus, setPhoneFocus] = useState(false)
 
   useEffect(() => {
     if (!instance) return
@@ -61,9 +59,18 @@ export default function CompanyContacts() {
     Promise.all([
       supabase.from('saved_contacts').select('*').eq('instancia', instance).order('nome', { ascending: true }),
       supabase.from('insurance_plans').select('id, name').eq('instancia', instance).eq('active', true).order('name'),
-    ]).then(([{ data: pat }, { data: plans }]) => {
+      supabase.from('mensagens_geral').select('numero').eq('instancia', instance).limit(5000),
+    ]).then(([{ data: pat }, { data: plans }, { data: msgs }]) => {
       if (pat) setPatients(pat)
       if (plans) setInsurancePlans(plans)
+      if (msgs) {
+        const savedSet = new Set((pat || []).map(p => p.numero))
+        const uniques = [...new Set(msgs.map(m =>
+          m.numero?.replace(/@.*/, '').replace(/\D/g, '')
+        ).filter(Boolean))]
+        const unsaved = uniques.filter(n => !savedSet.has(n) && !uniques.includes(n + '@g.us'))
+        setChatPhones(unsaved.slice(0, 200))
+      }
       setLoading(false)
     })
 
@@ -85,48 +92,25 @@ export default function CompanyContacts() {
   }, [instance])
 
   function openNew() {
-    setEditing({
-      nome: '', numero: '', cpf: '', birth_date: '', email: '',
-      address: '', insurance_plan_id: null, insurance_card: '', notes: '',
-    })
+    setNewModal({ nome: '', numero: '' })
     setErr('')
   }
 
-  function openEdit(p) {
-    setEditing({ ...p })
-    setErr('')
-  }
-
-  async function handleSave() {
-    if (!editing.nome?.trim()) { setErr('Nome é obrigatório'); return }
+  async function handleCreate() {
+    if (!newModal.nome?.trim()) { setErr('Nome é obrigatório'); return }
     setSaving(true)
-    const numero = editing.numero?.toString().replace(/\D/g, '') || ''
-    const cpf    = editing.cpf?.toString().replace(/\D/g, '') || null
-    const isNew = !editing.id
+    const numero = newModal.numero?.toString().replace(/\D/g, '') || ''
     const payload = {
       numero,
       instancia: instance,
-      nome: editing.nome.trim(),
-      cpf,
-      birth_date: editing.birth_date || null,
-      email: editing.email?.trim() || null,
-      address: editing.address?.trim() || null,
-      insurance_plan_id: editing.insurance_plan_id || null,
-      insurance_card: editing.insurance_card?.trim() || null,
-      notes: editing.notes?.trim() || null,
+      nome: newModal.nome.trim(),
       created_by_email: session?.user?.email,
     }
-    const { error } = isNew
-      ? await supabase.from('saved_contacts').insert(payload)
-      : await supabase.from('saved_contacts').update({
-          nome: payload.nome, cpf: payload.cpf, birth_date: payload.birth_date,
-          email: payload.email, address: payload.address,
-          insurance_plan_id: payload.insurance_plan_id, insurance_card: payload.insurance_card,
-          notes: payload.notes, numero: payload.numero,
-        }).eq('id', editing.id)
+    const { data, error } = await supabase.from('saved_contacts').insert(payload).select().single()
     setSaving(false)
     if (error) { setErr('Erro: ' + error.message); return }
-    setEditing(null)
+    setNewModal(null)
+    if (data?.id) navigate(`/painel/contatos/${data.id}`)
   }
 
   function handleDelete(patient) {
@@ -156,6 +140,13 @@ export default function CompanyContacts() {
       (c.email || '').toLowerCase().includes(s)
     )
   })
+
+  // Sugestão de números das conversas conforme o digitado
+  const phoneSuggestions = useMemo(() => {
+    const q = (newModal?.numero || '').replace(/\D/g, '')
+    if (!q || q.length < 3) return []
+    return chatPhones.filter(p => p.includes(q)).slice(0, 6)
+  }, [newModal?.numero, chatPhones])
 
   return (
     <div style={{ padding: '1.5rem' }}>
@@ -209,8 +200,8 @@ export default function CompanyContacts() {
                 const plan = insurancePlans.find(p => p.id === c.insurance_plan_id)
                 const age = calcAge(c.birth_date)
                 return (
-                  <tr key={c.id} style={{ cursor: 'pointer' }} onClick={() => navigate(`/painel/contatos/${c.id}`)}>
-                    <td className="td-name">
+                  <tr key={c.id}>
+                    <td className="td-name" onClick={() => navigate(`/painel/contatos/${c.id}`)} style={{ cursor: 'pointer' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                         <div style={{
                           width: 34, height: 34, borderRadius: '50%',
@@ -225,7 +216,7 @@ export default function CompanyContacts() {
                             : c.nome?.charAt(0).toUpperCase()}
                         </div>
                         <div>
-                          <div style={{ fontWeight: 600 }}>{c.nome}</div>
+                          <div style={{ fontWeight: 600, color: '#2563EB' }}>{c.nome}</div>
                           <div style={{ fontSize: 11, color: 'var(--text-muted)', display: 'flex', gap: 8 }}>
                             {c.cpf && <span>CPF {fmtCpf(c.cpf)}</span>}
                             {age != null && <span>{age} anos</span>}
@@ -238,7 +229,7 @@ export default function CompanyContacts() {
                         <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontFamily: 'monospace' }}>
                           <Phone size={11} style={{ color: '#6B7280' }} />
                           {c.numero}
-                          <button onClick={(e) => { e.stopPropagation(); copyNumber(c.id, c.numero) }}
+                          <button onClick={() => copyNumber(c.id, c.numero)}
                             title="Copiar número"
                             style={{
                               display: 'inline-flex', alignItems: 'center', gap: 3,
@@ -276,7 +267,7 @@ export default function CompanyContacts() {
                     <td style={{ fontSize: 12, color: 'var(--text-muted)', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {c.notes || '—'}
                     </td>
-                    <td style={{ textAlign: 'right' }} onClick={e => e.stopPropagation()}>
+                    <td style={{ textAlign: 'right' }}>
                       <div style={{ display: 'inline-flex', gap: 6 }}>
                         {c.numero && (
                           <button className="table-action"
@@ -286,7 +277,7 @@ export default function CompanyContacts() {
                           </button>
                         )}
                         <button className="table-action" onClick={() => navigate(`/painel/contatos/${c.id}`)}>
-                          <Pencil size={11} /> Abrir
+                          <Pencil size={11} /> Abrir ficha
                         </button>
                         <button className="table-action danger" onClick={() => handleDelete(c)}>
                           <Trash2 size={11} /> Excluir
@@ -312,135 +303,87 @@ export default function CompanyContacts() {
         onCancel={() => setConfirmDelete(null)}
       />
 
-      {editing && createPortal(
+      {/* Modal "Novo paciente" — só nome + telefone, depois redireciona pra ficha */}
+      {newModal && createPortal(
         <div style={{
           position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.4)',
           display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999,
           backdropFilter: 'blur(4px)', padding: '1.5rem',
         }}>
-          <div className="nx-card" style={{ width: '100%', maxWidth: 560, maxHeight: '90vh', overflow: 'auto' }}>
+          <div className="nx-card" style={{ width: '100%', maxWidth: 460 }}>
             <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div>
-                <div style={{ fontWeight: 700, fontSize: 15 }}>{editing.id ? 'Editar paciente' : 'Novo paciente'}</div>
-                <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
-                  Cadastro completo do paciente
-                </div>
+                <div style={{ fontWeight: 700, fontSize: 15 }}>Novo paciente</div>
+                <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>Cadastre o básico — depois você completa a ficha.</div>
               </div>
-              <button style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }} onClick={() => setEditing(null)}>
+              <button style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }} onClick={() => setNewModal(null)}>
                 <X size={16} />
               </button>
             </div>
 
-            <div style={{ padding: '1.25rem 1.5rem', display: 'flex', flexDirection: 'column', gap: 18 }}>
-              {/* Bloco — Identificação */}
-              <Section title="Identificação" icon={UserIcon}>
-                <div>
-                  <label style={labelStyle}>Nome completo</label>
-                  <input className="nx-input" autoFocus placeholder="Ex: Maria Silva Santos"
-                    value={editing.nome} onChange={e => setEditing(p => ({ ...p, nome: e.target.value }))} />
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                  <div>
-                    <label style={labelStyle}>CPF</label>
-                    <input className="nx-input" placeholder="000.000.000-00"
-                      value={fmtCpf(editing.cpf || '')}
-                      onChange={e => setEditing(p => ({ ...p, cpf: e.target.value }))} />
-                  </div>
-                  <div>
-                    <label style={labelStyle}>Data de nascimento</label>
-                    <input className="nx-input" type="date"
-                      value={editing.birth_date || ''}
-                      onChange={e => setEditing(p => ({ ...p, birth_date: e.target.value }))} />
-                  </div>
-                </div>
-              </Section>
-
-              {/* Bloco — Contato */}
-              <Section title="Contato" icon={Phone}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                  <div>
-                    <label style={labelStyle}>Telefone (WhatsApp)</label>
-                    <input className="nx-input" placeholder="Ex: 5561991234567"
-                      value={editing.numero || ''}
-                      onChange={e => setEditing(p => ({ ...p, numero: e.target.value }))} />
-                  </div>
-                  <div>
-                    <label style={labelStyle}>E-mail</label>
-                    <input className="nx-input" type="email" placeholder="paciente@email.com"
-                      value={editing.email || ''}
-                      onChange={e => setEditing(p => ({ ...p, email: e.target.value }))} />
-                  </div>
-                </div>
-                <div>
-                  <label style={labelStyle}>Endereço</label>
-                  <input className="nx-input" placeholder="Rua, número, bairro, cidade"
-                    value={editing.address || ''}
-                    onChange={e => setEditing(p => ({ ...p, address: e.target.value }))} />
-                </div>
-              </Section>
-
-              {/* Bloco — Convênio */}
-              <Section title="Convênio" icon={ShieldCheck}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: 10 }}>
-                  <div>
-                    <label style={labelStyle}>Plano</label>
-                    <select className="nx-select" value={editing.insurance_plan_id || ''}
-                      onChange={e => setEditing(p => ({ ...p, insurance_plan_id: e.target.value || null }))}>
-                      <option value="">Particular</option>
-                      {insurancePlans.map(plan => <option key={plan.id} value={plan.id}>{plan.name}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label style={labelStyle}>Carteirinha</label>
-                    <input className="nx-input" placeholder="Número"
-                      value={editing.insurance_card || ''}
-                      onChange={e => setEditing(p => ({ ...p, insurance_card: e.target.value }))} />
-                  </div>
-                </div>
-                {insurancePlans.length === 0 && (
-                  <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-                    Cadastre convênios em <strong>Catálogo Clínico → Convênios</strong> para escolher aqui.
+            <div style={{ padding: '1.25rem 1.5rem', display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div>
+                <label style={labelStyle}>Nome completo</label>
+                <input className="nx-input" autoFocus placeholder="Ex: Maria Silva Santos"
+                  value={newModal.nome} onChange={e => setNewModal(p => ({ ...p, nome: e.target.value }))} />
+              </div>
+              <div style={{ position: 'relative' }}>
+                <label style={labelStyle}>Telefone (WhatsApp)</label>
+                <input className="nx-input" placeholder="Ex: 5561991234567"
+                  value={newModal.numero}
+                  onChange={e => setNewModal(p => ({ ...p, numero: e.target.value }))}
+                  onFocus={() => setPhoneFocus(true)}
+                  onBlur={() => setTimeout(() => setPhoneFocus(false), 180)}
+                />
+                {phoneFocus && phoneSuggestions.length > 0 && (
+                  <div style={{
+                    position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 5,
+                    background: 'white', border: '1px solid var(--border)',
+                    borderRadius: 10, marginTop: 4, padding: 4,
+                    boxShadow: '0 12px 28px -10px rgba(15,14,27,0.18)',
+                    maxHeight: 220, overflowY: 'auto',
+                  }}>
+                    <div style={{ padding: '6px 10px 4px', fontSize: 10, fontWeight: 800, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'flex', alignItems: 'center', gap: 5 }}>
+                      <Sparkles size={10} /> Já conversou com a clínica
+                    </div>
+                    {phoneSuggestions.map(p => (
+                      <button key={p}
+                        onClick={() => setNewModal(prev => ({ ...prev, numero: p }))}
+                        style={{
+                          width: '100%', textAlign: 'left',
+                          padding: '7px 10px', borderRadius: 7,
+                          background: 'transparent', border: 'none',
+                          fontFamily: 'monospace', fontSize: 13, color: '#0F0E1B',
+                          cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6,
+                          fontWeight: 500,
+                        }}
+                        onMouseEnter={e => e.currentTarget.style.background = '#F5F3FF'}
+                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                      >
+                        <Phone size={11} style={{ color: '#7C3AED' }} /> {p}
+                      </button>
+                    ))}
                   </div>
                 )}
-              </Section>
-
-              {/* Bloco — Notas */}
-              <Section title="Notas internas" icon={FileText}>
-                <textarea className="nx-input" rows={3}
-                  placeholder="Anotações privadas (alergias, preferências, observações clínicas...)"
-                  value={editing.notes || ''}
-                  onChange={e => setEditing(p => ({ ...p, notes: e.target.value }))} />
-              </Section>
+              </div>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 5 }}>
+                <Sparkles size={12} style={{ color: '#7C3AED' }} />
+                Comece a digitar o número — a gente sugere quem já conversou e ainda não foi cadastrado.
+              </div>
             </div>
 
             <div style={{ padding: '1rem 1.5rem', borderTop: '1px solid var(--border)' }}>
               {err && <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 8, padding: '8px 12px', fontSize: 12, color: '#DC2626', marginBottom: 12 }}>{err}</div>}
               <div style={{ display: 'flex', gap: 10 }}>
-                <button className="nx-btn-ghost" style={{ flex: 1 }} onClick={() => setEditing(null)}>Cancelar</button>
-                <button className="nx-btn-primary" style={{ flex: 1, justifyContent: 'center' }} onClick={handleSave} disabled={saving}>
-                  {saving ? 'Salvando...' : 'Salvar paciente'}
+                <button className="nx-btn-ghost" style={{ flex: 1 }} onClick={() => setNewModal(null)}>Cancelar</button>
+                <button className="nx-btn-primary" style={{ flex: 1, justifyContent: 'center' }} onClick={handleCreate} disabled={saving}>
+                  {saving ? 'Criando...' : 'Continuar para ficha'}
                 </button>
               </div>
             </div>
           </div>
         </div>
       , document.body)}
-    </div>
-  )
-}
-
-function Section({ title, icon: Icon, children }) {
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-      <div style={{
-        display: 'flex', alignItems: 'center', gap: 7,
-        fontSize: 11, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase',
-        color: 'var(--text-muted)',
-        paddingBottom: 6, borderBottom: '1px solid var(--border)',
-      }}>
-        <Icon size={12} /> {title}
-      </div>
-      {children}
     </div>
   )
 }
