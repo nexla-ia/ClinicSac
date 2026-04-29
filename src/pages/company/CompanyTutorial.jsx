@@ -7,6 +7,7 @@ import {
   Mic, Paperclip, FileText, Trophy, Inbox, Users, Flag, Clock, ShieldCheck,
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
+import ConfirmModal from '../../components/ConfirmModal'
 import './CompanyTutorial.css'
 
 const SEEN_KEY = 'nx_tutorial_completed'
@@ -296,6 +297,7 @@ export default function CompanyTutorial() {
     try { return JSON.parse(localStorage.getItem(SEEN_KEY) || '[]') } catch { return [] }
   })
   const [activeKey, setActiveKey] = useState(MODULES[0].key)
+  const [confirmSkip, setConfirmSkip] = useState(false)
   const isAdmin = session?.user?.role === 'admin'
   const aiEnabled = session?.company?.ai_enabled !== false
   const contentRef = useRef(null)
@@ -308,8 +310,12 @@ export default function CompanyTutorial() {
 
   function skipOnboarding() {
     if (!userKey) return
-    if (!confirm('Tem certeza que quer pular o tutorial? Você pode voltar aqui a qualquer momento pelo menu lateral.')) return
+    setConfirmSkip(true)
+  }
+  function confirmSkipAction() {
+    if (!userKey) return
     localStorage.setItem(`nx_onboarding_done_${userKey}`, 'true')
+    setConfirmSkip(false)
     navigate('/painel/conversas', { replace: true })
   }
 
@@ -435,6 +441,17 @@ export default function CompanyTutorial() {
           />
         </main>
       </div>
+
+      <ConfirmModal
+        open={confirmSkip}
+        variant="warning"
+        title="Pular tutorial?"
+        message="Sem stress — você pode voltar aqui a qualquer momento pelo menu lateral. Mas perder esse manual pode te custar tempo lá na frente."
+        confirmLabel="Pular mesmo assim"
+        cancelLabel="Continuar tutorial"
+        onConfirm={confirmSkipAction}
+        onCancel={() => setConfirmSkip(false)}
+      />
     </div>
   )
 }
