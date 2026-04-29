@@ -134,11 +134,16 @@ export default function AdmCompanyDetail() {
     if (!deletingUser) return
     setSaving(true)
     setDeleteErr('')
-    // Limpa vínculos de setor antes de excluir
-    await supabase.from('sector_members').delete().eq('user_id', deletingUser.id)
-    const { error } = await supabase.from('users').delete().eq('id', deletingUser.id)
+    const { data, error } = await supabase.rpc('delete_user', { p_user_id: deletingUser.id })
     setSaving(false)
-    if (error) { setDeleteErr('Erro: ' + error.message); return }
+    if (error) {
+      setDeleteErr('Erro: ' + error.message + ' — confirme que a função delete_user foi criada (rode supabase/migrations/20260429_delete_user_rpc.sql).')
+      return
+    }
+    if (data && data.ok === false) {
+      setDeleteErr(data.error || 'Não foi possível excluir.')
+      return
+    }
     setDeletingUser(null)
     await loadDB()
   }

@@ -196,10 +196,13 @@ export default function CompanyAdmin() {
       setDeleteErr('Você não pode excluir a si mesmo.'); return
     }
     setSaving(true); setDeleteErr('')
-    await supabase.from('sector_members').delete().eq('user_id', deletingUser.id)
-    const { error } = await supabase.from('users').delete().eq('id', deletingUser.id)
+    const { data, error } = await supabase.rpc('delete_user', { p_user_id: deletingUser.id })
     setSaving(false)
-    if (error) { setDeleteErr('Erro: ' + error.message); return }
+    if (error) {
+      setDeleteErr('Erro: ' + error.message + ' — peça pra rodar a migração delete_user_rpc no Supabase.')
+      return
+    }
+    if (data && data.ok === false) { setDeleteErr(data.error || 'Não foi possível excluir.'); return }
     setUsers(prev => prev.filter(u => u.id !== deletingUser.id))
     setSectorMembers(prev => prev.filter(m => m.user_id !== deletingUser.id))
     setDeletingUser(null)
