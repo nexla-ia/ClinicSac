@@ -5,6 +5,22 @@
 export const UPDATES = [
   {
     date: '2026-04-28',
+    title: 'Tela de Tutorial — manual ilustrado da plataforma',
+    type: 'feature',
+    tags: ['Geral', 'Onboarding', 'Novo'],
+    items: [
+      'Nova aba "Tutorial" no menu lateral com manual interativo de toda a plataforma',
+      'Cada módulo (Conversas, Agenda, Catálogo, etc.) é um capítulo com cor própria, emoji animado e 3-5 passos numerados',
+      'Dicas em formato de post-it tortinho com ícone de lâmpada',
+      'Progresso gamificado: barra de progresso no topo + marcar capítulo como concluído (salvo no navegador)',
+      'Troféu animado quando todos os capítulos são lidos',
+      'Conteúdo adaptativo: usuários sem perfil admin não veem capítulos de Catálogo/Administração; empresas sem IA não veem Conversas IA',
+      'Botão CTA em cada capítulo abre o módulo correspondente para testar na hora',
+      'Tipografia Bricolage Grotesque + DM Sans alinhada à landing',
+    ],
+  },
+  {
+    date: '2026-04-28',
     title: 'Landing page redesenhada — vibrante e moderna',
     type: 'improvement',
     tags: ['Marketing'],

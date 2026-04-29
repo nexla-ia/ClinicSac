@@ -1,0 +1,541 @@
+/* ─── Tutorial — Manual ilustrado moderno ─────────────────────────────────── */
+
+.tut-root {
+  font-family: 'DM Sans', system-ui, sans-serif;
+  background: #FAF8FF;
+  color: #0F0E1B;
+  min-height: 100%;
+  padding-bottom: 60px;
+}
+
+/* ─── HERO ────────────────────────────────────────────────────────────────── */
+.tut-hero {
+  position: relative;
+  padding: 60px 32px 80px;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse 600px 300px at 80% 30%, rgba(252, 211, 77, 0.25), transparent 70%),
+    radial-gradient(ellipse 500px 400px at 15% 70%, rgba(74, 222, 128, 0.2), transparent 70%),
+    radial-gradient(ellipse 400px 300px at 50% 50%, rgba(168, 139, 250, 0.18), transparent 70%),
+    #FFF7ED;
+  border-bottom: 1px solid rgba(15, 14, 27, 0.06);
+}
+.tut-hero-bg {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(15, 14, 27, 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(15, 14, 27, 0.025) 1px, transparent 1px);
+  background-size: 28px 28px;
+  pointer-events: none;
+}
+.tut-hero-content {
+  position: relative;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+.tut-hero-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  background: white;
+  color: #0F0E1B;
+  padding: 6px 14px;
+  border-radius: 999px;
+  margin-bottom: 18px;
+  border: 1px solid rgba(15, 14, 27, 0.08);
+  box-shadow: 0 2px 6px -3px rgba(15, 14, 27, 0.1);
+}
+.tut-hero-title {
+  font-family: 'Bricolage Grotesque', sans-serif;
+  font-size: clamp(36px, 4vw, 56px);
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  line-height: 1;
+  margin: 0 0 18px;
+  color: #0F0E1B;
+}
+.tut-hero-title em {
+  font-style: normal;
+  background: linear-gradient(110deg, #DB2777, #DC2626 40%, #FB7185);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  font-weight: 700;
+}
+.tut-hero-sub {
+  font-size: 16px;
+  color: #2D2B45;
+  max-width: 620px;
+  line-height: 1.6;
+  margin: 0 0 28px;
+  font-weight: 500;
+}
+
+.tut-progress {
+  max-width: 480px;
+}
+.tut-progress-bar {
+  height: 10px;
+  background: rgba(15, 14, 27, 0.08);
+  border-radius: 999px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+.tut-progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(110deg, #FDE047 0%, #4ADE80 50%, #22D3EE 100%);
+  transition: width 0.5s ease;
+  box-shadow: 0 0 16px rgba(74, 222, 128, 0.4);
+}
+.tut-progress-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 13px;
+  color: #2D2B45;
+  font-weight: 600;
+}
+.tut-progress-meta strong {
+  color: #0F0E1B;
+  font-weight: 800;
+  font-family: 'Bricolage Grotesque', sans-serif;
+  font-size: 15px;
+}
+.tut-trophy {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: linear-gradient(110deg, #FDE047, #FB923C);
+  color: #7C2D12;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-weight: 800;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  animation: trophyPulse 2s ease-in-out infinite;
+}
+@keyframes trophyPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.04); }
+}
+
+/* ─── LAYOUT ──────────────────────────────────────────────────────────────── */
+.tut-shell {
+  max-width: 1200px;
+  margin: -40px auto 0;
+  padding: 0 32px;
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  gap: 24px;
+  align-items: flex-start;
+  position: relative;
+  z-index: 2;
+}
+
+/* ─── NAV LATERAL ─────────────────────────────────────────────────────────── */
+.tut-nav {
+  position: sticky;
+  top: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: white;
+  border: 1px solid rgba(15, 14, 27, 0.06);
+  border-radius: 18px;
+  padding: 16px;
+  box-shadow: 0 4px 16px -8px rgba(15, 14, 27, 0.08);
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+}
+.tut-nav::-webkit-scrollbar { width: 6px; }
+.tut-nav::-webkit-scrollbar-thumb { background: rgba(15,14,27,0.1); border-radius: 4px; }
+
+.tut-nav-title {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  color: #6B6A85;
+  padding: 6px 8px 12px;
+  border-bottom: 1px solid rgba(15, 14, 27, 0.06);
+  margin-bottom: 8px;
+}
+.tut-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1.5px solid transparent;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.18s ease;
+  font-family: inherit;
+}
+.tut-nav-item:hover {
+  background: rgba(15, 14, 27, 0.025);
+}
+.tut-nav-item.active {
+  border-style: solid;
+  box-shadow: 0 4px 12px -6px rgba(15, 14, 27, 0.12);
+}
+.tut-nav-num {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  border: 1.5px solid;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Bricolage Grotesque', sans-serif;
+  font-size: 11px;
+  font-weight: 800;
+  flex-shrink: 0;
+  transition: all 0.2s ease;
+}
+.tut-nav-info { flex: 1; min-width: 0; }
+.tut-nav-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: #0F0E1B;
+  letter-spacing: -0.01em;
+}
+.tut-nav-sub {
+  font-size: 11px;
+  color: #6B6A85;
+  margin-top: 1px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tut-nav-arrow {
+  color: #9594B0;
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.tut-nav-item:hover .tut-nav-arrow,
+.tut-nav-item.active .tut-nav-arrow { opacity: 1; }
+.tut-nav-item.done .tut-nav-name {
+  text-decoration: line-through;
+  text-decoration-color: rgba(15, 14, 27, 0.3);
+  color: #6B6A85;
+}
+
+/* ─── CONTEÚDO ────────────────────────────────────────────────────────────── */
+.tut-content { min-width: 0; }
+
+.tut-guide {
+  background: white;
+  border: 1px solid rgba(15, 14, 27, 0.06);
+  border-radius: 24px;
+  overflow: hidden;
+  box-shadow: 0 4px 20px -10px rgba(15, 14, 27, 0.08);
+  animation: guideEnter 0.4s ease-out;
+}
+@keyframes guideEnter {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Cabeçalho colorido do capítulo */
+.tut-guide-head {
+  position: relative;
+  padding: 40px 40px 36px;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 24px;
+  align-items: center;
+  overflow: hidden;
+}
+.tut-guide-emoji {
+  font-size: 64px;
+  line-height: 1;
+  filter: drop-shadow(0 4px 8px rgba(15, 14, 27, 0.15));
+  animation: emojiBob 3s ease-in-out infinite;
+}
+@keyframes emojiBob {
+  0%, 100% { transform: translateY(0) rotate(-3deg); }
+  50% { transform: translateY(-6px) rotate(3deg); }
+}
+.tut-guide-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+.tut-guide-title {
+  font-family: 'Bricolage Grotesque', sans-serif;
+  font-size: clamp(32px, 3.5vw, 44px);
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  line-height: 1;
+  margin: 0 0 12px;
+  color: #0F0E1B;
+}
+.tut-guide-intro {
+  font-size: 15px;
+  color: #2D2B45;
+  line-height: 1.6;
+  margin: 0;
+  max-width: 580px;
+  font-weight: 500;
+}
+.tut-guide-deco {
+  position: absolute;
+  width: 240px;
+  height: 240px;
+  border-radius: 50%;
+  opacity: 0.12;
+  filter: blur(40px);
+  bottom: -100px;
+  right: -60px;
+  pointer-events: none;
+}
+
+/* ─── PASSOS ──────────────────────────────────────────────────────────────── */
+.tut-steps {
+  padding: 40px 40px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+.tut-step {
+  position: relative;
+  display: grid;
+  grid-template-columns: 56px 1fr;
+  gap: 0;
+  padding-bottom: 24px;
+}
+.tut-step:last-child {
+  padding-bottom: 16px;
+}
+.tut-step-num {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  color: white;
+  font-family: 'Bricolage Grotesque', sans-serif;
+  font-size: 14px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 2;
+  box-shadow: 0 4px 10px -4px rgba(15, 14, 27, 0.2);
+}
+.tut-step-line {
+  position: absolute;
+  left: 19px;
+  top: 40px;
+  width: 2px;
+  bottom: 0;
+  z-index: 1;
+}
+.tut-step:last-child .tut-step-line { display: none; }
+
+.tut-step-card {
+  background: #FAFAFC;
+  border: 1px solid rgba(15, 14, 27, 0.06);
+  border-radius: 14px;
+  padding: 18px 22px;
+  margin-left: 14px;
+  margin-top: -2px;
+  transition: all 0.18s ease;
+}
+.tut-step-card:hover {
+  background: white;
+  border-color: rgba(15, 14, 27, 0.1);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px -8px rgba(15, 14, 27, 0.12);
+}
+.tut-step-title {
+  font-family: 'Bricolage Grotesque', sans-serif;
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin: 0 0 6px;
+  color: #0F0E1B;
+}
+.tut-step-desc {
+  font-size: 14px;
+  color: #2D2B45;
+  line-height: 1.55;
+  margin: 0;
+  font-weight: 400;
+}
+.tut-step-chips {
+  display: flex;
+  gap: 6px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+.tut-step-chips span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 11px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  border: 1px solid;
+}
+
+/* ─── DICA (post-it) ──────────────────────────────────────────────────────── */
+.tut-tip {
+  margin: 24px 40px 0;
+  padding: 22px 26px;
+  border-radius: 16px;
+  background: var(--tip-bg);
+  border: 1px dashed var(--tip-color);
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  position: relative;
+  transform: rotate(-0.3deg);
+}
+.tut-tip::before {
+  content: '';
+  position: absolute;
+  top: -8px;
+  left: 30px;
+  width: 36px;
+  height: 16px;
+  background: var(--tip-color);
+  opacity: 0.25;
+  border-radius: 2px;
+  transform: rotate(-3deg);
+}
+.tut-tip-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  background: white;
+  color: var(--tip-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 3px 8px -3px rgba(15, 14, 27, 0.15);
+}
+.tut-tip-label {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--tip-color);
+  margin-bottom: 4px;
+}
+.tut-tip-text {
+  font-size: 14px;
+  color: #2D2B45;
+  line-height: 1.55;
+  margin: 0;
+  font-weight: 500;
+}
+
+/* ─── FOOTER (CTA + marcar concluído) ─────────────────────────────────────── */
+.tut-guide-foot {
+  margin: 32px 40px 0;
+  padding-top: 28px;
+  border-top: 1px dashed rgba(15, 14, 27, 0.1);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.tut-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 13px 22px;
+  border-radius: 12px;
+  color: white;
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration: none;
+  transition: all 0.2s ease;
+  box-shadow: 0 6px 16px -8px rgba(15, 14, 27, 0.3);
+}
+.tut-cta:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.08);
+  box-shadow: 0 10px 24px -8px rgba(15, 14, 27, 0.4);
+}
+.tut-mark {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 18px;
+  border-radius: 12px;
+  background: white;
+  color: #0F0E1B;
+  border: 1.5px solid rgba(15, 14, 27, 0.12);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+.tut-mark:hover {
+  background: #FAFAFC;
+  border-color: rgba(15, 14, 27, 0.2);
+}
+.tut-mark.done {
+  background: var(--mark-color, #0F0E1B);
+  color: white;
+}
+
+/* Fim do capítulo — decoração */
+.tut-end {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 28px 40px 36px;
+  font-family: 'Bricolage Grotesque', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #9594B0;
+}
+.tut-end-stars {
+  display: flex;
+  gap: 2px;
+  color: #FCD34D;
+}
+
+/* ─── Responsive ──────────────────────────────────────────────────────────── */
+@media (max-width: 900px) {
+  .tut-shell {
+    grid-template-columns: 1fr;
+    gap: 16px;
+    padding: 0 20px;
+  }
+  .tut-nav {
+    position: static;
+    max-height: none;
+  }
+  .tut-hero { padding: 40px 20px 60px; }
+  .tut-guide-head { padding: 28px 24px 24px; gap: 16px; }
+  .tut-guide-emoji { font-size: 44px; }
+  .tut-steps { padding: 28px 24px 0; }
+  .tut-tip { margin: 20px 24px 0; padding: 18px; }
+  .tut-guide-foot { margin: 24px 24px 0; padding-top: 20px; }
+  .tut-end { padding: 24px 24px 28px; }
+}
