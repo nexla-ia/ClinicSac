@@ -8,6 +8,30 @@ import {
 } from 'lucide-react'
 import './Company.css'
 
+// ─── Inferência de origem do lead ─────────────────────────────────────────
+// Roda nas primeiras mensagens do cliente. Ordem importa: Indicação ANTES de
+// Instagram/Google porque "minha amiga viu no Insta" deve cair em Indicação.
+const ORIGEM_PATTERNS = [
+  { origem: 'Indicação', re: /\b(indica[cç][aã]o|indic(ou|aram|ada?|ado)|me indica\w*|me passaram|me passou|amig[ao]\s+(me\s+)?(indic|fal|disse|recomend)|conhec\w+\s+(me\s+)?(indic|fal|recomend)|recomend\w+\s+(por|pelo|pela)|por indica)/i },
+  { origem: 'Instagram', re: /\b(instagram|\binsta\b|stories?\b|\bstory\b|@[a-z0-9._-]{3,}|\big\b|vi\s+(no|seu|sua)\s+(insta|instagram|stories?|story|post)|publica[cç][aã]o de voc|reels?\b)/i },
+  { origem: 'Google',    re: /\b(google|pesqui[sz]\w+|achei\s+no\s+google|fui\s+no\s+google|busca\s+(no|do)|\bgoogl|\bmaps\b)/i },
+  { origem: 'Facebook',  re: /\b(facebook|\bfb\b)/i },
+  { origem: 'TikTok',    re: /\btik\s*tok\b/i },
+  { origem: 'YouTube',   re: /\b(youtube|canal d[oae]|v[ií]deo (do|de|deles)|seu canal)/i },
+  { origem: 'Site',      re: /\b(site\s+(de\s+voc|da\s+cl[íi]nica|do\s+consult|de\s+v[oô]s)|seu\s+site|no\s+site\s+de)/i },
+  { origem: 'Anúncio',   re: /\b(an[uú]nci\w*|propaganda|panfleto|outdoor|\btv\b\s+(da|do))/i },
+  { origem: 'WhatsApp Business', re: /\b(perfil do whats|status do whats|cat[áa]logo do whats|whats\s+business)/i },
+]
+
+function inferOrigem(messages) {
+  if (!messages || !messages.length) return null
+  const text = messages.map(m => (m.mensagem || '').toLowerCase()).join(' \n ')
+  for (const { origem, re } of ORIGEM_PATTERNS) {
+    if (re.test(text)) return origem
+  }
+  return null
+}
+
 // ─── Períodos ────────────────────────────────────────────────────────────────
 const PERIODS = [
   { key: 'hoje',   label: 'Hoje' },
@@ -158,9 +182,37 @@ export default function CompanyMetrics() {
     setProfessionals(results[10].data || [])
     setProcedures(results[11].data || [])
     setInsurancePlans(results[12].data || [])
-    setLeads(contactsTable ? (results[13].data || []) : [])
+    const leadsData = contactsTable ? (results[13].data || []) : []
+    setLeads(leadsData)
     setLastRefresh(new Date())
     setLoading(false)
+
+    // Inferência automática de origem para leads sem origem definida.
+    // Lê primeiras mensagens cliente, detecta canal por palavra-chave, atualiza banco silenciosamente.
+    if (contactsTable && leadsData.length) {
+      const msgsAll = results[0].data || []
+      const semOrigem = leadsData.filter(l => !l.origem || l.origem === '' || /desconhecid/i.test(l.origem))
+      if (semOrigem.length) {
+        const updates = []
+        for (const lead of semOrigem) {
+          const leadMsgs = msgsAll
+            .filter(m => m.numero === lead.numero && (m.type || '').toLowerCase() === 'cliente')
+            .sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
+            .slice(0, 5)
+          const inferred = inferOrigem(leadMsgs)
+          if (inferred) updates.push({ id: lead.id, origem: inferred })
+        }
+        if (updates.length) {
+          await Promise.all(updates.map(u =>
+            supabase.from(contactsTable).update({ origem: u.origem }).eq('id', u.id)
+          ))
+          setLeads(prev => prev.map(l => {
+            const u = updates.find(x => x.id === l.id)
+            return u ? { ...l, origem: u.origem } : l
+          }))
+        }
+      }
+    }
   }
 
   useEffect(() => { load() }, [instance, companyId, contactsTable])
