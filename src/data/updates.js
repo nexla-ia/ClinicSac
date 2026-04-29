@@ -5,6 +5,20 @@
 export const UPDATES = [
   {
     date: '2026-04-28',
+    title: 'Landing — 5 novos features na seção principal',
+    type: 'improvement',
+    tags: ['Landing', 'Marketing'],
+    items: [
+      'Novo card "Cadastro de pacientes" — destaque para o CRM unificado da clínica',
+      'Novo card primário com gradiente Instagram: "Instagram + WhatsApp na mesma caixa" (badge Em breve)',
+      'Novo card "IA cria posts para Instagram" (badge Em breve) — IA escrevendo legendas e agendando postagens',
+      'Novo card "IA analisa laudos médicos" (badge Em breve) — paciente envia laudo, IA resume e prepara triagem',
+      'Badge "Em breve" branco/escuro nos cards futuros, mantendo o design system',
+      'Grid agora tem 11 cards distribuídos em 4 linhas com 2 cards primários (IA + Instagram)',
+    ],
+  },
+  {
+    date: '2026-04-28',
     title: 'Landing 2.0 — UX e conversão otimizadas',
     type: 'improvement',
     tags: ['Marketing', 'Landing'],

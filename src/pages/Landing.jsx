@@ -4,7 +4,8 @@ import {
   ArrowRight, ArrowUpRight, Sparkles, MessageSquare, Calendar, BarChart3,
   Users, Bot, Stethoscope, Headset, Check, ChevronRight, ChevronLeft, Star, Zap, ShieldCheck,
   Phone, Mail, Activity, Clock, TrendingUp, Lock, FileText, Trash2, Server, Quote,
-  Building2, Network, Wallet, Bot as BotIcon,
+  Building2, Network, Wallet, Bot as BotIcon, Instagram, BookUser, Image as ImageIcon,
+  ScanLine, FileSearch,
 } from 'lucide-react'
 import './Landing.css'
 
@@ -213,6 +214,31 @@ export default function Landing() {
               icon={<Stethoscope size={22} />}
               title="Catálogo clínico"
               description="Médicos, procedimentos, exames, valores particulares e por convênio. Tudo cadastrado e refletido no agendamento."
+            />
+            <FeatureCard
+              icon={<BookUser size={22} />}
+              title="Cadastro de pacientes"
+              description="Cada contato vira ficha completa: nome, telefone, histórico de conversas, agendamentos e notas privadas. Centralizado e pesquisável."
+            />
+            <FeatureCard
+              variant="instagram"
+              icon={<Instagram size={22} />}
+              title="Instagram + WhatsApp na mesma caixa"
+              description="Direct, comentários e stories do Instagram unificados com o WhatsApp. Atenda os dois canais com a mesma equipe e a mesma IA."
+              tags={['Direct', 'Stories', 'Comentários']}
+              soon
+            />
+            <FeatureCard
+              icon={<ImageIcon size={22} />}
+              title="IA cria posts para Instagram"
+              description="A IA escreve legendas, sugere imagens e agenda postagens com base nos procedimentos, datas e promoções da sua clínica."
+              soon
+            />
+            <FeatureCard
+              icon={<FileSearch size={22} />}
+              title="IA analisa laudos médicos"
+              description="Paciente envia o laudo no chat, a IA lê, resume os pontos principais e prepara a triagem para o médico — economizando tempo da equipe."
+              soon
             />
             <FeatureCard
               icon={<BarChart3 size={22} />}
@@ -472,9 +498,13 @@ function Stat({ number, label }) {
   )
 }
 
-function FeatureCard({ icon, title, description, variant, tags }) {
+function FeatureCard({ icon, title, description, variant, tags, soon }) {
+  const variantClass =
+    variant === 'primary' ? 'primary' :
+    variant === 'instagram' ? 'instagram' : ''
   return (
-    <div className={`lp-feature ${variant === 'primary' ? 'primary' : ''}`}>
+    <div className={`lp-feature ${variantClass}`}>
+      {soon && <span className="lp-feature-soon">Em breve</span>}
       <div className="lp-feature-icon">{icon}</div>
       <h3 className="lp-feature-title">{title}</h3>
       <p className="lp-feature-desc">{description}</p>

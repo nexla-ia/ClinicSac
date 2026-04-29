@@ -1355,6 +1355,67 @@
 .lp-feature.primary .lp-feature-title { color: white; }
 .lp-feature.primary .lp-feature-desc { color: rgba(255,255,255,0.7); }
 
+/* Variant Instagram — gradient characterístico */
+.lp-feature.instagram {
+  grid-column: span 2;
+  color: white;
+  background:
+    radial-gradient(circle at 30% 107%, #FDE047 0%, #FACC15 5%, #FB923C 30%, #EC4899 60%, #8B5CF6 100%);
+  position: relative;
+  overflow: hidden;
+}
+.lp-feature.instagram::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 80% 20%, rgba(255, 255, 255, 0.25), transparent 50%);
+  pointer-events: none;
+}
+.lp-feature.instagram .lp-feature-icon {
+  background: rgba(255, 255, 255, 0.95);
+  color: #DB2777;
+}
+.lp-feature.instagram .lp-feature-title { color: white; font-size: 36px; }
+.lp-feature.instagram .lp-feature-desc { color: rgba(255, 255, 255, 0.92); }
+.lp-feature.instagram .lp-feature-tags span {
+  background: rgba(255, 255, 255, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: white;
+  backdrop-filter: blur(8px);
+}
+.lp-feature.instagram .lp-feature-arrow {
+  background: white;
+  color: #DB2777;
+}
+
+/* Badge "Em breve" */
+.lp-feature-soon {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  background: white;
+  color: var(--lp-text);
+  border-radius: 999px;
+  border: 1px solid rgba(15, 14, 27, 0.08);
+  box-shadow: 0 2px 6px -2px rgba(15, 14, 27, 0.15);
+  z-index: 2;
+}
+.lp-feature.instagram .lp-feature-soon {
+  background: rgba(15, 14, 27, 0.85);
+  color: white;
+  border-color: transparent;
+  backdrop-filter: blur(8px);
+}
+.lp-feature.primary .lp-feature-soon {
+  background: rgba(255, 255, 255, 0.95);
+  color: var(--lp-text);
+}
+
 .lp-feature-icon {
   width: 48px;
   height: 48px;
