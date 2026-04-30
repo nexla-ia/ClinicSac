@@ -72,6 +72,7 @@ export default function AdmQualidade() {
   const { db } = useAuth()
   const navigate = useNavigate()
   const [period, setPeriod] = useState('7d') // 24h | 7d | 30d
+  const [selectedInstance, setSelectedInstance] = useState('all') // 'all' ou instancia específica
   const [loading, setLoading] = useState(true)
   const [lastRefresh, setLastRefresh] = useState(null)
   const [data, setData] = useState({ msgs: [], convs: [], atts: [] })
@@ -113,10 +114,21 @@ export default function AdmQualidade() {
     return m
   }, [companies])
 
+  // Filtra dados por empresa se houver seleção
+  const filteredMsgs = useMemo(() => {
+    if (selectedInstance === 'all') return data.msgs
+    return data.msgs.filter(m => m.instancia === selectedInstance)
+  }, [data.msgs, selectedInstance])
+
+  const filteredConvs = useMemo(() => {
+    if (selectedInstance === 'all') return data.convs
+    return data.convs.filter(c => c.instancia === selectedInstance)
+  }, [data.convs, selectedInstance])
+
   // Indexa mensagens por instancia + numero (sessão)
   const sessions = useMemo(() => {
     const map = {}
-    data.msgs.forEach(m => {
+    filteredMsgs.forEach(m => {
       if (!m.instancia || !m.numero) return
       const key = `${m.instancia}|${m.numero}`
       if (!map[key]) map[key] = { instancia: m.instancia, numero: m.numero, msgs: [] }
@@ -130,14 +142,14 @@ export default function AdmQualidade() {
       })
     })
     return map
-  }, [data.msgs])
+  }, [filteredMsgs])
 
   // Tickets encerrados como Set pra rapido lookup
   const closedSet = useMemo(() => {
     const s = new Set()
-    data.convs.forEach(c => s.add(`${c.instancia}|${c.session_id}`))
+    filteredConvs.forEach(c => s.add(`${c.instancia}|${c.session_id}`))
     return s
-  }, [data.convs])
+  }, [filteredConvs])
 
   // Calcula métricas por sessão
   const sessionMetrics = useMemo(() => {
@@ -188,7 +200,7 @@ export default function AdmQualidade() {
     const allFirstResp = sessionMetrics.map(s => s.firstResponseMs).filter(x => x != null)
     const allFirstHuman = sessionMetrics.map(s => s.firstHumanResponseMs).filter(x => x != null)
     const pending = sessionMetrics.filter(s => s.isPending)
-    const expired = data.convs.filter(c => c.reason === 'auto_encerrado').length
+    const expired = filteredConvs.filter(c => c.reason === 'auto_encerrado').length
     const aiHandover = sessionMetrics.filter(s => s.hasIa && s.hasHumano).length
     const aiTotal = sessionMetrics.filter(s => s.hasIa).length
 
@@ -205,7 +217,7 @@ export default function AdmQualidade() {
       aiHandover,
       aiHandoverPct:   aiTotal ? (aiHandover / aiTotal * 100) : 0,
     }
-  }, [sessionMetrics, data.convs])
+  }, [sessionMetrics, filteredConvs])
 
   // Métricas por empresa
   const companyMetrics = useMemo(() => {
@@ -232,7 +244,7 @@ export default function AdmQualidade() {
       }
     })
     // expirados por empresa
-    data.convs.forEach(c => {
+    filteredConvs.forEach(c => {
       if (c.reason === 'auto_encerrado' && map[c.instancia]) {
         map[c.instancia].expired = (map[c.instancia].expired || 0) + 1
       }
@@ -244,7 +256,7 @@ export default function AdmQualidade() {
       total:   e.sessions.length,
       expired: e.expired || 0,
     })).sort((a, b) => (b.pendingOver1h - a.pendingOver1h) || (b.median - a.median))
-  }, [sessionMetrics, companyByInstance, data.convs])
+  }, [sessionMetrics, companyByInstance, filteredConvs])
 
   // Top pendentes urgentes (ordenado por tempo aguardando)
   const topPending = useMemo(() => {
@@ -285,6 +297,21 @@ export default function AdmQualidade() {
           </p>
         </div>
         <div className="qm-head-actions">
+          <div className="qm-company-select-wrap">
+            <Building2 size={13} className="qm-company-select-ico" />
+            <select
+              className="qm-company-select"
+              value={selectedInstance}
+              onChange={e => setSelectedInstance(e.target.value)}>
+              <option value="all">Todas as empresas</option>
+              {companies
+                .filter(c => c.instance)
+                .sort((a, b) => (a.name || '').localeCompare(b.name || ''))
+                .map(c => (
+                  <option key={c.id} value={c.instance}>{c.name}</option>
+                ))}
+            </select>
+          </div>
           <div className="qm-pills">
             {['24h', '7d', '30d'].map(p => (
               <button key={p} className={`qm-pill ${period === p ? 'on' : ''}`} onClick={() => setPeriod(p)}>{p}</button>
@@ -425,7 +452,8 @@ export default function AdmQualidade() {
         )}
       </div>
 
-      {/* Ranking de empresas */}
+      {/* Ranking de empresas (só faz sentido em 'todas') */}
+      {selectedInstance === 'all' && (
       <div className="qm-card">
         <div className="qm-card-head">
           <Building2 size={14} /> Ranking de empresas — onde está o gargalo
@@ -467,6 +495,7 @@ export default function AdmQualidade() {
           ))}
         </div>
       </div>
+      )}
     </div>
   )
 }

@@ -76,7 +76,46 @@
   max-width: 580px;
 }
 
-.qm-head-actions { display: flex; gap: 10px; align-items: center; flex-shrink: 0; position: relative; z-index: 1; }
+.qm-head-actions { display: flex; gap: 10px; align-items: center; flex-shrink: 0; position: relative; z-index: 1; flex-wrap: wrap; }
+
+.qm-company-select-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+.qm-company-select-ico {
+  position: absolute;
+  left: 12px;
+  color: rgba(232, 201, 164, 0.85);
+  pointer-events: none;
+}
+.qm-company-select {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: #fff;
+  padding: 8px 32px 8px 32px;
+  border-radius: 10px;
+  font-size: 12.5px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  outline: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23E8C9A4' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  min-width: 180px;
+  transition: background 0.15s, border-color 0.15s;
+}
+.qm-company-select:hover {
+  background-color: rgba(255, 255, 255, 0.14);
+  border-color: rgba(232, 201, 164, 0.4);
+}
+.qm-company-select option {
+  background: #1E1B3A;
+  color: #fff;
+}
+
 .qm-pills { display: flex; gap: 4px; }
 .qm-pill {
   background: rgba(255, 255, 255, 0.06);
