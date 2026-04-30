@@ -32,7 +32,7 @@ export default function AdmCompanies() {
   const [saveError, setSaveError] = useState('')
   const [form, setForm] = useState({
     name: '',
-    contactsTable: '',
+    contactsTable: 'clientes',
     historyTable: '',
     instance: '',
     apiInstancia: '',
@@ -122,13 +122,13 @@ export default function AdmCompanies() {
     }
     setSaving(false)
     setShowModal(false)
-    setForm({ name: '', contactsTable: '', historyTable: '', instance: '', apiInstancia: '', numAccess: 1, users: [{ ...emptyUser }] })
+    setForm({ name: '', contactsTable: 'clientes', historyTable: '', instance: '', apiInstancia: '', numAccess: 1, users: [{ ...emptyUser }] })
   }
 
   function closeModal() {
     setShowModal(false)
     setSaveError('')
-    setForm({ name: '', contactsTable: '', historyTable: '', instance: '', apiInstancia: '', numAccess: 1, users: [{ ...emptyUser }] })
+    setForm({ name: '', contactsTable: 'clientes', historyTable: '', instance: '', apiInstancia: '', numAccess: 1, users: [{ ...emptyUser }] })
   }
 
   return (
@@ -242,7 +242,7 @@ export default function AdmCompanies() {
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                     <div>
                       <label style={labelStyle}>Tabela de contatos</label>
-                      <input className="nx-input" placeholder="Ex: contatos_clinica"
+                      <input className="nx-input" placeholder="clientes"
                         value={form.contactsTable} onChange={e => setForm(p => ({ ...p, contactsTable: e.target.value }))} />
                     </div>
                     <div>

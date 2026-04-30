@@ -92,7 +92,7 @@ export default function AdmCompanyDetail() {
       instance: company.instance || '',
       apiInstancia: company.api_instancia || '',
       historyTable: company.history_table || '',
-      contactsTable: company.contacts_table || '',
+      contactsTable: company.contacts_table || 'clientes',
       plan: company.plan || 'Starter',
       extraUsers: company.extra_users ?? 0,
       maxUsers: company.max_users ?? '',
@@ -576,7 +576,7 @@ export default function AdmCompanyDetail() {
                 </div>
                 <div>
                   <label style={labelStyle}>Tabela de contatos</label>
-                  <input className="nx-input" placeholder="Ex: contatos_clinica" value={companyForm.contactsTable} onChange={e => setCompanyForm(p => ({ ...p, contactsTable: e.target.value }))} />
+                  <input className="nx-input" placeholder="clientes" value={companyForm.contactsTable} onChange={e => setCompanyForm(p => ({ ...p, contactsTable: e.target.value }))} />
                 </div>
               </div>
               {/* ─── Plano e limites ──────────────────────────────────── */}
