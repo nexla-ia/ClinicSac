@@ -111,7 +111,7 @@ export default function SupportWidget({ session }) {
               )}
               <div className="sw-header-info">
                 <div className="sw-header-title">
-                  {view === 'chat' ? (activeTicket?.subject || 'Chamado') : view === 'new' ? 'Novo chamado' : 'Suporte MedicinaMKT'}
+                  {view === 'chat' ? (activeTicket?.subject || 'Chamado') : view === 'new' ? 'Conta pra gente' : 'Suporte MedicinaMKT'}
                 </div>
                 <div className="sw-header-sub">
                   {view === 'chat'
@@ -120,8 +120,8 @@ export default function SupportWidget({ session }) {
                         background: STATUS_LABELS[activeTicket?.status]?.bg || '#F1F5F9',
                       }}>{STATUS_LABELS[activeTicket?.status]?.label || activeTicket?.status}</span>
                     : view === 'new'
-                    ? 'Conta o que está acontecendo — a gente te ajuda.'
-                    : 'A gente responde rápido. Em média < 2h úteis.'}
+                    ? 'sem rodeios, a gente vai junto.'
+                    : 'gente de verdade do outro lado.'}
                 </div>
               </div>
               <button className="sw-close" onClick={() => setOpen(false)} aria-label="Fechar">
@@ -172,9 +172,9 @@ function TicketList({ tickets, loading, onOpenTicket, onNew }) {
         <div className="sw-empty"><Loader2 size={20} className="sw-spin" /></div>
       ) : tickets.length === 0 ? (
         <div className="sw-empty">
-          <MessageCircle size={32} />
-          <h4>Nenhum chamado ainda</h4>
-          <p>Precisa de ajuda? Abra um chamado e a gente responde rápido.</p>
+          <MessageCircle size={36} />
+          <h4>Tudo tranquilo por aqui</h4>
+          <p>Sem chamados abertos. Quando precisar, tá aqui o canal — gente atende, não bot.</p>
         </div>
       ) : (
         <div className="sw-tickets">
@@ -235,20 +235,20 @@ function NewTicketForm({ companyId, userId, userName, onCreated, onCancel }) {
   return (
     <div className="sw-form">
       <div className="sw-field">
-        <label>Resumo</label>
+        <label>Em uma linha, o que tá rolando?</label>
         <input
           className="sw-input"
-          placeholder="Ex: Não consigo conectar o WhatsApp"
+          placeholder="Ex: WhatsApp caiu e não reconecta"
           value={subject}
           onChange={e => setSubject(e.target.value)}
           autoFocus
         />
       </div>
       <div className="sw-field">
-        <label>Descrição</label>
+        <label>Conta com calma</label>
         <textarea
           className="sw-textarea"
-          placeholder="Conta o que está acontecendo, com o máximo de detalhe que conseguir..."
+          placeholder="Quando começou? O que você tentou? Print ajuda — pode anexar dentro do chat depois."
           rows={6}
           value={message}
           onChange={e => setMessage(e.target.value)}

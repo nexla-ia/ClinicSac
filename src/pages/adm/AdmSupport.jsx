@@ -3,10 +3,27 @@ import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
 import {
   Headset, Search, Filter, RefreshCw, Building2, MessageCircle,
-  CheckCircle2, Lock, Unlock, ChevronRight,
+  CheckCircle2, Lock, Unlock, ChevronRight, Sparkles, Clock,
 } from 'lucide-react'
 import { TicketChat } from '../../components/SupportWidget'
 import './AdmSupport.css'
+
+// Cores estáveis por hash da string (nome empresa) — paleta cobre/violeta/verde/azul
+const AVATAR_PALETTE = [
+  ['#C9A074', '#A37846'],  // cobre
+  ['#7C3AED', '#5B21B6'],  // violeta
+  ['#16A34A', '#15803D'],  // verde
+  ['#2563EB', '#1D4ED8'],  // azul
+  ['#DB2777', '#BE185D'],  // rosa
+  ['#EA580C', '#C2410C'],  // laranja
+  ['#0891B2', '#0E7490'],  // cyan
+  ['#65A30D', '#4D7C0F'],  // lime
+]
+function hashColor(name) {
+  let h = 0
+  for (let i = 0; i < (name || '').length; i++) h = ((h << 5) - h) + name.charCodeAt(i)
+  return AVATAR_PALETTE[Math.abs(h) % AVATAR_PALETTE.length]
+}
 
 const STATUS_LABELS = {
   open:     { label: 'Aguardando',  color: '#D97706', bg: '#FEF3C7' },
@@ -159,26 +176,35 @@ export default function AdmSupport() {
               <div className="adm-sup-empty"><RefreshCw size={20} className="spin" /></div>
             ) : filtered.length === 0 ? (
               <div className="adm-sup-empty">
-                <MessageCircle size={28} />
-                <p>Nenhum chamado nesse filtro.</p>
+                <Sparkles size={28} />
+                <h4>Tudo respondido</h4>
+                <p>Nada nesse filtro. Bom trabalho.</p>
               </div>
             ) : filtered.map(t => {
               const c = companyById[t.company_id]
               const st = STATUS_LABELS[t.status] || { label: t.status, color: '#64748B', bg: '#F1F5F9' }
               const unread = unreadByTicket[t.id] || 0
               const isActive = t.id === activeId
+              const [c1, c2] = hashColor(c?.name || '')
+              const initial = (c?.name || '?').charAt(0).toUpperCase()
+              const hoursOpen = (Date.now() - new Date(t.created_at).getTime()) / 3600000
+              const isUrgent = (t.status === 'open' || t.status === 'answered' && t.last_sender === 'company') && hoursOpen > 24
               return (
-                <button key={t.id} className={`adm-sup-ticket ${isActive ? 'active' : ''}`} onClick={() => setActiveId(t.id)}>
-                  <div className="adm-sup-ticket-row1">
-                    <span className="adm-sup-ticket-company">
-                      <Building2 size={11} /> {c?.name || '—'}
-                    </span>
-                    <span className="adm-sup-ticket-time">{timeAgo(t.last_message_at)}</span>
+                <button key={t.id} className={`adm-sup-ticket ${isActive ? 'active' : ''} ${isUrgent ? 'urgent' : ''}`} onClick={() => setActiveId(t.id)}>
+                  <div className="adm-sup-ticket-avatar" style={{ background: `linear-gradient(135deg, ${c1}, ${c2})` }}>
+                    {initial}
                   </div>
-                  <div className="adm-sup-ticket-subject">{t.subject}</div>
-                  <div className="adm-sup-ticket-row3">
-                    <span className="adm-sup-status-pill" style={{ color: st.color, background: st.bg }}>{st.label}</span>
-                    {unread > 0 && <span className="adm-sup-unread">{unread} nova{unread > 1 ? 's' : ''}</span>}
+                  <div className="adm-sup-ticket-body">
+                    <div className="adm-sup-ticket-row1">
+                      <span className="adm-sup-ticket-company">{c?.name || '—'}</span>
+                      <span className="adm-sup-ticket-time">{timeAgo(t.last_message_at)}</span>
+                    </div>
+                    <div className="adm-sup-ticket-subject">{t.subject}</div>
+                    <div className="adm-sup-ticket-row3">
+                      <span className="adm-sup-status-pill" style={{ color: st.color, background: st.bg }}>{st.label}</span>
+                      {isUrgent && <span className="adm-sup-urgent"><Clock size={9} /> +24h</span>}
+                      {unread > 0 && <span className="adm-sup-unread">{unread} nova{unread > 1 ? 's' : ''}</span>}
+                    </div>
                   </div>
                 </button>
               )
@@ -190,9 +216,9 @@ export default function AdmSupport() {
         <main className="adm-sup-chat">
           {!active ? (
             <div className="adm-sup-empty-chat">
-              <Headset size={42} />
-              <h3>Selecione um chamado</h3>
-              <p>Clique em qualquer chamado da lista pra responder a empresa.</p>
+              <div className="adm-sup-empty-icon"><Headset size={36} /></div>
+              <h3>Pronto pra atender</h3>
+              <p>Escolhe um chamado da lista. <em>Cada conversa importa.</em></p>
             </div>
           ) : (
             <>
