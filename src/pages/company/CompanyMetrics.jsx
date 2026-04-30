@@ -289,7 +289,7 @@ export default function CompanyMetrics() {
       {tab === 'equipe'      && <EquipeTab      {...{ msgs, convs, atts, users, sectors, sectorMembers, range, period, loading }} />}
       {tab === 'agenda'      && <AgendaTab      {...{ appts, range, period, loading }} />}
       {tab === 'financeiro'  && <FinanceiroTab  {...{ appts, professionals, procedures, insurancePlans, range, period, loading }} />}
-      {tab === 'leads'       && <LeadsTab       {...{ leads, range, period, loading, contactsTable }} />}
+      {tab === 'leads'       && <LeadsTab       {...{ leads, appts, msgs, range, period, loading, contactsTable }} />}
       {tab === 'atividades'  && <AtividadesTab  {...{ kanbanCards, kanbanColumns, users, range, period, loading }} />}
 
       <LimitReachedModal
@@ -848,67 +848,276 @@ function FinanceiroTab({ appts, professionals, procedures, insurancePlans, range
 }
 
 // ─── Tab: Leads ─────────────────────────────────────────────────────────────
-function LeadsTab({ leads, range, period, loading, contactsTable }) {
+function cleanPhone(p) {
+  return (p || '').replace(/@.*$/, '').replace(/\D/g, '')
+}
+
+function LeadsTab({ leads, appts, msgs, range, period, loading, contactsTable }) {
   const { from, to } = range
   if (!contactsTable) {
     return <div className="nx-card" style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>Tabela de contatos não configurada.</div>
   }
   const filtered = leads.filter(l => inPeriod(l.created_at, from, to) || (!from && !to))
 
-  const totalLeads   = filtered.length
-  const comContato   = filtered.filter(l => l.primeiro_contato === 'sim').length
-  const semResposta  = filtered.filter(l => l.primeiro_contato === 'sim' && !l.ultima_mensagem).length
-  const comUltimaMsg = filtered.filter(l => !!l.ultima_mensagem).length
-
-  const origensMap = useMemo(() => {
+  // Index appointments por telefone (clean)
+  const apptsByPhone = useMemo(() => {
     const map = {}
-    filtered.forEach(l => { const k = l.origem || 'WhatsApp · origem não informada'; map[k] = (map[k] || 0) + 1 })
-    return Object.entries(map).sort((a, b) => b[1] - a[1])
-  }, [filtered])
+    appts.forEach(a => {
+      const p = cleanPhone(a.patient_phone)
+      if (!p) return
+      if (!map[p]) map[p] = []
+      map[p].push(a)
+    })
+    return map
+  }, [appts])
 
+  // Index leads → appointments
+  const leadsWithAppt = useMemo(() => {
+    return filtered.map(l => {
+      const phone = cleanPhone(l.numero)
+      const myAppts = apptsByPhone[phone] || []
+      const concluded = myAppts.filter(a => a.status === 'concluido')
+      const revenue = concluded.reduce((s, a) => s + Number(a.price || 0), 0)
+      return { ...l, appts: myAppts, concluded: concluded.length, revenue }
+    })
+  }, [filtered, apptsByPhone])
+
+  const totalLeads    = filtered.length
+  const comContato    = filtered.filter(l => l.primeiro_contato === 'sim').length
+  const semResposta   = filtered.filter(l => l.primeiro_contato === 'sim' && !l.ultima_mensagem).length
+  const comUltimaMsg  = filtered.filter(l => !!l.ultima_mensagem).length
+  const agendaram     = leadsWithAppt.filter(l => l.appts.length > 0).length
+  const concluiram    = leadsWithAppt.filter(l => l.concluded > 0).length
+  const receitaTotal  = leadsWithAppt.reduce((s, l) => s + l.revenue, 0)
+  const conversao     = totalLeads ? (agendaram / totalLeads * 100) : 0
+  const ticketMedio   = concluiram ? (receitaTotal / concluiram) : 0
+
+  // Tempo médio até primeiro contato (mensagem mais antiga - lead.created_at)
+  const tempoMedioContato = useMemo(() => {
+    const msgsByPhone = {}
+    msgs.forEach(m => {
+      if ((m.type || '').toLowerCase() !== 'cliente') return
+      const p = cleanPhone(m.numero)
+      const ts = new Date(m.created_at).getTime()
+      if (!msgsByPhone[p] || ts < msgsByPhone[p]) msgsByPhone[p] = ts
+    })
+    let totalMs = 0, count = 0
+    filtered.forEach(l => {
+      const p = cleanPhone(l.numero)
+      const firstMsg = msgsByPhone[p]
+      const created = new Date(l.created_at).getTime()
+      if (firstMsg && created && firstMsg >= created) {
+        totalMs += (firstMsg - created)
+        count++
+      }
+    })
+    return count ? totalMs / count : 0
+  }, [filtered, msgs])
+
+  // Origem com conversão
+  const origens = useMemo(() => {
+    const map = {}
+    leadsWithAppt.forEach(l => {
+      const k = l.origem || 'WhatsApp · sem rastreio'
+      if (!map[k]) map[k] = { name: k, total: 0, agendaram: 0, concluidas: 0, receita: 0 }
+      map[k].total++
+      if (l.appts.length > 0) map[k].agendaram++
+      map[k].concluidas += l.concluded
+      map[k].receita += l.revenue
+    })
+    return Object.values(map).sort((a, b) => b.total - a.total)
+  }, [leadsWithAppt])
+
+  // Classificação
   const classifMap = useMemo(() => {
     const map = {}
     filtered.forEach(l => { const k = l.classificacao_lead || 'Sem classificação'; map[k] = (map[k] || 0) + 1 })
     return Object.entries(map).sort((a, b) => b[1] - a[1])
   }, [filtered])
-
-  const maxOrigem = origensMap[0]?.[1] || 1
   const maxClassif = classifMap[0]?.[1] || 1
+
+  // Volume diário (últimos 14 dias ou range completo)
+  const dailyVolume = useMemo(() => {
+    const days = []
+    const end = to || new Date()
+    const start = from || new Date(Date.now() - 13 * 86400000)
+    const dayMs = 86400000
+    const startDate = new Date(start.getFullYear(), start.getMonth(), start.getDate())
+    const endDate = new Date(end.getFullYear(), end.getMonth(), end.getDate())
+    for (let d = new Date(startDate); d <= endDate; d = new Date(d.getTime() + dayMs)) {
+      const next = new Date(d.getTime() + dayMs)
+      const dayLeads = filtered.filter(l => {
+        const c = new Date(l.created_at)
+        return c >= d && c < next
+      }).length
+      days.push({ date: new Date(d), count: dayLeads })
+      if (days.length > 60) break
+    }
+    return days
+  }, [filtered, from, to])
+  const maxDaily = Math.max(1, ...dailyVolume.map(d => d.count))
+
+  // Leads sem resposta — actionable
+  const sleepingLeads = useMemo(() => {
+    return filtered
+      .filter(l => l.primeiro_contato === 'sim' && !l.ultima_mensagem)
+      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+      .slice(0, 8)
+  }, [filtered])
+
+  function fmtAge(ts) {
+    const ms = Date.now() - new Date(ts).getTime()
+    const hours = Math.floor(ms / 3600000)
+    if (hours < 1) return `${Math.floor(ms / 60000)}min`
+    if (hours < 24) return `${hours}h`
+    const days = Math.floor(hours / 24)
+    return `${days}d`
+  }
+  function fmtMsCurta(ms) {
+    if (!ms) return '—'
+    const h = Math.floor(ms / 3600000)
+    if (h < 1) return `${Math.floor(ms / 60000)}min`
+    if (h < 24) return `${h}h ${Math.floor((ms % 3600000) / 60000)}min`
+    return `${Math.floor(h / 24)}d ${h % 24}h`
+  }
 
   return (
     <div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))', gap: 14, marginBottom: 18 }}>
+      {/* KPIs — 6 cards */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))', gap: 14, marginBottom: 18 }}>
         <KpiCard icon={<Users size={18} color="#2563EB" />} bg="#EFF6FF" value={totalLeads} label="Total de leads" sub={periodLabel(period)} loading={loading} />
         <KpiCard icon={<MessageSquare size={18} color="#16A34A" />} bg="#F0FDF4" value={comContato} label="Leads contactados" sub={`${totalLeads ? Math.round(comContato / totalLeads * 100) : 0}% do total`} loading={loading} />
+        <KpiCard icon={<Calendar size={18} color="#7C3AED" />} bg="#F5F3FF" value={agendaram} label="Viraram agendamento" sub={`${conversao.toFixed(1)}% de conversão`} loading={loading} />
+        <KpiCard icon={<DollarSign size={18} color="#059669" />} bg="#ECFDF5" value={fmtMoney(receitaTotal)} label="Receita atribuída" sub={`ticket médio ${fmtMoney(ticketMedio)}`} loading={loading} />
+        <KpiCard icon={<Clock size={18} color="#0891B2" />} bg="#ECFEFF" value={fmtMsCurta(tempoMedioContato)} label="Tempo até 1º contato" sub="lead → 1ª mensagem" loading={loading} />
         <KpiCard icon={<Inbox size={18} color="#F59E0B" />} bg="#FFFBEB" value={semResposta} label="Sem resposta" sub="aguardando retorno" loading={loading} alert={semResposta > 0} />
-        <KpiCard icon={<TrendingUp size={18} color="#7C3AED" />} bg="#F5F3FF" value={comUltimaMsg} label="Com última mensagem" sub="registraram interação" loading={loading} />
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-        <div className="nx-card" style={{ padding: '1.25rem' }}>
-          <SectionTitle icon={BarChart2} text="Fontes de lead" right={periodLabel(period)} />
-          {origensMap.length === 0 ? <Empty /> : origensMap.map(([k, v], i) => (
-            <div key={k} style={{ marginBottom: 10 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 4 }}>
-                <span style={{ fontWeight: 500, textTransform: 'capitalize' }}>{k}</span>
-                <span style={{ fontWeight: 700, color: ORIGEM_COLORS[i % ORIGEM_COLORS.length] }}>{v}</span>
+      {/* Funil */}
+      <div className="nx-card" style={{ padding: '1.25rem', marginBottom: 14 }}>
+        <SectionTitle icon={TrendingUp} text="Funil de conversão" right={periodLabel(period)} />
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 8, alignItems: 'stretch', marginTop: 12 }}>
+          {[
+            { lbl: 'Leads recebidos',     val: totalLeads,    color: '#2563EB', bg: '#EFF6FF' },
+            { lbl: 'Contactados',         val: comContato,    color: '#0891B2', bg: '#ECFEFF' },
+            { lbl: 'Trocaram msg',        val: comUltimaMsg,  color: '#7C3AED', bg: '#F5F3FF' },
+            { lbl: 'Agendaram',           val: agendaram,     color: '#D97706', bg: '#FFFBEB' },
+            { lbl: 'Compareceram',        val: concluiram,    color: '#16A34A', bg: '#F0FDF4' },
+          ].map((s, i, arr) => {
+            const pct = totalLeads ? (s.val / totalLeads * 100) : 0
+            const prev = i > 0 ? arr[i - 1].val : null
+            const stepConv = prev && prev > 0 ? (s.val / prev * 100) : null
+            return (
+              <div key={s.lbl} style={{
+                background: s.bg, borderRadius: 10, padding: '14px 12px',
+                display: 'flex', flexDirection: 'column', gap: 4,
+                position: 'relative', minHeight: 96,
+              }}>
+                <div style={{ fontSize: 10.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: s.color }}>
+                  {String(i + 1).padStart(2, '0')} · {s.lbl}
+                </div>
+                <div style={{ fontSize: 24, fontWeight: 700, color: s.color, fontFamily: "'Bricolage Grotesque', sans-serif", letterSpacing: '-0.02em' }}>
+                  {s.val}
+                </div>
+                <div style={{ fontSize: 10.5, color: 'var(--text-muted)', fontWeight: 600 }}>
+                  {pct.toFixed(1)}% do topo
+                </div>
+                {stepConv !== null && (
+                  <div style={{ fontSize: 10, color: stepConv >= 50 ? '#16A34A' : stepConv >= 25 ? '#D97706' : '#DC2626', fontWeight: 700, marginTop: 'auto' }}>
+                    ↳ {stepConv.toFixed(1)}% da etapa anterior
+                  </div>
+                )}
               </div>
-              <div style={{ height: 7, background: '#F1F5F9', borderRadius: 10, overflow: 'hidden' }}>
-                <div style={{ height: '100%', width: `${(v / maxOrigem) * 100}%`, background: ORIGEM_COLORS[i % ORIGEM_COLORS.length] }} />
-              </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
+      </div>
 
+      {/* Volume diário (sparkline) */}
+      <div className="nx-card" style={{ padding: '1.25rem', marginBottom: 14 }}>
+        <SectionTitle icon={BarChart2} text="Volume diário de novos leads" right={`${dailyVolume.length} dias`} />
+        <div style={{ display: 'flex', alignItems: 'flex-end', gap: 3, height: 100, marginTop: 16, paddingBottom: 24, position: 'relative' }}>
+          {dailyVolume.map((d, i) => {
+            const h = d.count === 0 ? 2 : Math.max(4, (d.count / maxDaily) * 90)
+            const isToday = new Date().toDateString() === d.date.toDateString()
+            return (
+              <div key={i} style={{
+                flex: 1, height: `${h}%`,
+                background: isToday ? 'linear-gradient(180deg, #2563EB, #1D4ED8)' : (d.count > 0 ? '#3B82F6' : '#E5E7EB'),
+                borderRadius: '4px 4px 0 0',
+                position: 'relative',
+                cursor: 'pointer',
+              }}
+              title={`${d.date.toLocaleDateString('pt-BR')} — ${d.count} leads`}>
+                {d.count > 0 && d.count === maxDaily && (
+                  <div style={{ position: 'absolute', top: -16, left: '50%', transform: 'translateX(-50%)', fontSize: 10, fontWeight: 700, color: '#1D4ED8' }}>{d.count}</div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+        {dailyVolume.length > 0 && (
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: '#94A3B8', marginTop: 6 }}>
+            <span>{dailyVolume[0]?.date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}</span>
+            <span>{dailyVolume[dailyVolume.length - 1]?.date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}</span>
+          </div>
+        )}
+      </div>
+
+      {/* Origem com conversão (tabela rica) */}
+      <div className="nx-card" style={{ padding: '1.25rem', marginBottom: 14 }}>
+        <SectionTitle icon={BarChart2} text="Origens — qual canal mais converte?" right={`${origens.length} canais`} />
+        {origens.length === 0 ? <Empty /> : (
+          <div style={{ marginTop: 10 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 80px 100px 100px 120px 1fr', gap: 8, padding: '8px 12px', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748B', borderBottom: '1px solid #F1F5F9' }}>
+              <div>Canal</div>
+              <div style={{ textAlign: 'right' }}>Leads</div>
+              <div style={{ textAlign: 'right' }}>Agendou</div>
+              <div style={{ textAlign: 'right' }}>Conv.</div>
+              <div style={{ textAlign: 'right' }}>Receita</div>
+              <div></div>
+            </div>
+            {origens.map((o, i) => {
+              const conv = o.total ? (o.agendaram / o.total * 100) : 0
+              const color = ORIGEM_COLORS[i % ORIGEM_COLORS.length]
+              return (
+                <div key={o.name} style={{ display: 'grid', gridTemplateColumns: '1.5fr 80px 100px 100px 120px 1fr', gap: 8, padding: '10px 12px', alignItems: 'center', borderBottom: '1px solid #F8FAFC', fontSize: 12.5 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 600 }}>
+                    <span style={{ width: 8, height: 8, borderRadius: '50%', background: color, flexShrink: 0 }} />
+                    {o.name}
+                  </div>
+                  <div style={{ textAlign: 'right', fontWeight: 700 }}>{o.total}</div>
+                  <div style={{ textAlign: 'right', color: '#7C3AED', fontWeight: 600 }}>{o.agendaram}</div>
+                  <div style={{ textAlign: 'right' }}>
+                    <span style={{
+                      fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 6,
+                      background: conv >= 30 ? '#F0FDF4' : conv >= 15 ? '#FFFBEB' : '#FEF2F2',
+                      color: conv >= 30 ? '#16A34A' : conv >= 15 ? '#D97706' : '#DC2626',
+                    }}>{conv.toFixed(0)}%</span>
+                  </div>
+                  <div style={{ textAlign: 'right', fontWeight: 700, color: '#059669', fontVariantNumeric: 'tabular-nums' }}>{fmtMoney(o.receita)}</div>
+                  <div style={{ height: 6, background: '#F1F5F9', borderRadius: 4, overflow: 'hidden' }}>
+                    <div style={{ height: '100%', width: `${(o.total / origens[0].total * 100)}%`, background: color }} />
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Classificação + Sem resposta — 2 colunas */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.3fr', gap: 14 }}>
         <div className="nx-card" style={{ padding: '1.25rem' }}>
-          <SectionTitle icon={TrendingUp} text="Classificação de lead" right={periodLabel(period)} />
+          <SectionTitle icon={Flag} text="Classificação dos leads" right={periodLabel(period)} />
           {classifMap.length === 0 ? <Empty /> : classifMap.map(([k, v]) => {
             const cs = CLASSIF_COLORS[k] || { color: '#6B7280', bg: '#F3F4F6', border: '#E5E7EB' }
+            const pct = totalLeads ? (v / totalLeads * 100) : 0
             return (
               <div key={k} style={{ marginBottom: 10 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12, marginBottom: 4 }}>
                   <span style={{ fontWeight: 600, color: cs.color, background: cs.bg, border: `1px solid ${cs.border}`, borderRadius: 20, padding: '1px 10px', fontSize: 11 }}>{k}</span>
-                  <span style={{ fontWeight: 700 }}>{v}</span>
+                  <span style={{ fontWeight: 700 }}>{v} <span style={{ color: 'var(--text-muted)', fontWeight: 500, fontSize: 11 }}>({pct.toFixed(0)}%)</span></span>
                 </div>
                 <div style={{ height: 7, background: '#F1F5F9', borderRadius: 10, overflow: 'hidden' }}>
                   <div style={{ height: '100%', width: `${(v / maxClassif) * 100}%`, background: cs.color }} />
@@ -916,6 +1125,51 @@ function LeadsTab({ leads, range, period, loading, contactsTable }) {
               </div>
             )
           })}
+        </div>
+
+        <div className="nx-card" style={{ padding: '1.25rem' }}>
+          <SectionTitle
+            icon={AlertCircle}
+            text="Leads sem resposta — ação recomendada"
+            right={sleepingLeads.length > 0 ? <span style={{ color: '#DC2626', fontWeight: 700 }}>{sleepingLeads.length} pendentes</span> : <span>tudo em dia</span>}
+          />
+          {sleepingLeads.length === 0 ? (
+            <div style={{ padding: '1.5rem', textAlign: 'center', color: '#16A34A', fontSize: 13, fontWeight: 600 }}>
+              <CheckCircle2 size={20} style={{ marginBottom: 6 }} /><br />
+              Sem leads pendentes nesse período
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 8 }}>
+              {sleepingLeads.map(l => {
+                const age = fmtAge(l.created_at)
+                const urgent = (Date.now() - new Date(l.created_at).getTime()) > 86400000 * 2 // > 2 dias
+                return (
+                  <div key={l.id} style={{
+                    display: 'flex', alignItems: 'center', gap: 10,
+                    background: urgent ? '#FEF2F2' : '#FFFBEB',
+                    border: `1px solid ${urgent ? '#FECACA' : '#FDE68A'}`,
+                    borderRadius: 8, padding: '8px 12px', fontSize: 12.5,
+                  }}>
+                    <div style={{
+                      width: 26, height: 26, borderRadius: '50%',
+                      background: urgent ? '#DC2626' : '#D97706',
+                      color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: 11, fontWeight: 700, flexShrink: 0,
+                    }}>{(l.nome || '?').charAt(0).toUpperCase()}</div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontWeight: 700, color: '#0F172A', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{l.nome || cleanPhone(l.numero)}</div>
+                      <div style={{ fontSize: 11, color: '#64748B' }}>
+                        {l.origem ? `via ${l.origem} · ` : ''}aguardando há {age}
+                      </div>
+                    </div>
+                    {urgent && (
+                      <span style={{ background: '#DC2626', color: '#fff', fontSize: 9.5, fontWeight: 700, padding: '2px 7px', borderRadius: 4, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Urgente</span>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          )}
         </div>
       </div>
     </div>
