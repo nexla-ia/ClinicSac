@@ -9,6 +9,7 @@ import AdmCompanies from './pages/adm/AdmCompanies'
 import AdmCompanyDetail from './pages/adm/AdmCompanyDetail'
 import AdmEspiao from './pages/adm/AdmEspiao'
 import AdmOperacao from './pages/adm/AdmOperacao'
+import AdmSupport from './pages/adm/AdmSupport'
 import CompanyLayout from './pages/company/CompanyLayout'
 import CompanyHistory from './pages/company/CompanyHistory'
 import CompanyAlerts from './pages/company/CompanyAlerts'
@@ -56,6 +57,7 @@ export default function App() {
             <Route path="empresas/:id" element={<AdmCompanyDetail />} />
             <Route path="espiao" element={<AdmEspiao />} />
             <Route path="operacao" element={<AdmOperacao />} />
+            <Route path="suporte" element={<AdmSupport />} />
           </Route>
 
           <Route path="/painel" element={<PrivateCompany><CompanyLayout /></PrivateCompany>}>

@@ -1,0 +1,352 @@
+/* ─── ADM Support — central de chamados ──────────────────────────────────── */
+
+.adm-sup {
+  font-family: 'DM Sans', system-ui, sans-serif;
+  padding: 20px 24px 40px;
+  background: #FAFAFC;
+  min-height: 100%;
+  color: #0F172A;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.adm-sup-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 24px;
+  padding: 22px 28px;
+  background: linear-gradient(135deg, #0F172A 0%, #1E293B 100%);
+  color: #fff;
+  border-radius: 18px;
+  position: relative;
+  overflow: hidden;
+}
+.adm-sup-head::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(700px circle at 90% 0%, rgba(201, 160, 116, 0.18), transparent 60%);
+  pointer-events: none;
+}
+.adm-sup-head > div { position: relative; }
+.adm-sup-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(201, 160, 116, 0.15);
+  border: 1px solid rgba(201, 160, 116, 0.4);
+  color: #E8C9A4;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 10px;
+}
+.adm-sup-title {
+  font-family: 'Bricolage Grotesque', sans-serif;
+  font-size: 28px;
+  font-weight: 700;
+  margin: 0 0 6px;
+  letter-spacing: -0.02em;
+}
+.adm-sup-sub {
+  font-size: 13px;
+  color: rgba(226, 232, 240, 0.78);
+  line-height: 1.55;
+  margin: 0;
+}
+
+.adm-sup-stats { display: flex; gap: 10px; align-items: center; position: relative; }
+.adm-sup-stat {
+  display: flex; flex-direction: column;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 8px 14px;
+  border-radius: 10px;
+  min-width: 80px;
+}
+.adm-sup-stat-num {
+  font-family: 'Bricolage Grotesque', sans-serif;
+  font-size: 22px;
+  font-weight: 700;
+  color: #fff;
+  line-height: 1;
+}
+.adm-sup-stat-lbl {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: rgba(226, 232, 240, 0.6);
+  margin-top: 4px;
+  font-weight: 600;
+}
+.adm-sup-refresh {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: #fff;
+  width: 36px; height: 36px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.spin { animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Shell */
+.adm-sup-shell {
+  display: grid;
+  grid-template-columns: 360px 1fr;
+  gap: 14px;
+  flex: 1;
+  min-height: 0;
+}
+
+/* Lista */
+.adm-sup-list {
+  background: #fff;
+  border: 1px solid #E5E7EB;
+  border-radius: 14px;
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 220px);
+  overflow: hidden;
+}
+.adm-sup-list-toolbar {
+  padding: 12px;
+  border-bottom: 1px solid #F1F5F9;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.adm-sup-search {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #F8FAFC;
+  border: 1.5px solid #E5E7EB;
+  border-radius: 8px;
+  padding: 7px 10px;
+  color: #6B7280;
+}
+.adm-sup-search input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-size: 13px;
+  color: #0F172A;
+  font-family: inherit;
+}
+.adm-sup-filters {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.adm-sup-filter {
+  background: #F1F5F9;
+  border: none;
+  padding: 5px 9px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #475569;
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: inherit;
+}
+.adm-sup-filter.on { background: #0F172A; color: #fff; }
+
+.adm-sup-list-body {
+  flex: 1;
+  overflow-y: auto;
+}
+.adm-sup-empty {
+  padding: 40px 20px;
+  text-align: center;
+  color: #94A3B8;
+  font-size: 13px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+.adm-sup-empty p { margin: 0; }
+
+.adm-sup-ticket {
+  width: 100%;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid #F1F5F9;
+  padding: 12px 14px;
+  text-align: left;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-family: inherit;
+  transition: background 0.12s;
+}
+.adm-sup-ticket:hover { background: #FAFAFC; }
+.adm-sup-ticket.active {
+  background: linear-gradient(90deg, #FFFBF4 0%, #FFFFFF 100%);
+  border-left: 3px solid #C9A074;
+  padding-left: 11px;
+}
+.adm-sup-ticket-row1 {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 6px;
+}
+.adm-sup-ticket-company {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #475569;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.adm-sup-ticket-time { font-size: 10.5px; color: #94A3B8; flex-shrink: 0; }
+.adm-sup-ticket-subject {
+  font-size: 13px;
+  font-weight: 600;
+  color: #0F172A;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.adm-sup-ticket-row3 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.adm-sup-status-pill {
+  display: inline-block;
+  padding: 2px 7px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-radius: 4px;
+}
+.adm-sup-unread {
+  background: #DC2626;
+  color: #fff;
+  font-size: 9.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 2px 6px;
+  border-radius: 4px;
+  animation: blinkRedSup 1.6s ease-in-out infinite;
+}
+@keyframes blinkRedSup {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+
+/* Chat */
+.adm-sup-chat {
+  background: #fff;
+  border: 1px solid #E5E7EB;
+  border-radius: 14px;
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 220px);
+  overflow: hidden;
+}
+.adm-sup-empty-chat {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: #94A3B8;
+  text-align: center;
+  padding: 40px;
+}
+.adm-sup-empty-chat h3 { margin: 0; font-family: 'Bricolage Grotesque', sans-serif; color: #475569; font-size: 18px; }
+.adm-sup-empty-chat p { margin: 0; font-size: 13px; max-width: 320px; line-height: 1.5; }
+
+.adm-sup-chat-head {
+  padding: 14px 20px;
+  border-bottom: 1px solid #F1F5F9;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 14px;
+  flex-shrink: 0;
+}
+.adm-sup-chat-head-info { flex: 1; min-width: 0; }
+.adm-sup-chat-company {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #C9A074;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.adm-sup-plan-pill {
+  background: #F5F3FF;
+  color: #7C3AED;
+  font-size: 9px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  margin-left: 6px;
+}
+.adm-sup-chat-subject {
+  font-family: 'Bricolage Grotesque', sans-serif;
+  font-size: 17px;
+  font-weight: 700;
+  color: #0F172A;
+  margin-top: 4px;
+  letter-spacing: -0.01em;
+}
+.adm-sup-chat-meta { font-size: 11.5px; color: #94A3B8; margin-top: 4px; }
+.adm-sup-chat-actions { display: flex; gap: 8px; flex-shrink: 0; }
+.adm-sup-action-close, .adm-sup-action-reopen {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 12px;
+  font-size: 11.5px;
+  font-weight: 700;
+  border-radius: 8px;
+  cursor: pointer;
+  font-family: inherit;
+  border: 1.5px solid;
+}
+.adm-sup-action-close { background: #F0FDF4; color: #16A34A; border-color: #BBF7D0; }
+.adm-sup-action-reopen { background: #FFFBEB; color: #D97706; border-color: #FDE68A; }
+
+/* Reusa estilos do TicketChat (sw-chat-body etc) */
+.adm-sup-chat .sw-chat-body { background: linear-gradient(180deg, #FAFAFC 0%, #FFFFFF 100%); padding: 20px 22px; }
+.adm-sup-chat .sw-msg.mine .sw-msg-bubble {
+  background: linear-gradient(135deg, #1E293B 0%, #334155 100%);
+  border-color: #1E293B;
+  color: #fff;
+}
+.adm-sup-chat .sw-msg-author { color: #C9A074; }
+
+@media (max-width: 1100px) {
+  .adm-sup-shell { grid-template-columns: 320px 1fr; }
+}
+@media (max-width: 900px) {
+  .adm-sup-shell { grid-template-columns: 1fr; }
+  .adm-sup-list { max-height: 360px; }
+  .adm-sup-head { flex-direction: column; align-items: flex-start; }
+}
