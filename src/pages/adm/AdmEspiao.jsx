@@ -109,7 +109,7 @@ export default function AdmEspiao() {
 
     const [msgs, saved, convs] = await Promise.all([
       supabase.from('mensagens_geral')
-        .select('id, numero, mensagem, type, "horaLastMessage", created_at')
+        .select('id, numero, mensagem, base64, type, "horaLastMessage", created_at')
         .eq('instancia', company.instance)
         .gte('created_at', since)
         .order('id', { ascending: false })
@@ -140,11 +140,19 @@ export default function AdmEspiao() {
       const ts = parseTimestamp(m.horaLastMessage) || m.created_at
       if (!grouped[num].lastTs || new Date(ts) > new Date(grouped[num].lastTs)) {
         grouped[num].lastTs = ts
-        grouped[num].lastMsg = m.mensagem
+        // Preview: texto da mensagem ou indicador de mídia
+        if (m.mensagem) grouped[num].lastMsg = m.mensagem
+        else if (m.base64) {
+          const media = detectMedia(m.base64)
+          grouped[num].lastMsg = media?.type === 'image' ? '📷 Imagem'
+                               : media?.type === 'audio' ? '🎤 Áudio'
+                               : media?.type === 'pdf'   ? '📄 PDF'
+                               : '📎 Anexo'
+        }
       }
       const t = (m.type || '').toLowerCase()
       if (t === 'ia') grouped[num].hasIa = true
-      if (t === 'humano') grouped[num].hasHumano = true
+      if (t === 'humano' || t === 'atendente') grouped[num].hasHumano = true
     })
     let list = Object.values(grouped)
     if (typeFilter === 'so_ia')      list = list.filter(c => c.hasIa && !c.hasHumano)
@@ -347,10 +355,16 @@ export default function AdmEspiao() {
               </header>
               <div ref={chatRef} className="esp-chat-body">
                 {activeMessages.map(m => {
-                  const type = (m.type || 'cliente').toLowerCase()
+                  const rawType = (m.type || 'cliente').toLowerCase()
+                  // Normaliza 'atendente' (vindo do n8n) como 'humano'
+                  const type = rawType === 'atendente' ? 'humano' : rawType
                   const ts = parseTimestamp(m.horaLastMessage) || m.created_at
-                  const content = (m.mensagem || '').replace(/^\*[^*]+\*:\n/, '').trim()
-                  const media = detectMedia(content)
+                  // Mensagem pode vir em `mensagem` (texto) ou `base64` (mídia em coluna separada)
+                  const rawContent = (m.mensagem || m.base64 || '').replace(/^\*[^*]+\*:\n/, '').trim()
+                  // Detecta mídia: tenta primeiro pelo base64 puro, depois pelo conteúdo texto
+                  const media = detectMedia(m.base64 || rawContent)
+                  const mediaSrc = m.base64 || rawContent
+                  const content = rawContent
                   const isTool = type === 'tool' || (type === 'ia' && /^Calling \w+ with input:/i.test(content))
                   const isLongIa = type === 'ia' && content.length > 1200
                   return (
@@ -364,18 +378,21 @@ export default function AdmEspiao() {
                       </div>
                       <div className="esp-msg-bubble">
                         {media?.type === 'audio' && (
-                          <audio controls src={`data:${media.mime};base64,${content}`} />
+                          <audio controls src={`data:${media.mime};base64,${mediaSrc}`} />
                         )}
                         {media?.type === 'image' && (
-                          <img src={`data:${media.mime};base64,${content}`} alt="" />
+                          <img src={`data:${media.mime};base64,${mediaSrc}`} alt="" />
                         )}
                         {media?.type === 'pdf' && (
-                          <a className="esp-msg-pdf" href={`data:${media.mime};base64,${content}`} target="_blank" rel="noreferrer">
+                          <a className="esp-msg-pdf" href={`data:${media.mime};base64,${mediaSrc}`} target="_blank" rel="noreferrer">
                             <FileText size={14} /> Abrir PDF
                           </a>
                         )}
-                        {!media && (
+                        {!media && content && (
                           <pre className="esp-msg-text">{isLongIa ? content.slice(0, 800) + '\n\n[...]' : content}</pre>
+                        )}
+                        {!media && !content && (
+                          <pre className="esp-msg-text" style={{ color: '#94A3B8', fontStyle: 'italic' }}>(mensagem vazia)</pre>
                         )}
                         {isLongIa && (
                           <div className="esp-msg-warn">
