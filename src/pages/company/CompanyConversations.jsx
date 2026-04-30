@@ -322,12 +322,13 @@ export default function CompanyConversations() {
     return () => supabase.removeChannel(ch)
   }, [instance])
 
-  // Carrega todos os contatos únicos da mensagens_geral
+  // Carrega todos os contatos únicos da mensagens_geral (apenas WhatsApp)
   useEffect(() => {
     if (!instance) return
     setLoadingContacts(true)
     supabase.from(CONV_TABLE).select('*')
       .eq('instancia', instance)
+      .or('aplicativo.eq.whatsapp,aplicativo.is.null')
       .order('id', { ascending: false })
       .then(({ data, error }) => {
         if (!error && data) {
@@ -404,6 +405,8 @@ export default function CompanyConversations() {
         (p) => {
           const row = p.new
           if (!row || isToolMessage(row)) return
+          // Ignora mensagens que não são do WhatsApp (Instagram tem tela separada)
+          if (row.aplicativo && row.aplicativo !== 'whatsapp') return
           const sid = row.numero
           if (!sid || sid.includes('@g.us')) return
           const ts = getTimestamp(row)
@@ -463,6 +466,7 @@ export default function CompanyConversations() {
     supabase.from(CONV_TABLE).select('*')
       .eq('instancia', instance)
       .eq('numero', selected.session_id)
+      .or('aplicativo.eq.whatsapp,aplicativo.is.null')
       .order('id', { ascending: true })
       .then(({ data, error }) => {
         if (!error && data) {

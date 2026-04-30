@@ -1,13 +1,30 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   Instagram, Heart, MessageCircle, Send, Bookmark, MoreHorizontal,
   Sparkles, Check, Bell, Mail, ArrowRight, Zap, Clock, Users,
 } from 'lucide-react'
+import { useAuth } from '../../context/AuthContext'
+import { supabase } from '../../lib/supabase'
 import './CompanyInstagram.css'
 
 export default function CompanyInstagram() {
+  const { session } = useAuth()
+  const instance = session?.company?.instance
   const [email, setEmail] = useState('')
   const [submitted, setSubmitted] = useState(false)
+  const [igMsgCount, setIgMsgCount] = useState(0)
+
+  // Conta msgs Instagram que já estão chegando (pra dar feedback visual ao dono
+  // quando ele começar a setar aplicativo='instagram' no n8n)
+  useEffect(() => {
+    if (!instance) return
+    supabase.from('mensagens_geral')
+      .select('id', { count: 'exact', head: true })
+      .eq('instancia', instance)
+      .eq('aplicativo', 'instagram')
+      .then(({ count }) => setIgMsgCount(count || 0))
+      .catch(() => setIgMsgCount(0))
+  }, [instance])
 
   function handleSignup(e) {
     e.preventDefault()
@@ -30,7 +47,9 @@ export default function CompanyInstagram() {
         {/* Selo "Em breve" */}
         <div className="ig-badge">
           <span className="ig-badge-dot" />
-          Em desenvolvimento
+          {igMsgCount > 0
+            ? `${igMsgCount} mensagem${igMsgCount === 1 ? '' : 's'} Instagram já chegando`
+            : 'Em desenvolvimento'}
         </div>
 
         {/* Headline gigante */}
