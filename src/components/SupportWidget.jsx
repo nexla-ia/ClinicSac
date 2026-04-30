@@ -272,8 +272,12 @@ function TicketChat({ ticket, userId, userName, senderType, onTicketUpdated }) {
   const [sending, setSending] = useState(false)
   const [imagePreview, setImagePreview] = useState(null) // base64 sem prefixo
   const [imagePrefix, setImagePrefix] = useState('')     // data:image/...;base64,
+  const [otherTyping, setOtherTyping] = useState(false)
   const fileRef = useRef(null)
   const bodyRef = useRef(null)
+  const presenceCh = useRef(null)
+  const lastTypingSent = useRef(0)
+  const typingClearTimeout = useRef(null)
 
   const readField = senderType === 'company' ? 'read_by_company' : 'read_by_adm'
   const otherType = senderType === 'company' ? 'adm' : 'company'
@@ -300,14 +304,41 @@ function TicketChat({ ticket, userId, userName, senderType, onTicketUpdated }) {
   useEffect(() => {
     const ch = supabase.channel(`support-msg-${ticket.id}`)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'support_messages', filter: `ticket_id=eq.${ticket.id}` }, () => loadMessages())
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'support_messages', filter: `ticket_id=eq.${ticket.id}` }, () => loadMessages())
       .subscribe()
     return () => supabase.removeChannel(ch)
   }, [ticket.id])
 
-  // Auto-scroll para baixo
+  // Canal efêmero de presence/typing — não persiste no banco
+  useEffect(() => {
+    const ch = supabase.channel(`support-typing-${ticket.id}`, {
+      config: { broadcast: { self: false } }
+    })
+    ch.on('broadcast', { event: 'typing' }, ({ payload }) => {
+      if (payload?.from && payload.from !== senderType) {
+        setOtherTyping(true)
+        if (typingClearTimeout.current) clearTimeout(typingClearTimeout.current)
+        typingClearTimeout.current = setTimeout(() => setOtherTyping(false), 3500)
+      }
+    })
+    ch.on('broadcast', { event: 'typing_stop' }, ({ payload }) => {
+      if (payload?.from && payload.from !== senderType) {
+        if (typingClearTimeout.current) clearTimeout(typingClearTimeout.current)
+        setOtherTyping(false)
+      }
+    })
+    ch.subscribe()
+    presenceCh.current = ch
+    return () => {
+      supabase.removeChannel(ch)
+      if (typingClearTimeout.current) clearTimeout(typingClearTimeout.current)
+    }
+  }, [ticket.id, senderType])
+
+  // Auto-scroll para baixo (incluindo quando indicator de typing aparece)
   useEffect(() => {
     if (bodyRef.current) bodyRef.current.scrollTop = bodyRef.current.scrollHeight
-  }, [messages.length])
+  }, [messages.length, otherTyping])
 
   function pickImage(file) {
     if (!file) return
@@ -324,8 +355,31 @@ function TicketChat({ ticket, userId, userName, senderType, onTicketUpdated }) {
     reader.readAsDataURL(file)
   }
 
+  // Envia broadcast de typing (throttled — máximo 1 vez por segundo)
+  function notifyTyping() {
+    if (!presenceCh.current) return
+    const now = Date.now()
+    if (now - lastTypingSent.current < 1000) return
+    lastTypingSent.current = now
+    presenceCh.current.send({
+      type: 'broadcast',
+      event: 'typing',
+      payload: { from: senderType, name: userName, at: now }
+    })
+  }
+
+  function notifyStopTyping() {
+    if (!presenceCh.current) return
+    presenceCh.current.send({
+      type: 'broadcast',
+      event: 'typing_stop',
+      payload: { from: senderType }
+    })
+  }
+
   async function send() {
     if (!text.trim() && !imagePreview) return
+    notifyStopTyping()
     setSending(true)
     const payload = {
       ticket_id: ticket.id,
@@ -356,8 +410,12 @@ function TicketChat({ ticket, userId, userName, senderType, onTicketUpdated }) {
         {messages.length === 0 && (
           <div className="sw-empty"><Clock size={20} /><p>Carregando...</p></div>
         )}
-        {messages.map(m => {
+        {messages.map((m, idx) => {
           const mine = m.sender_type === senderType
+          // Read receipt: só mostra na última mensagem MINHA, e só se o outro lado já leu
+          const isLastMine = mine && !messages.slice(idx + 1).some(x => x.sender_type === senderType)
+          const otherReadField = senderType === 'company' ? 'read_by_adm' : 'read_by_company'
+          const wasSeen = isLastMine && m[otherReadField] === true
           return (
             <div key={m.id} className={`sw-msg ${mine ? 'mine' : 'theirs'}`}>
               {!mine && <div className="sw-msg-author">{m.sender_name || (m.sender_type === 'adm' ? 'Suporte' : 'Empresa')}</div>}
@@ -367,10 +425,24 @@ function TicketChat({ ticket, userId, userName, senderType, onTicketUpdated }) {
                 )}
                 {m.message && <div className="sw-msg-text">{m.message}</div>}
               </div>
-              <div className="sw-msg-time">{formatTime(m.created_at)}</div>
+              <div className="sw-msg-time">
+                {formatTime(m.created_at)}
+                {wasSeen && <span className="sw-msg-seen"> · Visto</span>}
+              </div>
             </div>
           )
         })}
+        {otherTyping && (
+          <div className="sw-msg theirs sw-msg-typing">
+            <div className="sw-msg-author">{senderType === 'company' ? 'Suporte' : 'Empresa'}</div>
+            <div className="sw-msg-bubble sw-typing-bubble">
+              <span className="sw-typing-dot" />
+              <span className="sw-typing-dot" />
+              <span className="sw-typing-dot" />
+            </div>
+            <div className="sw-msg-time sw-msg-typing-label">digitando...</div>
+          </div>
+        )}
       </div>
 
       <div className="sw-chat-input">
@@ -398,7 +470,12 @@ function TicketChat({ ticket, userId, userName, senderType, onTicketUpdated }) {
             placeholder="Digite sua mensagem..."
             rows={1}
             value={text}
-            onChange={e => setText(e.target.value)}
+            onChange={e => {
+              setText(e.target.value)
+              if (e.target.value.length > 0) notifyTyping()
+              else notifyStopTyping()
+            }}
+            onBlur={() => notifyStopTyping()}
             onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() } }}
           />
           <button className="sw-send" onClick={send} disabled={sending || (!text.trim() && !imagePreview)}>
