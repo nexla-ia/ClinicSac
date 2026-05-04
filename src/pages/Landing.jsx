@@ -374,36 +374,229 @@ export default function Landing() {
             </div>
           </div>
 
-          {/* Mockup do funil */}
-          <div className="lp-attr-funnel">
-            <div className="lp-attr-funnel-head">
-              <div className="lp-attr-funnel-title">Campanha Botox · Out/2026</div>
-              <div className="lp-attr-funnel-sub">Atribuição completa · receita por origem</div>
+          {/* Mapa de jornada do lead */}
+          <div className="lp-journey">
+            <div className="lp-journey-head">
+              <div className="lp-journey-eyebrow">A jornada</div>
+              <div className="lp-journey-title">Campanha Botox <span>· Out/2026</span></div>
+              <div className="lp-journey-sub">do clique no anúncio até a consulta realizada</div>
+              <div className="lp-journey-pill">
+                <TrendingUp size={14} />
+                <span>R$ 9.300 atribuídos</span>
+              </div>
             </div>
-            <div className="lp-attr-funnel-row">
-              <div className="lp-attr-step lp-attr-s1">
-                <div className="lp-attr-step-num">847</div>
-                <div className="lp-attr-step-lbl">Cliques no ad</div>
+
+            <div className="lp-journey-map">
+              {/* Caminho curvo em SVG */}
+              <svg
+                className="lp-journey-svg"
+                viewBox="0 0 1080 520"
+                preserveAspectRatio="none"
+                aria-hidden="true"
+              >
+                <defs>
+                  <linearGradient id="journeyGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stopColor="#A855F7" />
+                    <stop offset="20%" stopColor="#22C55E" />
+                    <stop offset="45%" stopColor="#C9A074" />
+                    <stop offset="65%" stopColor="#3B82F6" />
+                    <stop offset="85%" stopColor="#10B981" />
+                    <stop offset="100%" stopColor="#F59E0B" />
+                  </linearGradient>
+                  <filter id="journeyGlow" x="-50%" y="-50%" width="200%" height="200%">
+                    <feGaussianBlur stdDeviation="6" result="blur" />
+                    <feMerge>
+                      <feMergeNode in="blur" />
+                      <feMergeNode in="SourceGraphic" />
+                    </feMerge>
+                  </filter>
+                </defs>
+
+                {/* Caminho de fundo (linha cheia, baixa opacidade) */}
+                <path
+                  d="M 80,380 C 200,380 140,130 260,130 S 380,340 460,340 S 580,110 660,110 S 780,320 860,320 S 940,90 1020,90"
+                  stroke="url(#journeyGrad)"
+                  strokeWidth="3"
+                  strokeLinecap="round"
+                  fill="none"
+                  opacity="0.18"
+                />
+                {/* Caminho tracejado animado */}
+                <path
+                  className="lp-journey-path"
+                  d="M 80,380 C 200,380 140,130 260,130 S 380,340 460,340 S 580,110 660,110 S 780,320 860,320 S 940,90 1020,90"
+                  stroke="url(#journeyGrad)"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeDasharray="8 10"
+                  fill="none"
+                />
+
+                {/* Etiquetas de conversão entre paradas */}
+                <g className="lp-journey-conv-labels">
+                  <g transform="translate(170, 255)">
+                    <rect x="-22" y="-11" width="44" height="22" rx="11" fill="#fff" stroke="#E5E7EB" />
+                    <text x="0" y="4" textAnchor="middle" fontSize="11" fontWeight="700" fill="#16A34A">↗ 15%</text>
+                  </g>
+                  <g transform="translate(360, 235)">
+                    <rect x="-22" y="-11" width="44" height="22" rx="11" fill="#fff" stroke="#E5E7EB" />
+                    <text x="0" y="4" textAnchor="middle" fontSize="11" fontWeight="700" fill="#16A34A">↗ 71%</text>
+                  </g>
+                  <g transform="translate(560, 225)">
+                    <rect x="-22" y="-11" width="44" height="22" rx="11" fill="#fff" stroke="#E5E7EB" />
+                    <text x="0" y="4" textAnchor="middle" fontSize="11" fontWeight="700" fill="#D97706">↗ 43%</text>
+                  </g>
+                  <g transform="translate(760, 215)">
+                    <rect x="-22" y="-11" width="44" height="22" rx="11" fill="#fff" stroke="#E5E7EB" />
+                    <text x="0" y="4" textAnchor="middle" fontSize="11" fontWeight="700" fill="#16A34A">↗ 82%</text>
+                  </g>
+                </g>
+              </svg>
+
+              {/* Paradas do caminho */}
+              <div className="lp-journey-stop" style={{ left: '7.4%', top: '73%' }} data-tone="instagram">
+                <div className="lp-journey-bubble">
+                  <Instagram size={22} />
+                </div>
+                <div className="lp-journey-stop-card">
+                  <div className="lp-journey-step">01</div>
+                  <div className="lp-journey-num">847</div>
+                  <div className="lp-journey-lbl">Cliques no ad</div>
+                </div>
               </div>
-              <div className="lp-attr-arrow">→</div>
-              <div className="lp-attr-step lp-attr-s2">
-                <div className="lp-attr-step-num">126</div>
-                <div className="lp-attr-step-lbl">Mensagens (lead)</div>
+
+              <div className="lp-journey-stop" style={{ left: '24.1%', top: '25%' }} data-tone="msg">
+                <div className="lp-journey-bubble">
+                  <MessageSquare size={22} />
+                </div>
+                <div className="lp-journey-stop-card">
+                  <div className="lp-journey-step">02</div>
+                  <div className="lp-journey-num">126</div>
+                  <div className="lp-journey-lbl">Lead chegou</div>
+                </div>
               </div>
-              <div className="lp-attr-arrow">→</div>
-              <div className="lp-attr-step lp-attr-s3">
-                <div className="lp-attr-step-num">38</div>
-                <div className="lp-attr-step-lbl">Agendamentos</div>
+
+              <div className="lp-journey-stop" style={{ left: '42.6%', top: '65.4%' }} data-tone="ia">
+                <div className="lp-journey-bubble">
+                  <Bot size={22} />
+                </div>
+                <div className="lp-journey-stop-card">
+                  <div className="lp-journey-step">03</div>
+                  <div className="lp-journey-num">89</div>
+                  <div className="lp-journey-lbl">IA qualificou</div>
+                </div>
               </div>
-              <div className="lp-attr-arrow">→</div>
-              <div className="lp-attr-step lp-attr-s4">
-                <div className="lp-attr-step-num">31</div>
-                <div className="lp-attr-step-lbl">Consultas realizadas</div>
+
+              <div className="lp-journey-stop" style={{ left: '61.1%', top: '21%' }} data-tone="agenda">
+                <div className="lp-journey-bubble">
+                  <Calendar size={22} />
+                </div>
+                <div className="lp-journey-stop-card">
+                  <div className="lp-journey-step">04</div>
+                  <div className="lp-journey-num">38</div>
+                  <div className="lp-journey-lbl">Agendaram</div>
+                </div>
               </div>
-              <div className="lp-attr-arrow">→</div>
-              <div className="lp-attr-step lp-attr-s5">
-                <div className="lp-attr-step-num">R$ 9.3k</div>
-                <div className="lp-attr-step-lbl">Receita atribuída</div>
+
+              <div className="lp-journey-stop" style={{ left: '79.6%', top: '61.5%' }} data-tone="consulta">
+                <div className="lp-journey-bubble">
+                  <Stethoscope size={22} />
+                </div>
+                <div className="lp-journey-stop-card">
+                  <div className="lp-journey-step">05</div>
+                  <div className="lp-journey-num">31</div>
+                  <div className="lp-journey-lbl">Compareceram</div>
+                </div>
+              </div>
+
+              <div className="lp-journey-stop lp-journey-stop-final" style={{ left: '94.4%', top: '17.3%' }} data-tone="receita">
+                <div className="lp-journey-bubble">
+                  <TrendingUp size={22} />
+                </div>
+                <div className="lp-journey-stop-card">
+                  <div className="lp-journey-step">06</div>
+                  <div className="lp-journey-num">R$ 9.3k</div>
+                  <div className="lp-journey-lbl">Receita atribuída</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Versão mobile: timeline vertical */}
+            <ol className="lp-journey-list">
+              <li data-tone="instagram">
+                <span className="lp-journey-list-icon"><Instagram size={16} /></span>
+                <div>
+                  <strong>847</strong>
+                  <span>Cliques no ad</span>
+                </div>
+              </li>
+              <li data-tone="msg" data-conv="15%">
+                <span className="lp-journey-list-icon"><MessageSquare size={16} /></span>
+                <div>
+                  <strong>126</strong>
+                  <span>Lead chegou</span>
+                </div>
+              </li>
+              <li data-tone="ia" data-conv="71%">
+                <span className="lp-journey-list-icon"><Bot size={16} /></span>
+                <div>
+                  <strong>89</strong>
+                  <span>IA qualificou</span>
+                </div>
+              </li>
+              <li data-tone="agenda" data-conv="43%">
+                <span className="lp-journey-list-icon"><Calendar size={16} /></span>
+                <div>
+                  <strong>38</strong>
+                  <span>Agendaram</span>
+                </div>
+              </li>
+              <li data-tone="consulta" data-conv="82%">
+                <span className="lp-journey-list-icon"><Stethoscope size={16} /></span>
+                <div>
+                  <strong>31</strong>
+                  <span>Compareceram</span>
+                </div>
+              </li>
+              <li data-tone="receita" data-final>
+                <span className="lp-journey-list-icon"><TrendingUp size={16} /></span>
+                <div>
+                  <strong>R$ 9.3k</strong>
+                  <span>Receita atribuída</span>
+                </div>
+              </li>
+            </ol>
+
+            {/* Legenda */}
+            <div className="lp-journey-legend">
+              <div className="lp-journey-legend-item">
+                <span className="lp-journey-dot" data-tone="instagram" />
+                Anúncio
+              </div>
+              <span className="lp-journey-legend-sep">·</span>
+              <div className="lp-journey-legend-item">
+                <span className="lp-journey-dot" data-tone="msg" />
+                Conversa
+              </div>
+              <span className="lp-journey-legend-sep">·</span>
+              <div className="lp-journey-legend-item">
+                <span className="lp-journey-dot" data-tone="ia" />
+                IA
+              </div>
+              <span className="lp-journey-legend-sep">·</span>
+              <div className="lp-journey-legend-item">
+                <span className="lp-journey-dot" data-tone="agenda" />
+                Agenda
+              </div>
+              <span className="lp-journey-legend-sep">·</span>
+              <div className="lp-journey-legend-item">
+                <span className="lp-journey-dot" data-tone="consulta" />
+                Consulta
+              </div>
+              <span className="lp-journey-legend-sep">·</span>
+              <div className="lp-journey-legend-item">
+                <span className="lp-journey-dot" data-tone="receita" />
+                Receita
               </div>
             </div>
           </div>
