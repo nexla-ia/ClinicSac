@@ -475,6 +475,28 @@ export default function CompanyTutorial() {
       {/* Hero — estética 'diário de bordo' */}
       <div className="tut-hero">
         <div className="tut-hero-bg" />
+        <div className="tut-hero-progress-fab">
+          <svg viewBox="0 0 100 100" className="tut-hero-progress-svg">
+            <circle cx="50" cy="50" r="42" stroke="rgba(15,14,27,0.08)" strokeWidth="6" fill="none" />
+            <circle cx="50" cy="50" r="42"
+              stroke="url(#tutGrad)" strokeWidth="6" fill="none"
+              strokeLinecap="round" strokeDasharray={`${(pct/100) * 263.9} 263.9`}
+              transform="rotate(-90 50 50)"
+              style={{ transition: 'stroke-dasharray 0.5s ease' }} />
+            <defs>
+              <linearGradient id="tutGrad" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%"   stopColor="#7C3AED" />
+                <stop offset="50%"  stopColor="#DB2777" />
+                <stop offset="100%" stopColor="#FB923C" />
+              </linearGradient>
+            </defs>
+          </svg>
+          <div className="tut-hero-progress-text">
+            <span className="tut-hero-progress-num">{totalCompleted}</span>
+            <span className="tut-hero-progress-divider">de</span>
+            <span className="tut-hero-progress-total">{visibleModules.length}</span>
+          </div>
+        </div>
         <div className="tut-hero-content">
           <div className="tut-hero-eyebrow">
             <BookOpen size={14} />
