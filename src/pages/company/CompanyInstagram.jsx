@@ -1,219 +1,773 @@
-import { useState, useEffect } from 'react'
-import {
-  Instagram, Heart, MessageCircle, Send, Bookmark, MoreHorizontal,
-  Sparkles, Check, Bell, Mail, ArrowRight, Zap, Clock, Users,
-} from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
+import {
+  Instagram, Search, Send, Sparkles, UserCheck, UserPlus,
+  CheckCircle2, Inbox, Archive, Heart, MessageCircle,
+  X, MoreHorizontal, Calendar, Headset, Lock,
+} from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import './CompanyInstagram.css'
+
+const CONV_TABLE = 'mensagens_geral'
+
+function getMessageContent(row) {
+  return (row.mensagem || '').replace(/^\*[^*]+\*:\n/, '').trim()
+}
+function getMessageType(row) { return (row.type || 'human').toLowerCase() }
+function parseTimestamp(val) {
+  if (!val) return null
+  if (/^\d{2}\/\d{2}\/\d{4}/.test(val)) {
+    const [date, time] = val.split(' ')
+    const [d, m, y] = date.split('/')
+    return new Date(`${y}-${m}-${d}T${time || '00:00:00'}`).toISOString()
+  }
+  return val
+}
+function getTimestamp(row) { return parseTimestamp(row.horaLastMessage) || row.created_at || null }
+
+function isToolMessage(row) {
+  const type = getMessageType(row)
+  const content = row.mensagem || ''
+  if (type === 'tool') return true
+  if (type === 'ia' && /^Calling \w+ with input:/i.test(content.trim())) return true
+  if (type === 'ia' && content.length > 800) return true
+  return false
+}
+
+function formatMsgTime(ts) {
+  if (!ts) return ''
+  const d = new Date(ts)
+  const now = new Date()
+  const hhmm = d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+  if (d.toDateString() === now.toDateString()) return hhmm
+  const yesterday = new Date(now); yesterday.setDate(now.getDate() - 1)
+  if (d.toDateString() === yesterday.toDateString()) return `Ontem ${hhmm}`
+  return `${d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} ${hhmm}`
+}
+
+function formatContactTime(ts) {
+  if (!ts) return ''
+  const d = new Date(ts)
+  const now = new Date()
+  const diffMin = Math.floor((now - d) / 60000)
+  const diffH = Math.floor(diffMin / 60)
+  if (diffMin < 1) return 'agora'
+  if (diffMin < 60) return `${diffMin}min`
+  if (diffH < 24) return `${diffH}h`
+  return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
+}
+
+// Avatar com gradient pseudo-aleatório baseado no handle
+const GRADIENTS = [
+  'linear-gradient(135deg, #F472B6, #EC4899)',
+  'linear-gradient(135deg, #FBBF24, #FB923C)',
+  'linear-gradient(135deg, #A78BFA, #6366F1)',
+  'linear-gradient(135deg, #34D399, #06B6D4)',
+  'linear-gradient(135deg, #F87171, #DC2626)',
+  'linear-gradient(135deg, #60A5FA, #3B82F6)',
+  'linear-gradient(135deg, #C084FC, #9333EA)',
+  'linear-gradient(135deg, #2DD4BF, #0D9488)',
+]
+function gradientFor(s) {
+  let h = 0
+  for (let i = 0; i < (s || '').length; i++) h = (h * 31 + s.charCodeAt(i)) | 0
+  return GRADIENTS[Math.abs(h) % GRADIENTS.length]
+}
+function handleFromSession(sid) {
+  if (!sid) return ''
+  return sid.replace(/@.*$/, '').replace(/^@/, '')
+}
+
+const REASONS = [
+  { value: 'agendado',       label: 'Agendado',    color: '#16A34A', bg: '#F0FDF4', border: '#BBF7D0' },
+  { value: 'resolvido',      label: 'Resolvido',   color: '#2563EB', bg: '#EFF6FF', border: '#BFDBFE' },
+  { value: 'encaminhado',    label: 'Encaminhado', color: '#7C3AED', bg: '#F5F3FF', border: '#DDD6FE' },
+  { value: 'desistiu',       label: 'Desistiu',    color: '#DC2626', bg: '#FEF2F2', border: '#FECACA' },
+  { value: 'auto_encerrado', label: 'Expirado',    color: '#6B7280', bg: '#F9FAFB', border: '#E5E7EB' },
+]
+const MANUAL_REASONS = REASONS.filter(r => r.value !== 'auto_encerrado')
 
 export default function CompanyInstagram() {
   const { session } = useAuth()
-  const instance = session?.company?.instance
-  const [email, setEmail] = useState('')
-  const [submitted, setSubmitted] = useState(false)
-  const [igMsgCount, setIgMsgCount] = useState(0)
+  const navigate = useNavigate()
+  const instance     = session?.company?.instance
+  const apiInstancia = session?.company?.api_instancia
+  const isAdmin      = session?.user?.role === 'admin'
+  const userSector   = session?.user?.sector
+  const aiEnabled    = session?.company?.ai_enabled !== false
 
-  // Conta msgs Instagram que já estão chegando (pra dar feedback visual ao dono
-  // quando ele começar a setar aplicativo='instagram' no n8n)
+  const [contacts, setContacts]               = useState([])
+  const [closedMap, setClosedMap]             = useState({})
+  const [attendancesMap, setAttendancesMap]   = useState({})
+  const [savedContacts, setSavedContacts]     = useState({})
+  const [assuming, setAssuming]               = useState(null)
+  const [tab, setTab]                         = useState('recepcao')
+  const [loadingContacts, setLoadingContacts] = useState(false)
+  const [search, setSearch]                   = useState('')
+  const [selected, setSelected]               = useState(null)
+  const [messages, setMessages]               = useState([])
+  const [loadingMsgs, setLoadingMsgs]         = useState(false)
+  const [msgText, setMsgText]                 = useState('')
+  const [sending, setSending]                 = useState(false)
+  const [closeModal, setCloseModal]           = useState(null)
+  const [reason, setReason]                   = useState('')
+  const [closing, setClosing]                 = useState(false)
+  const [toast, setToast]                     = useState(null)
+
+  const bottomRef    = useRef(null)
+  const selectedRef  = useRef(null)
+  useEffect(() => { selectedRef.current = selected }, [selected])
+
+  // Contatos salvos
   useEffect(() => {
     if (!instance) return
-    supabase.from('mensagens_geral')
-      .select('id', { count: 'exact', head: true })
-      .eq('instancia', instance)
-      .eq('aplicativo', 'instagram')
-      .then(({ count }) => setIgMsgCount(count || 0))
-      .catch(() => setIgMsgCount(0))
+    supabase.from('saved_contacts').select('*').eq('instancia', instance)
+      .then(({ data }) => {
+        if (data) {
+          const map = {}; data.forEach(c => { map[c.numero] = c })
+          setSavedContacts(map)
+        }
+      })
   }, [instance])
 
-  function handleSignup(e) {
-    e.preventDefault()
-    if (!email.trim() || !email.includes('@')) return
-    // Aqui pode integrar com waitlist real depois
-    setSubmitted(true)
+  // Atendimentos ativos
+  useEffect(() => {
+    if (!instance) return
+    supabase.from('attendances').select('*').eq('instancia', instance)
+      .then(({ data }) => {
+        if (data) {
+          const map = {}; data.forEach(r => { map[r.numero] = r })
+          setAttendancesMap(map)
+        }
+      })
+    const ch = supabase.channel(`ig-attendances-${instance}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'attendances', filter: `instancia=eq.${instance}` },
+        (p) => {
+          if (p.eventType === 'DELETE') {
+            setAttendancesMap(prev => { const n = { ...prev }; delete n[p.old.numero]; return n })
+          } else if (p.new) {
+            setAttendancesMap(prev => ({ ...prev, [p.new.numero]: p.new }))
+          }
+        })
+      .subscribe()
+    return () => supabase.removeChannel(ch)
+  }, [instance])
+
+  // Carrega contatos Instagram
+  useEffect(() => {
+    if (!instance) return
+    setLoadingContacts(true)
+    supabase.from(CONV_TABLE).select('*')
+      .eq('instancia', instance)
+      .eq('aplicativo', 'instagram')
+      .order('id', { ascending: false })
+      .then(({ data, error }) => {
+        if (!error && data) {
+          const seen = new Set()
+          const unique = []
+          for (const row of data) {
+            const sid = row.numero
+            if (!sid || seen.has(sid)) continue
+            seen.add(sid)
+            unique.push({
+              session_id: sid,
+              handle: handleFromSession(sid),
+              lastTs: getTimestamp(row),
+              lastPreview: getMessageContent(row).slice(0, 80),
+            })
+          }
+          setContacts(unique)
+        }
+        setLoadingContacts(false)
+      })
+  }, [instance])
+
+  // Conversas encerradas
+  useEffect(() => {
+    if (!instance) return
+    supabase.from('conversations').select('session_id, reason').eq('instancia', instance)
+      .then(({ data }) => {
+        if (data) {
+          const map = {}; data.forEach(r => { map[r.session_id] = r.reason || 'resolvido' })
+          setClosedMap(map)
+        }
+      })
+  }, [instance])
+
+  // Realtime: novas mensagens
+  useEffect(() => {
+    if (!instance) return
+    const ch = supabase.channel(`ig-msgs-${instance}`)
+      .on('postgres_changes',
+        { event: 'INSERT', schema: 'public', table: CONV_TABLE, filter: `instancia=eq.${instance}` },
+        (p) => {
+          const row = p.new
+          if (!row || isToolMessage(row)) return
+          if (row.aplicativo !== 'instagram') return
+          const sid = row.numero
+          if (!sid) return
+          const ts = getTimestamp(row)
+          const preview = getMessageContent(row).slice(0, 80)
+
+          setClosedMap(prev => {
+            if (!prev[sid]) return prev
+            supabase.from('conversations').delete().eq('session_id', sid).eq('instancia', instance)
+            supabase.from('attendances').delete().eq('numero', sid).eq('instancia', instance)
+            setAttendancesMap(at => { const n = { ...at }; delete n[sid]; return n })
+            const next = { ...prev }; delete next[sid]; return next
+          })
+
+          setContacts(prev => {
+            const existing = prev.find(c => c.session_id === sid)
+            if (existing) {
+              return [
+                { ...existing, lastTs: ts, lastPreview: preview },
+                ...prev.filter(c => c.session_id !== sid)
+              ]
+            }
+            return [{ session_id: sid, handle: handleFromSession(sid), lastTs: ts, lastPreview: preview }, ...prev]
+          })
+
+          if (selectedRef.current?.session_id === sid) {
+            setMessages(msgs => [...msgs, {
+              id: row.id,
+              type: getMessageType(row),
+              content: getMessageContent(row),
+              base64: row.base64 || null,
+              ts,
+            }])
+          }
+        }
+      )
+      .subscribe()
+    return () => supabase.removeChannel(ch)
+  }, [instance])
+
+  // Carrega mensagens da conversa selecionada
+  useEffect(() => {
+    if (!selected || !instance) return
+    setLoadingMsgs(true)
+    setMessages([])
+    supabase.from(CONV_TABLE).select('*')
+      .eq('instancia', instance)
+      .eq('numero', selected.session_id)
+      .eq('aplicativo', 'instagram')
+      .order('id', { ascending: true })
+      .then(({ data, error }) => {
+        if (!error && data) {
+          setMessages(data.filter(r => !isToolMessage(r)).map(r => ({
+            id: r.id,
+            type: getMessageType(r),
+            content: getMessageContent(r),
+            base64: r.base64 || null,
+            ts: getTimestamp(r),
+          })))
+        }
+        setLoadingMsgs(false)
+      })
+  }, [selected, instance])
+
+  useEffect(() => {
+    if (!loadingMsgs) bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages, loadingMsgs])
+
+  async function handleAssume(contact, e) {
+    e?.stopPropagation()
+    if (attendancesMap[contact.session_id] || assuming === contact.session_id) return
+    setAssuming(contact.session_id)
+    const name = session?.user?.name || 'Atendente'
+    const sectorLabel = userSector ? ` (${userSector.name})` : ''
+
+    await supabase.from('attendances').upsert({
+      numero: contact.session_id,
+      instancia: instance,
+      sector_id: userSector?.id || null,
+      sector_name: userSector?.name || null,
+      sector_color: userSector?.color || '#EC4899',
+      attendant_name: name,
+      attendant_email: session?.user?.email,
+      assumed_at: new Date().toISOString(),
+    }, { onConflict: 'numero,instancia' })
+
+    const assumeMsg = `▶ Atendimento assumido por ${name}${sectorLabel}`
+    await supabase.from(CONV_TABLE).insert({
+      instancia: instance,
+      numero: contact.session_id,
+      mensagem: assumeMsg,
+      type: 'atendente',
+      aplicativo: 'instagram',
+    })
+
+    fetch('https://n8n.nexladesenvolvimento.com.br/webhook/envioNexla', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        message: assumeMsg,
+        session_id: contact.session_id,
+        handle: contact.handle,
+        instancia: instance,
+        api_instancia: apiInstancia,
+        ai_enabled: aiEnabled,
+        company: session?.company?.name,
+        sender_name: name,
+        sender_email: session?.user?.email,
+        is_assume_event: true,
+        aplicativo: 'instagram',
+      }),
+    }).catch(e => console.warn('webhook assumir IG:', e))
+
+    setAttendancesMap(prev => ({
+      ...prev,
+      [contact.session_id]: {
+        numero: contact.session_id, instancia: instance,
+        sector_id: userSector?.id, sector_name: userSector?.name,
+        sector_color: userSector?.color || '#EC4899',
+        attendant_name: name, attendant_email: session?.user?.email,
+      }
+    }))
+    setTab('meu-setor')
+    setAssuming(null)
   }
 
+  async function handleSend() {
+    if (sending || !selected) return
+    if (!msgText.trim()) return
+    setSending(true)
+    try {
+      if (!attendancesMap[selected.session_id] && !closedMap[selected.session_id]) {
+        const name = session?.user?.name || 'Atendente'
+        const newAtt = {
+          numero: selected.session_id, instancia: instance,
+          sector_id: userSector?.id || null,
+          sector_name: userSector?.name || null,
+          sector_color: userSector?.color || '#EC4899',
+          attendant_name: name, attendant_email: session?.user?.email,
+          assumed_at: new Date().toISOString(),
+        }
+        await supabase.from('attendances').upsert(newAtt, { onConflict: 'numero,instancia' })
+        setAttendancesMap(prev => ({ ...prev, [selected.session_id]: newAtt }))
+        setTab('meu-setor')
+      }
+      const text = msgText.trim()
+      setMsgText('')
+      const { error: insErr } = await supabase.from(CONV_TABLE).insert({
+        instancia: instance,
+        numero: selected.session_id,
+        mensagem: text,
+        type: 'atendente',
+        aplicativo: 'instagram',
+      })
+      if (insErr) console.error('insert mensagens_geral IG:', insErr)
+
+      fetch('https://n8n.nexladesenvolvimento.com.br/webhook/envioNexla', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: text,
+          session_id: selected.session_id,
+          handle: selected.handle,
+          instancia: instance,
+          api_instancia: apiInstancia,
+          ai_enabled: aiEnabled,
+          company: session?.company?.name,
+          sender_name: session?.user?.name,
+          sender_email: session?.user?.email,
+          aplicativo: 'instagram',
+        }),
+      }).catch(e => console.warn('webhook IG:', e))
+    } finally {
+      setSending(false)
+    }
+  }
+
+  async function handleClose() {
+    if (!reason || !closeModal) return
+    setClosing(true)
+    const { error } = await supabase.from('conversations').insert({
+      session_id: closeModal.session_id,
+      instancia: instance,
+      reason,
+      closed_at: new Date().toISOString(),
+    })
+    setClosing(false)
+    if (error) return
+    const closedId = closeModal.session_id
+    setClosedMap(prev => ({ ...prev, [closedId]: reason }))
+    supabase.from('attendances').delete().eq('numero', closedId).eq('instancia', instance)
+    setAttendancesMap(prev => { const n = { ...prev }; delete n[closedId]; return n })
+    if (selected?.session_id === closedId) setSelected(null)
+    setCloseModal(null)
+    setReason('')
+    setTab('finalizados')
+    const label = REASONS.find(r => r.value === reason)?.label || reason
+    setToast({ message: `Conversa finalizada — ${label}`, color: REASONS.find(r => r.value === reason)?.color || '#16A34A' })
+    setTimeout(() => setToast(null), 3500)
+  }
+
+  const closed = new Set(Object.keys(closedMap))
+  const recepcao    = contacts.filter(c => !closed.has(c.session_id) && !attendancesMap[c.session_id])
+  const meuSetor    = contacts.filter(c => !closed.has(c.session_id) && attendancesMap[c.session_id] &&
+    (isAdmin || !userSector || attendancesMap[c.session_id].sector_id === userSector.id))
+  const finalizados = contacts.filter(c => closed.has(c.session_id))
+
+  const tabList = [
+    { id: 'recepcao',    label: 'Recepção',    icon: Inbox,      count: recepcao.length },
+    { id: 'meu-setor',   label: 'Meu setor',   icon: UserCheck,  count: meuSetor.length },
+    { id: 'finalizados', label: 'Finalizados', icon: Archive,    count: finalizados.length },
+  ]
+  const visibleContacts = (
+    tab === 'recepcao' ? recepcao :
+    tab === 'meu-setor' ? meuSetor :
+    finalizados
+  ).filter(c => !search.trim() || c.handle.toLowerCase().includes(search.toLowerCase()))
+
+  const isClosed = selected && closedMap[selected.session_id]
+  const isAttended = selected && attendancesMap[selected.session_id]
+
   return (
-    <div className="ig-root">
-      {/* Backdrop animado */}
-      <div className="ig-backdrop">
-        <div className="ig-orb ig-orb-1" />
-        <div className="ig-orb ig-orb-2" />
-        <div className="ig-orb ig-orb-3" />
-        <div className="ig-grain" />
-      </div>
-
-      <div className="ig-container">
-        {/* Selo "Em breve" */}
-        <div className="ig-badge">
-          <span className="ig-badge-dot" />
-          {igMsgCount > 0
-            ? `${igMsgCount} mensagem${igMsgCount === 1 ? '' : 's'} Instagram já chegando`
-            : 'Em desenvolvimento'}
-        </div>
-
-        {/* Headline gigante */}
-        <h1 className="ig-h1">
-          <span className="ig-h1-line">Sua clínica também</span>
-          <span className="ig-h1-line">
-            no <span className="ig-h1-grad">Instagram</span>.
-          </span>
-          <span className="ig-h1-soon">Em breve.</span>
-        </h1>
-
-        <p className="ig-sub">
-          Estamos preparando a integração com <strong>Instagram Direct</strong> para você
-          atender mensagens, comentários e stories sem sair da plataforma. Mesma IA,
-          mesma agenda, mesma equipe — só que multicanal de verdade.
-        </p>
-
-        {/* Preview do que vem por aí */}
-        <div className="ig-preview">
-          <div className="ig-preview-glow" />
-          <div className="ig-mock">
-            <div className="ig-mock-bar">
-              <Instagram size={14} className="ig-mock-logo" />
-              <div className="ig-mock-handle">@clinicasaude</div>
-              <MoreHorizontal size={14} className="ig-mock-more" />
+    <div className="ig-inbox">
+      {/* Sidebar de DMs */}
+      <aside className="ig-side">
+        <div className="ig-side-head">
+          <div className="ig-side-title-row">
+            <div className="ig-side-logo">
+              <Instagram size={18} />
             </div>
-
-            {/* Lista de DMs */}
-            <div className="ig-mock-body">
-              <div className="ig-mock-list">
-                <div className="ig-mock-list-title">Direct</div>
-                <DM avatar="A" color="linear-gradient(135deg, #F472B6, #EC4899)" name="ana_silva" preview="Vocês fazem botox?" time="2min" unread />
-                <DM avatar="J" color="linear-gradient(135deg, #FBBF24, #FB923C)" name="joao.fit" preview="Olá! Queria agendar..." time="14min" />
-                <DM avatar="M" color="linear-gradient(135deg, #A78BFA, #6366F1)" name="mariazinha" preview="Obrigada! Foi ótimo." time="1h" />
-                <DM avatar="P" color="linear-gradient(135deg, #34D399, #06B6D4)" name="pedrolopes" preview="Stories: tô interessado!" time="2h" comment />
-              </div>
-
-              <div className="ig-mock-chat">
-                <div className="ig-mock-chat-header">
-                  <div className="ig-mock-chat-avatar" style={{ background: 'linear-gradient(135deg, #F472B6, #EC4899)' }}>A</div>
-                  <div>
-                    <div className="ig-mock-chat-name">ana_silva</div>
-                    <div className="ig-mock-chat-meta">online agora</div>
-                  </div>
-                </div>
-                <div className="ig-mock-msgs">
-                  <div className="ig-mock-bubble client">Vocês fazem botox?</div>
-                  <div className="ig-mock-bubble client">E quanto fica?</div>
-                  <div className="ig-mock-bubble ai">
-                    <span className="ig-mock-tag"><Sparkles size={9} /> IA</span>
-                    Sim! Aplicação de toxina botulínica, R$ 1.200 (3 áreas).
-                    Quer agendar uma avaliação?
-                  </div>
-                  <div className="ig-mock-bubble client">Quero sim!</div>
-                  <div className="ig-mock-bubble ai">
-                    <span className="ig-mock-tag"><Sparkles size={9} /> IA</span>
-                    ✅ Agendado! Quinta às 15h com Dra. Camila.
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Card flutuante de notificação */}
-          <div className="ig-float ig-float-1">
-            <div className="ig-float-icon"><Heart size={13} fill="#EC4899" stroke="#EC4899" /></div>
             <div>
-              <div className="ig-float-label">Curtida no story</div>
-              <div className="ig-float-text">+47 leads do post de hoje</div>
+              <div className="ig-side-title">Direct</div>
+              <div className="ig-side-sub">Mensagens do Instagram</div>
             </div>
           </div>
-          <div className="ig-float ig-float-2">
-            <div className="ig-float-icon"><MessageCircle size={13} stroke="#8B5CF6" /></div>
-            <div>
-              <div className="ig-float-label">Comentário respondido</div>
-              <div className="ig-float-text">IA respondeu em 12s</div>
-            </div>
+
+          <div className="ig-search">
+            <Search size={14} />
+            <input
+              type="text"
+              placeholder="Buscar por @usuário"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+            />
+            {search && <button onClick={() => setSearch('')} className="ig-search-clear"><X size={12} /></button>}
           </div>
-        </div>
 
-        {/* Recursos que vêm */}
-        <div className="ig-features">
-          <Feature icon={MessageCircle} color="#EC4899" title="Direct unificado" desc="Mensagens do Insta na mesma caixa do WhatsApp." />
-          <Feature icon={Heart} color="#FB923C" title="Comentários respondidos" desc="A IA responde comentários que viram leads." />
-          <Feature icon={Send} color="#8B5CF6" title="Resposta em stories" desc="Quem reage ao seu story vira conversa direta." />
-          <Feature icon={Bookmark} color="#06B6D4" title="Mesma agenda" desc="Pacientes agendam pelo Insta como pelo WhatsApp." />
-        </div>
-
-        {/* Waitlist */}
-        <div className="ig-waitlist">
-          {!submitted ? (
-            <form onSubmit={handleSignup}>
-              <div className="ig-waitlist-text">
-                <Bell size={16} />
-                <span>Me avise quando lançar</span>
-              </div>
-              <div className="ig-waitlist-form">
-                <Mail size={15} className="ig-waitlist-icon" />
-                <input
-                  type="email"
-                  placeholder="seu@email.com"
-                  value={email}
-                  onChange={e => setEmail(e.target.value)}
-                />
-                <button type="submit">
-                  Avise-me <ArrowRight size={14} />
+          <div className="ig-tabs">
+            {tabList.map(t => {
+              const Icon = t.icon
+              return (
+                <button
+                  key={t.id}
+                  className={`ig-tab ${tab === t.id ? 'active' : ''}`}
+                  onClick={() => setTab(t.id)}
+                >
+                  <Icon size={13} />
+                  <span>{t.label}</span>
+                  {t.count > 0 && <span className="ig-tab-count">{t.count}</span>}
                 </button>
+              )
+            })}
+          </div>
+        </div>
+
+        <div className="ig-list">
+          {loadingContacts ? (
+            <div className="ig-empty">Carregando...</div>
+          ) : visibleContacts.length === 0 ? (
+            <div className="ig-empty">
+              <div className="ig-empty-icon">
+                <MessageCircle size={26} />
               </div>
-            </form>
-          ) : (
-            <div className="ig-waitlist-done">
-              <div className="ig-waitlist-check"><Check size={18} /></div>
-              <div>
-                <div className="ig-waitlist-done-title">Você está na lista!</div>
-                <div className="ig-waitlist-done-sub">
-                  Vamos te avisar em <strong>{email}</strong> assim que liberar.
-                </div>
+              <div className="ig-empty-title">
+                {tab === 'recepcao' && 'Nenhuma DM aguardando'}
+                {tab === 'meu-setor' && 'Nada no seu setor'}
+                {tab === 'finalizados' && 'Sem conversas encerradas'}
+              </div>
+              <div className="ig-empty-sub">
+                {tab === 'recepcao' && 'A IA está cuidando ou ninguém escreveu ainda.'}
+                {tab === 'meu-setor' && 'Conversas que você assumir aparecem aqui.'}
+                {tab === 'finalizados' && 'O histórico fica registrado quando você finalizar.'}
               </div>
             </div>
+          ) : (
+            visibleContacts.map(c => {
+              const att = attendancesMap[c.session_id]
+              const isSelected = selected?.session_id === c.session_id
+              const cleanNum = c.handle
+              const saved = savedContacts[cleanNum]
+              const displayName = saved?.nome || `@${c.handle}`
+              return (
+                <button
+                  key={c.session_id}
+                  className={`ig-dm-row ${isSelected ? 'selected' : ''}`}
+                  onClick={() => setSelected(c)}
+                >
+                  <div className="ig-avatar" style={{ background: gradientFor(c.handle) }}>
+                    {saved?.photo
+                      ? <img src={saved.photo} alt="" />
+                      : (saved?.nome || c.handle).charAt(0).toUpperCase()}
+                  </div>
+                  <div className="ig-dm-content">
+                    <div className="ig-dm-row-top">
+                      <span className="ig-dm-name">{displayName}</span>
+                      <span className="ig-dm-time">{formatContactTime(c.lastTs)}</span>
+                    </div>
+                    <div className="ig-dm-row-bottom">
+                      <span className="ig-dm-preview">{c.lastPreview || 'sem mensagem'}</span>
+                      {att && (
+                        <span className="ig-dm-tag" style={{
+                          background: `${att.sector_color || '#EC4899'}1F`,
+                          color: att.sector_color || '#EC4899',
+                        }}>
+                          <Headset size={9} />
+                          {att.sector_name || att.attendant_name}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  {tab === 'recepcao' && !att && (
+                    <button
+                      className="ig-assume-mini"
+                      onClick={(e) => handleAssume(c, e)}
+                      disabled={assuming === c.session_id}
+                      title="Assumir conversa"
+                    >
+                      {assuming === c.session_id ? '...' : 'Assumir'}
+                    </button>
+                  )}
+                </button>
+              )
+            })
           )}
         </div>
+      </aside>
 
-        {/* Marquee */}
-        <div className="ig-marquee">
-          <div className="ig-marquee-track">
-            {Array.from({ length: 2 }).map((_, i) => (
-              <span key={i}>
-                Direct · Stories · Comentários · Reels DM · Mensagens permanentes · Resposta automática · Funil unificado · Agenda compartilhada · Histórico cruzado · IA contextual ·{' '}
-              </span>
-            ))}
+      {/* Painel da conversa */}
+      <main className="ig-chat">
+        {!selected ? (
+          <div className="ig-chat-empty">
+            <div className="ig-chat-empty-icon">
+              <Instagram size={40} />
+            </div>
+            <h3>Suas mensagens</h3>
+            <p>Selecione uma conversa pra começar a responder seus pacientes do Instagram.</p>
+          </div>
+        ) : (
+          <>
+            {/* Header da conversa */}
+            <header className="ig-chat-head">
+              {(() => {
+                const cleanNum = selected.handle
+                const saved = savedContacts[cleanNum]
+                return (
+                  <>
+                    <div
+                      className="ig-avatar md"
+                      style={{ background: gradientFor(selected.handle), cursor: saved ? 'pointer' : 'default' }}
+                      onClick={() => saved && navigate(`/painel/contatos/${saved.id}`)}
+                    >
+                      {saved?.photo
+                        ? <img src={saved.photo} alt="" />
+                        : (saved?.nome || selected.handle).charAt(0).toUpperCase()}
+                    </div>
+                    <div className="ig-chat-head-info">
+                      <div className="ig-chat-head-name">{saved?.nome || `@${selected.handle}`}</div>
+                      <div className="ig-chat-head-meta">
+                        {saved && <span>@{selected.handle}</span>}
+                        {!loadingMsgs && <span>{messages.length} mensagem(ns)</span>}
+                      </div>
+                    </div>
+                  </>
+                )
+              })()}
+              <div className="ig-chat-head-actions">
+                {!isClosed && (
+                  <>
+                    <button
+                      className="ig-action-btn"
+                      onClick={() => navigate(`/painel/agenda?numero=${selected.handle}`)}
+                      title="Agendar consulta"
+                    >
+                      <Calendar size={14} />
+                      <span>Agendar</span>
+                    </button>
+                    <button
+                      className="ig-action-btn"
+                      onClick={() => { setCloseModal(selected); setReason('') }}
+                      title="Finalizar conversa"
+                    >
+                      <CheckCircle2 size={14} />
+                      <span>Finalizar</span>
+                    </button>
+                  </>
+                )}
+                {isClosed && (() => {
+                  const rs = REASONS.find(r => r.value === closedMap[selected.session_id])
+                  return rs ? (
+                    <span className="ig-status-pill" style={{ color: rs.color, background: rs.bg, borderColor: rs.border }}>
+                      {rs.label}
+                    </span>
+                  ) : null
+                })()}
+              </div>
+            </header>
+
+            {/* Banner de status (IA / assumir) */}
+            {!isClosed && !isAttended && (
+              <div className={`ig-banner ${aiEnabled ? 'ai' : 'await'}`}>
+                <div className="ig-banner-info">
+                  {aiEnabled ? (
+                    <>
+                      <Sparkles size={15} />
+                      <span>Conversa sob atendimento da <strong>IA</strong></span>
+                    </>
+                  ) : (
+                    <>
+                      <Inbox size={15} />
+                      <span>Conversa aguardando atendimento</span>
+                    </>
+                  )}
+                </div>
+                <button
+                  className="ig-banner-cta"
+                  onClick={(e) => handleAssume(selected, e)}
+                  disabled={assuming === selected.session_id}
+                >
+                  <UserCheck size={13} />
+                  {assuming === selected.session_id ? 'Assumindo...' : 'Assumir conversa'}
+                </button>
+              </div>
+            )}
+
+            {/* Mensagens */}
+            <div className="ig-chat-body">
+              {loadingMsgs ? (
+                <div className="ig-loading">Carregando mensagens...</div>
+              ) : messages.length === 0 ? (
+                <div className="ig-chat-no-msgs">
+                  <Heart size={20} />
+                  <span>Sem mensagens ainda</span>
+                </div>
+              ) : (
+                messages.map((m, i) => {
+                  const t = (m.type || '').toLowerCase()
+                  const isClient = t === 'cliente' || t === 'human'
+                  const isIA = t === 'ia'
+                  const isAtt = t === 'atendente' || t === 'humano'
+                  const sideClass = isClient ? 'left' : 'right'
+                  const isAssumeMsg = m.content?.startsWith('▶ Atendimento assumido')
+                  return (
+                    <div key={m.id || i} className={`ig-msg-row ${sideClass}`}>
+                      {isAssumeMsg ? (
+                        <div className="ig-msg-system">
+                          <UserCheck size={11} />
+                          <span>{m.content.replace('▶ ', '')}</span>
+                        </div>
+                      ) : (
+                        <>
+                          <div className={`ig-bubble ${isClient ? 'client' : isIA ? 'ai' : 'att'}`}>
+                            {isIA && (
+                              <span className="ig-bubble-tag">
+                                <Sparkles size={9} /> IA
+                              </span>
+                            )}
+                            {isAtt && (
+                              <span className="ig-bubble-tag att">
+                                <Headset size={9} /> Atendente
+                              </span>
+                            )}
+                            <div className="ig-bubble-text">{m.content || '—'}</div>
+                            <div className="ig-bubble-time">{formatMsgTime(m.ts)}</div>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  )
+                })
+              )}
+              <div ref={bottomRef} />
+            </div>
+
+            {/* Composer */}
+            {!isClosed ? (
+              <div className="ig-composer">
+                <div className="ig-composer-inner">
+                  <input
+                    type="text"
+                    placeholder="Mande uma mensagem..."
+                    value={msgText}
+                    onChange={e => setMsgText(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleSend()}
+                    disabled={sending}
+                  />
+                  <button
+                    className="ig-send"
+                    onClick={handleSend}
+                    disabled={!msgText.trim() || sending}
+                  >
+                    {sending ? '...' : <Send size={16} />}
+                  </button>
+                </div>
+                <div className="ig-composer-hint">
+                  <Lock size={10} />
+                  Mensagem enviada via Instagram Direct · Enter pra enviar
+                </div>
+              </div>
+            ) : (
+              <div className="ig-closed-bar">
+                <Archive size={13} />
+                <span>Conversa encerrada. Se @{selected.handle} mandar nova mensagem, um novo ticket será aberto.</span>
+              </div>
+            )}
+          </>
+        )}
+      </main>
+
+      {/* Modal de finalização */}
+      {closeModal && (
+        <div className="ig-modal-backdrop" onClick={() => !closing && setCloseModal(null)}>
+          <div className="ig-modal" onClick={e => e.stopPropagation()}>
+            <div className="ig-modal-head">
+              <div>
+                <h4>Finalizar conversa</h4>
+                <p>com <strong>@{closeModal.handle}</strong></p>
+              </div>
+              <button className="ig-modal-close" onClick={() => !closing && setCloseModal(null)}><X size={16} /></button>
+            </div>
+            <div className="ig-modal-body">
+              <div className="ig-modal-label">Como foi essa conversa?</div>
+              <div className="ig-modal-options">
+                {MANUAL_REASONS.map(r => (
+                  <button
+                    key={r.value}
+                    className={`ig-modal-option ${reason === r.value ? 'selected' : ''}`}
+                    style={reason === r.value ? {
+                      background: r.bg, color: r.color, borderColor: r.border,
+                    } : {}}
+                    onClick={() => setReason(r.value)}
+                  >
+                    {r.label}
+                  </button>
+                ))}
+              </div>
+              <div className="ig-modal-actions">
+                <button className="ig-modal-cancel" onClick={() => setCloseModal(null)} disabled={closing}>
+                  Cancelar
+                </button>
+                <button className="ig-modal-confirm" onClick={handleClose} disabled={!reason || closing}>
+                  {closing ? 'Finalizando...' : 'Finalizar'}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
-      </div>
-    </div>
-  )
-}
+      )}
 
-function DM({ avatar, color, name, preview, time, unread, comment }) {
-  return (
-    <div className={`ig-dm ${unread ? 'unread' : ''}`}>
-      <div className="ig-dm-avatar" style={{ background: color }}>{avatar}</div>
-      <div className="ig-dm-content">
-        <div className="ig-dm-name">{name}</div>
-        <div className="ig-dm-preview">
-          {comment && <span className="ig-dm-tag">comentário</span>}
-          {preview}
+      {/* Toast */}
+      {toast && (
+        <div className="ig-toast" style={{ background: toast.color }}>
+          {toast.message}
         </div>
-      </div>
-      <div className="ig-dm-time">{time}</div>
-      {unread && <div className="ig-dm-unread" />}
-    </div>
-  )
-}
-
-function Feature({ icon: Icon, color, title, desc }) {
-  return (
-    <div className="ig-feature">
-      <div className="ig-feature-icon" style={{ background: `${color}1F`, color }}>
-        <Icon size={18} />
-      </div>
-      <div className="ig-feature-content">
-        <div className="ig-feature-title">{title}</div>
-        <div className="ig-feature-desc">{desc}</div>
-      </div>
+      )}
     </div>
   )
 }
