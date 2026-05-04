@@ -524,13 +524,33 @@ export default function CompanyConversations() {
       assumed_at: new Date().toISOString(),
     }, { onConflict: 'numero,instancia' })
 
+    const assumeMsg = `▶ Atendimento assumido por ${name}${sectorLabel}`
     await supabase.rpc('send_mensagem_geral', {
       p_instancia: instance,
       p_numero: contact.session_id,
-      p_mensagem: `▶ Atendimento assumido por ${name}${sectorLabel}`,
+      p_mensagem: assumeMsg,
       p_type: 'atendente',
       p_hora: new Date().toISOString(),
     })
+
+    // Dispara o webhook do n8n pra mensagem realmente sair pro WhatsApp
+    // e a IA travar (a IA só bloqueia quando há envio efetivo de mensagem do atendente)
+    fetch('https://n8n.nexladesenvolvimento.com.br/webhook/envioNexla', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        message: assumeMsg,
+        session_id: contact.session_id,
+        phone: contact.phone,
+        instancia: instance,
+        api_instancia: apiInstancia,
+        ai_enabled: session?.company?.ai_enabled !== false,
+        company: session?.company?.name,
+        sender_name: name,
+        sender_email: session?.user?.email,
+        is_assume_event: true,
+      }),
+    }).catch(e => console.warn('webhook assumir:', e))
 
     setAttendancesMap(prev => ({
       ...prev,
