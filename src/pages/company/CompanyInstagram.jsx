@@ -323,7 +323,7 @@ function InstagramInbox() {
       aplicativo: 'instagram',
     })
 
-    fetch('https://n8n.nexladesenvolvimento.com.br/webhook/envioNexla', {
+    fetch('https://n8n.nexladesenvolvimento.com.br/webhook/envioNexlainstagram', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -384,7 +384,7 @@ function InstagramInbox() {
       })
       if (insErr) console.error('insert mensagens_geral IG:', insErr)
 
-      fetch('https://n8n.nexladesenvolvimento.com.br/webhook/envioNexla', {
+      fetch('https://n8n.nexladesenvolvimento.com.br/webhook/envioNexlainstagram', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
