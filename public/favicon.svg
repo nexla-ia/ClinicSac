@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- Fundo cobre com gradient -->
+  <defs>
+    <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#C9A074"/>
+      <stop offset="100%" stop-color="#B8895C"/>
+    </linearGradient>
+  </defs>
+  <rect width="100" height="100" rx="22" fill="url(#g)"/>
+  <!-- M esquerdo -->
+  <path d="M20 72 L20 28 L34 52 L48 28 L48 72"
+        stroke="#fff" stroke-width="6"
+        stroke-linejoin="miter" stroke-linecap="square"
+        fill="none"/>
+  <!-- M direito -->
+  <path d="M52 72 L52 28 L66 52 L80 28 L80 72"
+        stroke="#fff" stroke-width="6"
+        stroke-linejoin="miter" stroke-linecap="square"
+        fill="none"/>
+</svg>
