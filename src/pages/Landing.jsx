@@ -252,7 +252,6 @@ export default function Landing() {
               title="Instagram + WhatsApp na mesma caixa"
               description="Direct, comentários e stories do Instagram unificados com o WhatsApp. Atenda os dois canais com a mesma equipe e a mesma IA."
               tags={['Direct', 'Stories', 'Comentários']}
-              soon
             />
             <FeatureCard
               icon={<ImageIcon size={22} />}
