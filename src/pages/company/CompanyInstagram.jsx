@@ -838,11 +838,53 @@ function InstagramInbox() {
 // Tela de bloqueio (empresa sem Instagram ativo)
 // ─────────────────────────────────────────────────────────────────────────────
 function InstagramLockedScreen({ company }) {
-  const phone = '5566996201819'
-  const msg = encodeURIComponent(
-    `Olá, sou da clínica ${company?.name || ''} e queria liberar o Instagram Direct na plataforma. Podem me ajudar?`
-  )
-  const whatsappUrl = `https://wa.me/${phone}?text=${msg}`
+  const { session } = useAuth()
+  const [ticketState, setTicketState] = useState('idle') // idle | sending | sent | error
+  const [ticketErr, setTicketErr] = useState('')
+
+  async function openSupportTicket() {
+    if (ticketState === 'sending' || ticketState === 'sent') return
+    setTicketState('sending')
+    setTicketErr('')
+
+    const userId   = session?.user?.id
+    const userName = session?.user?.name || 'Cliente'
+    const subject  = 'Liberação do Instagram Direct'
+    const message  =
+      `Olá, time da MedicinaMKT! 👋\n\n` +
+      `Sou da clínica ${company?.name || ''} e gostaria de liberar o ` +
+      `Instagram Direct na plataforma.\n\n` +
+      `Podemos avançar com o setup (Meta Business API + n8n)?`
+
+    const { data: ticket, error } = await supabase
+      .from('support_tickets')
+      .insert({
+        company_id: company?.id,
+        subject,
+        status: 'open',
+        created_by_user_id: userId,
+        created_by_name: userName,
+        last_sender: 'company',
+      })
+      .select()
+      .single()
+
+    if (error || !ticket) {
+      setTicketErr('Não rolou abrir o ticket agora. Tenta de novo daqui a pouco.')
+      setTicketState('error')
+      return
+    }
+
+    await supabase.from('support_messages').insert({
+      ticket_id: ticket.id,
+      sender_type: 'company',
+      sender_user_id: userId,
+      sender_name: userName,
+      message,
+    })
+
+    setTicketState('sent')
+  }
 
   return (
     <div className="ig-locked">
@@ -945,14 +987,39 @@ function InstagramLockedScreen({ company }) {
         </div>
 
         {/* CTA */}
-        <a className="ig-locked-cta" href={whatsappUrl} target="_blank" rel="noopener noreferrer">
-          <MessageCircle size={16} />
-          <span>Falar com o time pra liberar</span>
-          <span className="ig-locked-cta-arrow">→</span>
-        </a>
+        {ticketState === 'sent' ? (
+          <div className="ig-locked-success">
+            <div className="ig-locked-success-icon">
+              <CheckCircle2 size={20} />
+            </div>
+            <div>
+              <div className="ig-locked-success-title">Pedido enviado pro time!</div>
+              <div className="ig-locked-success-sub">
+                A gente vai responder pelo chat de suporte aqui na plataforma — abre ele no canto inferior direito pra acompanhar.
+              </div>
+            </div>
+          </div>
+        ) : (
+          <button
+            type="button"
+            className="ig-locked-cta"
+            onClick={openSupportTicket}
+            disabled={ticketState === 'sending'}
+          >
+            <MessageCircle size={16} />
+            <span>
+              {ticketState === 'sending' ? 'Abrindo ticket...' : 'Falar com o time pra liberar'}
+            </span>
+            {ticketState !== 'sending' && <span className="ig-locked-cta-arrow">→</span>}
+          </button>
+        )}
+
+        {ticketErr && <div className="ig-locked-error">{ticketErr}</div>}
 
         <div className="ig-locked-note">
-          A gente cuida da configuração técnica · Setup costuma ficar pronto em até 48h úteis
+          {ticketState === 'sent'
+            ? 'Setup costuma ficar pronto em até 48h úteis · Acompanhe pelo chat de suporte'
+            : 'A gente cuida da configuração técnica · Setup costuma ficar pronto em até 48h úteis'}
         </div>
       </div>
     </div>
