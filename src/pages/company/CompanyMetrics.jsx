@@ -181,14 +181,19 @@ function fmtMoney(v) {
 }
 
 // ─── Página principal ────────────────────────────────────────────────────────
-export default function CompanyMetrics() {
+// Props opcionais (usadas pelo ADM Análise 360°):
+//   companyOverride: substitui session.company (pra ver métricas de outra empresa)
+//   hideHeader: esconde o título 'Métricas' + botão Atualizar
+export default function CompanyMetrics({ companyOverride = null, hideHeader = false } = {}) {
   const { session } = useAuth()
-  const instance      = session?.company?.instance
-  const companyId     = session?.company?.id
-  const contactsTable = session?.company?.contacts_table
-  const aiEnabled     = session?.company?.ai_enabled !== false
-  const limits        = getEffectiveLimits(session?.company)
-  const advancedAllowed = limits.advanced_metrics
+  const company = companyOverride || session?.company
+  const instance      = company?.instance
+  const companyId     = company?.id
+  const contactsTable = company?.contacts_table
+  const aiEnabled     = company?.ai_enabled !== false
+  const limits        = getEffectiveLimits(company)
+  // No modo ADM (companyOverride), libera todas as abas — admin vê tudo.
+  const advancedAllowed = companyOverride ? true : limits.advanced_metrics
   const ADVANCED_TABS  = ['equipe', 'financeiro']
 
   const [period, setPeriod]   = useState('semana')
@@ -328,20 +333,22 @@ export default function CompanyMetrics() {
   const range = useMemo(() => getPeriodRange(period), [period])
 
   return (
-    <div className="page-enter" style={{ padding: '1.5rem' }}>
-      {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 12 }}>
-        <div>
-          <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)' }}>Métricas</div>
-          <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
-            {lastRefresh ? `Atualizado às ${lastRefresh.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}` : 'Carregando...'}
+    <div className="page-enter" style={{ padding: hideHeader ? 0 : '1.5rem' }}>
+      {/* Header — só fora do modo embed do ADM */}
+      {!hideHeader && (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 12 }}>
+          <div>
+            <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)' }}>Métricas</div>
+            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
+              {lastRefresh ? `Atualizado às ${lastRefresh.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}` : 'Carregando...'}
+            </div>
           </div>
+          <button className="nx-btn-ghost" style={{ fontSize: 12 }} onClick={load} disabled={loading}>
+            <RefreshCw size={13} style={{ animation: loading ? 'spin 1s linear infinite' : 'none' }} />
+            Atualizar
+          </button>
         </div>
-        <button className="nx-btn-ghost" style={{ fontSize: 12 }} onClick={load} disabled={loading}>
-          <RefreshCw size={13} style={{ animation: loading ? 'spin 1s linear infinite' : 'none' }} />
-          Atualizar
-        </button>
-      </div>
+      )}
 
       {/* Filtros de período */}
       <div style={{ display: 'flex', gap: 6, marginBottom: 16, flexWrap: 'wrap' }}>

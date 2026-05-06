@@ -7,8 +7,9 @@ import {
   Clock, Inbox, AlertOctagon, MessageSquare, Bot, Activity, RefreshCw,
   Building2, Crown, Award, TrendingUp, AlertTriangle, ChevronRight, Hourglass,
   Zap, Eye, Search, Wrench, User, Sparkles, FileText, Cake, Kanban, Filter,
-  Headset, Wifi, WifiOff,
+  Headset, Wifi, WifiOff, BarChart3,
 } from 'lucide-react'
+import CompanyMetrics from '../company/CompanyMetrics'
 import './AdmAnalise.css'
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -203,6 +204,7 @@ export default function AdmAnalise() {
         {[
           { k: 'operacao',  l: 'Operação',  ico: Activity },
           { k: 'qualidade', l: 'Qualidade', ico: Hourglass },
+          { k: 'metricas',  l: 'Métricas',  ico: BarChart3 },
           { k: 'espiao',    l: 'Conversas', ico: Eye },
         ].map(t => (
           <button key={t.k} className={`an-tab ${tab === t.k ? 'on' : ''}`} onClick={() => setTab(t.k)}>
@@ -214,7 +216,25 @@ export default function AdmAnalise() {
       {/* Conteúdo da tab */}
       {tab === 'operacao'  && <TabOperacao  data={data} loading={loading} />}
       {tab === 'qualidade' && <TabQualidade data={data} period={period} loading={loading} />}
+      {tab === 'metricas'  && <TabMetricas  company={company} />}
       {tab === 'espiao'    && <TabEspiao    data={data} company={company} loading={loading} />}
+    </div>
+  )
+}
+
+// ─── TAB MÉTRICAS — embed do painel completo da empresa ────────────────────
+function TabMetricas({ company }) {
+  if (!company) {
+    return (
+      <div className="an-empty">
+        <Building2 size={32} style={{ opacity: 0.25 }} />
+        <div>Selecione uma empresa pra ver as métricas completas.</div>
+      </div>
+    )
+  }
+  return (
+    <div className="an-metricas-embed">
+      <CompanyMetrics companyOverride={company} hideHeader />
     </div>
   )
 }

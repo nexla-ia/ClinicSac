@@ -328,6 +328,19 @@
 .an-empty-page h2 { margin: 0; font-family: 'Bricolage Grotesque', sans-serif; color: #1E1B3A; }
 .an-empty-row { padding: 32px; text-align: center; color: #94886F; }
 
+/* ── Embed do painel de métricas (tab 'Métricas' do ADM) ──────────────── */
+.an-metricas-embed {
+  background: #fff;
+  border: 1px solid var(--an-border, #E8DDC9);
+  border-radius: 14px;
+  padding: 18px;
+}
+.an-empty {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 12px; padding: 80px 24px;
+  color: #94886F; font-size: 13.5px; text-align: center;
+}
+
 /* ── Ranking ─────────────────────────────────────────────────────────────── */
 .an-rank { padding: 8px; }
 .an-rank-row {
