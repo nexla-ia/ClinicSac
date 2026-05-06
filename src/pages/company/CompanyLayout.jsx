@@ -92,7 +92,7 @@ export default function CompanyLayout() {
     { to: '/painel/instagram', icon: Instagram,     label: 'Instagram', badge: 'Em breve', badgeColor: 'pink' },
     { to: '/painel/contatos',  icon: Contact2,      label: 'Pacientes' },
     { to: '/painel/agenda',    icon: Calendar,      label: 'Agenda' },
-    { to: '/painel/atividades', icon: Kanban,       label: 'Atividades' },
+    { to: '/painel/atividades', icon: Kanban,       label: 'Kanban' },
     { to: '/painel/alertas',   icon: BellRing,      label: 'Alertas',
       badge: pendingAlerts > 0 ? pendingAlerts : null, badgeColor: 'amber' },
     { to: '/painel/tutorial',  icon: GraduationCap, label: 'Tutorial' },

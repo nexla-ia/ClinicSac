@@ -173,7 +173,7 @@ const TABS = [
   { key: 'agenda',      label: 'Agenda',       icon: Calendar },
   { key: 'financeiro',  label: 'Financeiro',   icon: DollarSign },
   { key: 'leads',       label: 'Leads',        icon: TrendingUp },
-  { key: 'atividades',  label: 'Atividades',   icon: Kanban },
+  { key: 'atividades',  label: 'Kanban',       icon: Kanban },
 ]
 
 function fmtMoney(v) {

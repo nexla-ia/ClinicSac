@@ -173,8 +173,8 @@ const MODULES = [
     color: '#DB2777',
     bg: '#FCE7F3',
     emoji: '📋',
-    title: 'Atividades',
-    subtitle: 'Quadro Kanban para tarefas internas',
+    title: 'Kanban',
+    subtitle: 'Quadro de tarefas internas da clínica',
     intro: 'Crie colunas (A Fazer, Em Andamento, Concluído ou o que preferir) e cards de tarefas. Use para checklists internos, follow-up de pacientes, manutenção da clínica.',
     steps: [
       {
@@ -195,7 +195,7 @@ const MODULES = [
       },
     ],
     tip: 'Cards com data vencida ganham badge vermelho "Atrasado". Use para nunca perder um follow-up importante.',
-    cta: { label: 'Abrir Atividades', to: '/painel/atividades' },
+    cta: { label: 'Abrir Kanban', to: '/painel/atividades' },
   },
   {
     key: 'alertas',

@@ -144,7 +144,24 @@ export default function CompanyKanban() {
   async function confirmDeleteColumn() {
     if (!confirmDeleteCol) return
     setDeletingNow(true)
-    await supabase.from('kanban_columns').delete().eq('id', confirmDeleteCol.id)
+    // Cascade manual: apaga os cards primeiro pra não cair em FK constraint.
+    const { error: cardsErr } = await supabase
+      .from('kanban_cards').delete().eq('column_id', confirmDeleteCol.id)
+    if (cardsErr) {
+      setDeletingNow(false)
+      alert('Não rolou apagar os cards da coluna: ' + cardsErr.message)
+      return
+    }
+    const { error: colErr } = await supabase
+      .from('kanban_columns').delete().eq('id', confirmDeleteCol.id)
+    if (colErr) {
+      setDeletingNow(false)
+      alert('Não rolou apagar a coluna: ' + colErr.message + '\nProvavelmente é RLS — confere as policies da tabela kanban_columns.')
+      return
+    }
+    // Otimista: tira do estado local na hora caso o realtime demore
+    setColumns(prev => prev.filter(c => c.id !== confirmDeleteCol.id))
+    setCards(prev => prev.filter(c => c.column_id !== confirmDeleteCol.id))
     setDeletingNow(false)
     setConfirmDeleteCol(null)
   }
@@ -271,7 +288,7 @@ export default function CompanyKanban() {
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16, gap: 16, flexWrap: 'wrap' }}>
         <div>
           <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '1.3rem', color: 'var(--text-primary)' }}>
-            Atividades
+            Kanban
           </div>
           <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 2 }}>
             {loading ? 'Carregando...' : `${columns.length} coluna(s) — ${cards.length} card(s)`}
