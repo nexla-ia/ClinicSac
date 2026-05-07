@@ -152,7 +152,7 @@ export const UPDATES = [
     items: [
       'Vocês reparam que o logo MM em cobre apareceu por todos os cantos? Sim, é a nossa identidade oficial agora — pensamos numa cara mais sóbria, sem perder a vivacidade do produto.',
       'A frase "Lucro e ética andam juntos" virou nossa tagline oficial. Vocês vão ver ela aparecendo em pontos discretos, lembrando o porquê de tudo isso existir.',
-      'O nome "MedicinaMKT" continua o mesmo — só ficou mais bonito em cima do monograma novo.',
+      'O nome "Clinisac" continua o mesmo — só ficou mais bonito em cima do monograma novo.',
     ],
   },
   {
@@ -173,7 +173,7 @@ export const UPDATES = [
     type: 'feature',
     tags: ['Marketing'],
     items: [
-      'Repaginamos a página inicial (medicinamktatendimento.com) para vocês compartilharem com confiança. Tipografia nova, cores vivas, mais espaço para o produto respirar.',
+      'Repaginamos a página inicial (clinisacatendimento.com) para vocês compartilharem com confiança. Tipografia nova, cores vivas, mais espaço para o produto respirar.',
       'O hero ficou mais limpo, os números agora têm contexto ("média dos clientes nos últimos 6 meses") e os planos têm uma comparação justa: secretária CLT custa R$ 3.500+/mês.',
       'Adicionamos uma seção falando sobre LGPD e segurança — algo que clínica grande sempre pergunta antes de fechar.',
       'Vocês podem mandar o link da landing pros pacientes que perguntam "como funciona esse sistema de vocês?". Vai vender por vocês.',

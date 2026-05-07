@@ -48,7 +48,7 @@ export default function Landing() {
             <div className="lp-brand-mark">
               <BrandMark size={32} color="#0F0E1B" strokeWidth={1.6} />
             </div>
-            <span className="lp-brand-text">MedicinaMKT</span>
+            <span className="lp-brand-text">Clinisac</span>
           </Link>
 
           <div className="lp-nav-links">
@@ -169,7 +169,7 @@ export default function Landing() {
             <Stat number="<2%" label="Taxa de mensagens não respondidas" />
           </div>
           <p className="lp-stats-note">
-            Média dos clientes MedicinaMKT nos últimos 6 meses · Atualizado mensalmente
+            Média dos clientes Clinisac nos últimos 6 meses · Atualizado mensalmente
           </p>
         </div>
       </section>
@@ -367,7 +367,7 @@ export default function Landing() {
               </div>
               <div className="lp-team-panel">
                 <div className="lp-team-panel-bar">
-                  <div className="lp-team-panel-title">Inbox MedicinaMKT</div>
+                  <div className="lp-team-panel-title">Inbox Clinisac</div>
                   <div className="lp-team-panel-meta">
                     <span className="lp-team-panel-pulse" />
                     8 conversas ativas
@@ -550,7 +550,7 @@ export default function Landing() {
             title={<>Saiba exatamente de onde<br /><em>cada paciente veio</em></>}
           />
           <p className="lp-attr-intro">
-            Pare de pagar ad sem saber se trouxe paciente. A MedicinaMKT
+            Pare de pagar ad sem saber se trouxe paciente. A Clinisac
             rastreia origem do lead automaticamente — do clique no anúncio
             até a consulta realizada.
           </p>
@@ -1128,7 +1128,7 @@ export default function Landing() {
 
           {/* CTA único pro comercial */}
           <div className="lp-pricing-cta">
-            <a href="https://wa.me/5561999999999?text=Ol%C3%A1!%20Quero%20saber%20mais%20sobre%20a%20MedicinaMKT" target="_blank" rel="noreferrer" className="lp-btn-primary lp-btn-large">
+            <a href="https://wa.me/5561999999999?text=Ol%C3%A1!%20Quero%20saber%20mais%20sobre%20a%20Clinisac" target="_blank" rel="noreferrer" className="lp-btn-primary lp-btn-large">
               Falar com o comercial agora
               <ArrowRight size={18} />
             </a>
@@ -1191,7 +1191,7 @@ export default function Landing() {
                   <BrandMark size={32} color="#C9A074" strokeWidth={1.6} />
                 </div>
                 <div>
-                  <span className="lp-brand-text">MedicinaMKT</span>
+                  <span className="lp-brand-text">Clinisac</span>
                   <span className="lp-brand-tagline">Lucro e ética andam juntos</span>
                 </div>
               </Link>
@@ -1216,11 +1216,11 @@ export default function Landing() {
             <div className="lp-footer-col">
               <h4>Falar com a gente</h4>
               <a href="https://wa.me/5561999999999"><Phone size={12} /> WhatsApp</a>
-              <a href="mailto:contato@medicinamkt.com"><Mail size={12} /> contato@medicinamkt.com</a>
+              <a href="mailto:contato@clinisac.com"><Mail size={12} /> contato@clinisac.com</a>
             </div>
           </div>
           <div className="lp-footer-bottom">
-            <span>© 2026 MedicinaMKT · Todos os direitos reservados</span>
+            <span>© 2026 Clinisac · Todos os direitos reservados</span>
             <span className="lp-footer-made">Lucro e ética andam juntos.</span>
           </div>
         </div>
@@ -1565,7 +1565,7 @@ function PricingTier({ name, tier, tagline, features, featured }) {
         ))}
       </ul>
       <a
-        href="https://wa.me/5561999999999?text=Ol%C3%A1!%20Quero%20saber%20mais%20sobre%20o%20plano%20MedicinaMKT"
+        href="https://wa.me/5561999999999?text=Ol%C3%A1!%20Quero%20saber%20mais%20sobre%20o%20plano%20Clinisac"
         target="_blank"
         rel="noreferrer"
         className={`lp-plan-cta ${featured ? 'featured' : ''}`}>
@@ -1639,7 +1639,7 @@ function DashboardMock() {
           <div className="lp-mock-dots">
             <span /><span /><span />
           </div>
-          <div className="lp-mock-url">app.medicinamkt.com / {view}</div>
+          <div className="lp-mock-url">app.clinisac.com / {view}</div>
         </div>
         <div className="lp-mock-body">
           <div className="lp-mock-side">

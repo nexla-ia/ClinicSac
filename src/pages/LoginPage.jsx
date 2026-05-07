@@ -45,7 +45,7 @@ export default function LoginPage() {
           <Link to="/" className="login-brand">
             <BrandMark size={32} color="#0F0E1B" strokeWidth={1.6} />
             <div className="login-brand-text">
-              <span>MedicinaMKT</span>
+              <span>Clinisac</span>
               <small>Lucro e ética andam juntos</small>
             </div>
           </Link>
@@ -113,7 +113,7 @@ export default function LoginPage() {
 
             <div className="login-field">
               <label className="login-label">E-mail</label>
-              <input className="login-input" type="email" name="email" placeholder={tab === 'adm' ? 'admin@medicinamkt.com' : 'usuario@empresa.com'} value={form.email} onChange={handleChange} autoComplete="email" />
+              <input className="login-input" type="email" name="email" placeholder={tab === 'adm' ? 'admin@clinisac.com' : 'usuario@empresa.com'} value={form.email} onChange={handleChange} autoComplete="email" />
             </div>
 
             <div className="login-field">
@@ -136,7 +136,7 @@ export default function LoginPage() {
               {loading ? <><Loader2 size={15} className="spin" /> Verificando...</> : tab === 'adm' ? 'Acesso administrativo' : 'Entrar no painel'}
             </button>
 
-            <div className="login-footer">MedicinaMKT v2.0 · Plataforma exclusiva · Acesso restrito</div>
+            <div className="login-footer">Clinisac v2.0 · Plataforma exclusiva · Acesso restrito</div>
           </form>
         </div>
       </div>
