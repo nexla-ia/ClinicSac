@@ -48,7 +48,7 @@ export default function Landing() {
             <div className="lp-brand-mark">
               <BrandMark size={32} color="#0F0E1B" strokeWidth={1.6} />
             </div>
-            <span className="lp-brand-text">Clinisac</span>
+            <span className="lp-brand-text">Clini<span style={{ color: '#2563EB' }}>Sac</span></span>
           </Link>
 
           <div className="lp-nav-links">
@@ -223,7 +223,7 @@ export default function Landing() {
 
           <p className="lp-stats-note">
             <span className="lp-stats-note-line" />
-            Média dos clientes Clinisac · últimos 6 meses · atualizado mensalmente
+            Média dos clientes CliniSac · últimos 6 meses · atualizado mensalmente
             <span className="lp-stats-note-line" />
           </p>
         </div>
@@ -494,7 +494,7 @@ export default function Landing() {
               </div>
               <div className="lp-team-panel">
                 <div className="lp-team-panel-bar">
-                  <div className="lp-team-panel-title">Inbox Clinisac</div>
+                  <div className="lp-team-panel-title">Inbox CliniSac</div>
                   <div className="lp-team-panel-meta">
                     <span className="lp-team-panel-pulse" />
                     8 conversas ativas
@@ -677,7 +677,7 @@ export default function Landing() {
             title={<>Saiba exatamente de onde<br /><em>cada paciente veio</em></>}
           />
           <p className="lp-attr-intro">
-            Pare de pagar ad sem saber se trouxe paciente. A Clinisac
+            Pare de pagar ad sem saber se trouxe paciente. A CliniSac
             rastreia origem do lead automaticamente — do clique no anúncio
             até a consulta realizada.
           </p>
@@ -1335,7 +1335,7 @@ export default function Landing() {
 
           {/* CTA único pro comercial */}
           <div className="lp-pricing-cta">
-            <a href="https://wa.me/5561999999999?text=Ol%C3%A1!%20Quero%20saber%20mais%20sobre%20a%20Clinisac" target="_blank" rel="noreferrer" className="lp-btn-primary lp-btn-large">
+            <a href="https://wa.me/5561999999999?text=Ol%C3%A1!%20Quero%20saber%20mais%20sobre%20a%20CliniSac" target="_blank" rel="noreferrer" className="lp-btn-primary lp-btn-large">
               Falar com o comercial agora
               <ArrowRight size={18} />
             </a>
@@ -1398,7 +1398,7 @@ export default function Landing() {
                   <BrandMark size={32} color="#C9A074" strokeWidth={1.6} />
                 </div>
                 <div>
-                  <span className="lp-brand-text">Clinisac</span>
+                  <span className="lp-brand-text">Clini<span style={{ color: '#60A5FA' }}>Sac</span></span>
                   <span className="lp-brand-tagline">Lucro e ética andam juntos</span>
                 </div>
               </Link>
@@ -1427,7 +1427,7 @@ export default function Landing() {
             </div>
           </div>
           <div className="lp-footer-bottom">
-            <span>© 2026 Clinisac · Todos os direitos reservados</span>
+            <span>© 2026 CliniSac · Todos os direitos reservados</span>
             <span className="lp-footer-made">Lucro e ética andam juntos.</span>
           </div>
         </div>
@@ -1743,7 +1743,7 @@ function PricingTier({ name, tier, tagline, features, featured }) {
         ))}
       </ul>
       <a
-        href="https://wa.me/5561999999999?text=Ol%C3%A1!%20Quero%20saber%20mais%20sobre%20o%20plano%20Clinisac"
+        href="https://wa.me/5561999999999?text=Ol%C3%A1!%20Quero%20saber%20mais%20sobre%20o%20plano%20CliniSac"
         target="_blank"
         rel="noreferrer"
         className={`lp-plan-cta ${featured ? 'featured' : ''}`}>

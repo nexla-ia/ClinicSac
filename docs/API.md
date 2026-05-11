@@ -1,4 +1,4 @@
-# Clinisac — API de Integração
+# CliniSac — API de Integração
 
 > API JSON pura — **todas as operações são `POST` com body JSON**. Nenhum parâmetro fica exposto na URL.
 >

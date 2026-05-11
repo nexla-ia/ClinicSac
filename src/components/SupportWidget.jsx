@@ -123,7 +123,7 @@ export default function SupportWidget({ session }) {
               )}
               <div className="sw-header-info">
                 <div className="sw-header-title">
-                  {view === 'chat' ? (activeTicket?.subject || 'Chamado') : view === 'new' ? 'Conta pra gente' : 'Suporte Clinisac'}
+                  {view === 'chat' ? (activeTicket?.subject || 'Chamado') : view === 'new' ? 'Conta pra gente' : 'Suporte CliniSac'}
                 </div>
                 <div className="sw-header-sub">
                   {view === 'chat'

@@ -1,7 +1,7 @@
 import { createPortal } from 'react-dom'
 import { Lock, X, ArrowRight, Sparkles } from 'lucide-react'
 
-const WHATSAPP_LINK = 'https://wa.me/5561999999999?text=Ol%C3%A1!%20Quero%20liberar%20mais%20recursos%20no%20meu%20plano%20Clinisac.'
+const WHATSAPP_LINK = 'https://wa.me/5561999999999?text=Ol%C3%A1!%20Quero%20liberar%20mais%20recursos%20no%20meu%20plano%20CliniSac.'
 
 export default function LimitReachedModal({ open, title, body, cta, onClose, planName }) {
   if (!open) return null
