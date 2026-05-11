@@ -509,10 +509,14 @@ export default function CompanyAgenda() {
 
   function apptAt(day, hhmm) {
     if (!selectedAgenda) return null
-    const slotMs = new Date(`${fmtDateInput(day)}T${hhmm}:00`).getTime()
+    const slotStart = new Date(`${fmtDateInput(day)}T${hhmm}:00`).getTime()
+    const slotEnd   = slotStart + (selectedAgenda.slot_minutes || 30) * 60_000
+    // Aceita agendamento cujo starts_at cai DENTRO do intervalo do slot
+    // (não exige match exato — agendamento às 17:01 aparece no slot 17:00 de 30min).
     return appointments.find(a => {
       if (a.agenda_id !== selectedAgenda.id) return false
-      return new Date(a.starts_at).getTime() === slotMs
+      const t = new Date(a.starts_at).getTime()
+      return t >= slotStart && t < slotEnd
     })
   }
 
