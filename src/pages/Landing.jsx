@@ -947,22 +947,102 @@ export default function Landing() {
             light
           />
 
-          <div className="lp-steps">
-            <StepCard
-              number="01"
-              title="Conecte seus canais"
-              description="Escaneie o QR Code do WhatsApp e conecte sua conta do Instagram Business. Em segundos, ambos começam a chegar na mesma inbox."
-            />
-            <StepCard
-              number="02"
-              title="Configure profissionais e procedimentos"
-              description="Cadastre médicos com horários, intervalos e dias de atendimento. Adicione procedimentos com valor particular e por convênio."
-            />
-            <StepCard
-              number="03"
-              title="Deixe a IA trabalhar (e medir)"
-              description="A IA atende, qualifica, agenda e te avisa quando precisa de atenção humana. E ainda registra de onde cada paciente veio — você foca em cuidar dos pacientes e tomar decisões com dado real."
-            />
+          <div className="lp-how-stage">
+            {/* Trilho da jornada — marching dashes + 3 pulses */}
+            <svg className="lp-how-rail" viewBox="0 0 1200 80" preserveAspectRatio="none" aria-hidden="true">
+              <defs>
+                <linearGradient id="howRailGrad" x1="0" y1="0" x2="1" y2="0">
+                  <stop offset="0%" stopColor="#FACC15" />
+                  <stop offset="50%" stopColor="#4ADE80" />
+                  <stop offset="100%" stopColor="#22D3EE" />
+                </linearGradient>
+              </defs>
+              <path className="lp-how-rail-path" d="M 80 40 Q 300 -10, 600 40 T 1120 40" stroke="url(#howRailGrad)" strokeWidth="1.5" fill="none" strokeDasharray="6 9" />
+              <g className="lp-how-rail-node lp-rail-node-1" transform="translate(180, 33)">
+                <circle r="14" fill="rgba(252,211,77,0.12)" />
+                <circle r="6" fill="#FACC15" />
+              </g>
+              <g className="lp-how-rail-node lp-rail-node-2" transform="translate(600, 33)">
+                <circle r="14" fill="rgba(74,222,128,0.12)" />
+                <circle r="6" fill="#4ADE80" />
+              </g>
+              <g className="lp-how-rail-node lp-rail-node-3" transform="translate(1020, 33)">
+                <circle r="14" fill="rgba(34,211,238,0.12)" />
+                <circle r="6" fill="#22D3EE" />
+              </g>
+            </svg>
+
+            <div className="lp-steps">
+              {/* 01 — Canais convergindo */}
+              <article className="lp-step lp-step-1">
+                <span className="lp-step-num">01</span>
+                <div className="lp-step-viz lp-viz-channels">
+                  <div className="lp-ch lp-ch-wa" title="WhatsApp">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M17.5 14.4c-.3-.1-1.6-.8-1.8-.9-.2-.1-.4-.1-.6.1-.2.2-.7.9-.8 1-.1.2-.3.2-.6.1-.3-.1-1.2-.4-2.2-1.3-.8-.7-1.4-1.6-1.5-1.9-.2-.3 0-.4.1-.5.1-.1.3-.3.4-.5.1-.1.2-.3.2-.4.1-.2 0-.3 0-.4 0-.1-.6-1.4-.8-1.9-.2-.5-.4-.4-.6-.4-.1 0-.3 0-.5 0s-.5.1-.7.3c-.3.3-1 1-1 2.4 0 1.4 1 2.7 1.2 2.9.1.2 2 3 4.8 4.2.7.3 1.2.5 1.6.6.7.2 1.3.2 1.8.1.5-.1 1.6-.7 1.9-1.3.2-.6.2-1.2.1-1.3 0-.1-.2-.2-.5-.3zM12 2C6.5 2 2 6.5 2 12c0 1.9.5 3.7 1.5 5.3L2 22l4.8-1.5C8.4 21.4 10.2 22 12 22c5.5 0 10-4.5 10-10S17.5 2 12 2z"/></svg>
+                  </div>
+                  <div className="lp-ch lp-ch-ig" title="Instagram"><Instagram size={20} /></div>
+                  <svg className="lp-ch-lines" viewBox="0 0 200 100" preserveAspectRatio="none" aria-hidden="true">
+                    <path d="M 30 25 Q 100 50, 170 50" stroke="rgba(252,211,77,0.45)" strokeWidth="1.4" strokeDasharray="3 4" fill="none" />
+                    <path d="M 30 75 Q 100 50, 170 50" stroke="rgba(252,211,77,0.45)" strokeWidth="1.4" strokeDasharray="3 4" fill="none" />
+                  </svg>
+                  <div className="lp-ch lp-ch-inbox" title="Inbox unificado"><Inbox size={20} /></div>
+                </div>
+                <h3 className="lp-step-title">Conecte seus canais</h3>
+                <p className="lp-step-desc">Escaneie o QR Code do WhatsApp e conecte sua conta do Instagram Business. Em segundos, ambos começam a chegar na mesma inbox.</p>
+              </article>
+
+              {/* 02 — Mini calendário com avatar */}
+              <article className="lp-step lp-step-2">
+                <span className="lp-step-num">02</span>
+                <div className="lp-step-viz lp-viz-setup">
+                  <div className="lp-mini-cal">
+                    <div className="lp-cal-head">
+                      <span>SEG</span><span>TER</span><span>QUA</span><span>QUI</span><span>SEX</span>
+                    </div>
+                    <div className="lp-cal-row">
+                      <span /><span className="on" /><span /><span className="on" /><span />
+                    </div>
+                    <div className="lp-cal-row">
+                      <span className="on" /><span /><span className="on" /><span /><span className="on" />
+                    </div>
+                    <div className="lp-cal-row">
+                      <span /><span className="on pulse" /><span /><span /><span />
+                    </div>
+                  </div>
+                  <div className="lp-doc-avatar">
+                    <span>DR</span>
+                    <div className="lp-doc-badge"><Check size={10} strokeWidth={3} /></div>
+                  </div>
+                </div>
+                <h3 className="lp-step-title">Configure profissionais e procedimentos</h3>
+                <p className="lp-step-desc">Cadastre médicos com horários, intervalos e dias de atendimento. Adicione procedimentos com valor particular e por convênio.</p>
+              </article>
+
+              {/* 03 — Bot + chart subindo */}
+              <article className="lp-step lp-step-3">
+                <span className="lp-step-num">03</span>
+                <div className="lp-step-viz lp-viz-ai">
+                  <div className="lp-ai-bot">
+                    <BotIcon size={22} strokeWidth={1.8} />
+                    <Sparkles className="lp-ai-spark lp-spark-1" size={11} />
+                    <Sparkles className="lp-ai-spark lp-spark-2" size={9} />
+                  </div>
+                  <svg className="lp-ai-chart" viewBox="0 0 140 60" aria-hidden="true">
+                    <defs>
+                      <linearGradient id="aiChartFill" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#22D3EE" stopOpacity="0.45" />
+                        <stop offset="100%" stopColor="#22D3EE" stopOpacity="0" />
+                      </linearGradient>
+                    </defs>
+                    <path className="lp-ai-chart-area" d="M 0 52 L 24 46 L 48 40 L 72 30 L 96 22 L 120 12 L 140 6 L 140 60 L 0 60 Z" fill="url(#aiChartFill)" />
+                    <path className="lp-ai-chart-line" d="M 0 52 L 24 46 L 48 40 L 72 30 L 96 22 L 120 12 L 140 6" stroke="#22D3EE" strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                    <circle className="lp-ai-chart-end" cx="140" cy="6" r="3.5" fill="#22D3EE" />
+                  </svg>
+                </div>
+                <h3 className="lp-step-title">Deixe a IA trabalhar (e medir)</h3>
+                <p className="lp-step-desc">A IA atende, qualifica, agenda e te avisa quando precisa de atenção humana. E ainda registra de onde cada paciente veio — você foca em cuidar dos pacientes e tomar decisões com dado real.</p>
+              </article>
+            </div>
           </div>
         </div>
       </section>
@@ -1385,16 +1465,6 @@ function FeatureCard({ icon, title, description, variant, tags, soon }) {
         </div>
       )}
       <div className="lp-feature-arrow"><ArrowUpRight size={18} /></div>
-    </div>
-  )
-}
-
-function StepCard({ number, title, description }) {
-  return (
-    <div className="lp-step">
-      <div className="lp-step-number">{number}</div>
-      <h3 className="lp-step-title">{title}</h3>
-      <p className="lp-step-desc">{description}</p>
     </div>
   )
 }
