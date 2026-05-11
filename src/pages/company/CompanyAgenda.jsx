@@ -330,6 +330,7 @@ export default function CompanyAgenda() {
       date: fmtDateInput(d),
       time: fmtTimeInput(d),
       _prevStatus: a.status,
+      _prevStartsAt: a.starts_at,
     })
     setApptErr('')
     setPatientHistory([])
@@ -419,62 +420,64 @@ export default function CompanyAgenda() {
 
     const isNew = !apptModal.id
     const prevStatus = apptModal._prevStatus
+    const prevStartsAt = apptModal._prevStartsAt
     const { error } = isNew
       ? await supabase.from('appointments').insert(payload)
       : await supabase.from('appointments').update(payload).eq('id', apptModal.id)
     setSavingAppt(false)
     if (error) { setApptErr('Erro: ' + error.message); return }
 
-    // Registra evento na conversa do paciente (se tem número)
+    // ─── Mensagens automáticas pro paciente (chat interno + WhatsApp) ─────
     if (numero) {
       const sessionId = `${numero}@s.whatsapp.net`
-      const dateStr = startsAt.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
-      const ag = agendas.find(a => a.id === payload.agenda_id)
-      let msg = null
-      if (isNew) {
-        msg = `📅 Agendamento criado para ${dateStr}${ag ? ` — ${ag.name}` : ''}`
-      } else if (prevStatus && prevStatus !== payload.status) {
-        const labels = { agendado: 'Agendado', confirmado: 'Confirmado', concluido: 'Concluído', faltou: 'Faltou', cancelado: 'Cancelado' }
-        msg = `📅 Agendamento de ${dateStr} alterado para: ${labels[payload.status] || payload.status}`
-      } else {
-        msg = `✏️ Agendamento atualizado para ${dateStr}`
-      }
-      if (msg) {
-        await supabase.rpc('send_mensagem_geral', {
-          p_instancia: instance,
-          p_numero: sessionId,
-          p_mensagem: msg,
-          p_type: 'atendente',
-          p_hora: new Date().toISOString(),
-          p_base64: null,
-        })
-      }
+      const dateStr   = startsAt.toLocaleString('pt-BR',
+        { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+      const firstName = (payload.contact_nome || '').split(' ')[0] || 'tudo bem'
+      const dateChanged = !isNew && prevStartsAt &&
+        new Date(prevStartsAt).getTime() !== startsAt.getTime()
+      const statusChanged = !isNew && prevStatus && prevStatus !== payload.status
 
-      // Cancelamento: envia mensagem WhatsApp via webhook avisando o paciente
-      if (!isNew && prevStatus !== 'cancelado' && payload.status === 'cancelado') {
-        const aviso = `Olá ${payload.contact_nome.split(' ')[0]}, infelizmente seu agendamento de ${dateStr} foi cancelado. Em caso de dúvidas, entre em contato.`
+      // Texto patient-friendly por tipo de evento
+      let patientMsg = null
+      if (isNew && payload.status !== 'cancelado') {
+        patientMsg = `Olá ${firstName}! 📅 Seu agendamento foi marcado para *${dateStr}*. Qualquer dúvida é só responder aqui!`
+      } else if (statusChanged && payload.status === 'cancelado') {
+        patientMsg = `Olá ${firstName}, infelizmente seu agendamento de ${dateStr} foi cancelado. Em caso de dúvidas, entre em contato.`
+      } else if (statusChanged && payload.status === 'confirmado') {
+        patientMsg = `Olá ${firstName}! ✅ Seu agendamento de *${dateStr}* está confirmado. Até lá!`
+      } else if (dateChanged && payload.status !== 'cancelado') {
+        const prevStr = new Date(prevStartsAt).toLocaleString('pt-BR',
+          { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+        patientMsg = `Olá ${firstName}! ✏️ Seu agendamento foi remarcado de ${prevStr} para *${dateStr}*. Se não puder, me avisa por aqui!`
+      }
+      // concluído / faltou: nenhum envio (são eventos pós-consulta)
+
+      if (patientMsg) {
+        // 1) Loga no chat interno (aparece na thread de Conversas)
         await supabase.rpc('send_mensagem_geral', {
           p_instancia: instance,
-          p_numero: sessionId,
-          p_mensagem: aviso,
-          p_type: 'atendente',
-          p_hora: new Date().toISOString(),
-          p_base64: null,
+          p_numero:    sessionId,
+          p_mensagem:  patientMsg,
+          p_type:      'atendente',
+          p_hora:      new Date().toISOString(),
+          p_base64:    null,
         })
+
+        // 2) Dispara pelo webhook do n8n → Evolution → WhatsApp do paciente
         fetch('https://n8n.nexladesenvolvimento.com.br/webhook/envioNexla', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            message: aviso,
-            session_id: sessionId,
-            phone: numero,
-            instancia: instance,
-            api_instancia: apiInstancia,
-            company: session?.company?.name,
-            sender_name: session?.user?.name,
-            sender_email: session?.user?.email,
+            message:        patientMsg,
+            session_id:     sessionId,
+            phone:          numero,
+            instancia:      instance,
+            api_instancia:  apiInstancia,
+            company:        session?.company?.name,
+            sender_name:    session?.user?.name,
+            sender_email:   session?.user?.email,
           }),
-        }).catch(e => console.warn('webhook cancelamento:', e))
+        }).catch(e => console.warn('webhook agendamento:', e))
       }
     }
     setApptModal(null)
