@@ -181,31 +181,103 @@ export default function Landing() {
             kicker="Para qualquer operação de saúde"
             title={<>Funciona do consultório solo<br /><em>à rede com várias unidades</em></>}
           />
-          <div className="lp-versatility-grid">
-            <VersatilityCard
-              tone="amber"
-              icon={<Users size={20} />}
-              title="1 a 50+ profissionais"
-              description="Do consultório solo à clínica com várias salas atendendo em paralelo. A plataforma escala com você sem trocar de sistema."
-            />
-            <VersatilityCard
-              tone="green"
-              icon={<Network size={20} />}
-              title="Várias unidades, uma operação"
-              description="Filiais sincronizadas em tempo real. Recepção de qualquer unidade vê a conversa, agenda no profissional certo e o paciente nem percebe."
-            />
-            <VersatilityCard
-              tone="blue"
-              icon={<Wallet size={20} />}
-              title="Convênio e particular no mesmo fluxo"
-              description="Cadastre valores por convênio, por procedimento e por médico. O agendamento puxa o preço certo automaticamente — sem planilha paralela."
-            />
-            <VersatilityCard
-              tone="pink"
-              icon={<BotIcon size={20} />}
-              title="Atendimento humano + IA sob demanda"
-              description="Comece com a equipe atendendo no inbox unificado. Ative a IA quando quiser — em horários específicos, fins de semana, ou pra qualificar antes de passar pra recepção."
-            />
+          <div className="lp-versatility-bento">
+
+            {/* 01 — hero · crescimento */}
+            <article className="lp-vcard lp-vcard-01">
+              <span className="lp-vcard-num">01</span>
+              <div className="lp-vcard-visual lp-vis-growth">
+                <div className="lp-grow-avatars">
+                  <span className="lp-av lp-av-1">RT</span>
+                  <span className="lp-av lp-av-2">JM</span>
+                  <span className="lp-av lp-av-3">LC</span>
+                  <span className="lp-av lp-av-4">PS</span>
+                  <span className="lp-av lp-av-more">+46</span>
+                </div>
+                <div className="lp-grow-scale">
+                  <span className="lp-grow-from">1</span>
+                  <svg className="lp-grow-arrow" viewBox="0 0 80 24" fill="none" aria-hidden="true">
+                    <path d="M2 12 L72 12 M62 4 L72 12 L62 20" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                  <span className="lp-grow-to">50<sup>+</sup></span>
+                </div>
+              </div>
+              <div className="lp-vcard-body">
+                <div className="lp-vcard-icon"><Users size={18} /></div>
+                <h3 className="lp-vcard-title">1 a 50<sup>+</sup> <em>profissionais</em></h3>
+                <p className="lp-vcard-desc">Do consultório solo à clínica com várias salas atendendo em paralelo. A plataforma escala com você sem trocar de sistema.</p>
+              </div>
+            </article>
+
+            {/* 02 — rede de unidades */}
+            <article className="lp-vcard lp-vcard-02">
+              <span className="lp-vcard-num">02</span>
+              <div className="lp-vcard-visual lp-vis-network">
+                <svg viewBox="0 0 280 100" fill="none" className="lp-net-svg" aria-hidden="true">
+                  <path d="M40 75 Q90 30, 140 50 T240 55" stroke="#15803D" strokeWidth="1.5" strokeDasharray="3 5" opacity="0.45" />
+                  <g className="lp-net-node lp-net-node-1">
+                    <circle cx="40" cy="75" r="15" fill="white" stroke="#22C55E" strokeWidth="1.6" />
+                    <text x="40" y="79" textAnchor="middle" fontFamily="Bricolage Grotesque, sans-serif" fontWeight="700" fontSize="10" fill="#14532D">CO</text>
+                  </g>
+                  <g className="lp-net-node lp-net-node-2">
+                    <circle cx="140" cy="40" r="20" fill="#DCFCE7" stroke="#22C55E" strokeWidth="1.6" />
+                    <text x="140" y="44" textAnchor="middle" fontFamily="Bricolage Grotesque, sans-serif" fontWeight="700" fontSize="11" fill="#14532D">SP</text>
+                  </g>
+                  <g className="lp-net-node lp-net-node-3">
+                    <circle cx="240" cy="55" r="14" fill="white" stroke="#22C55E" strokeWidth="1.6" />
+                    <text x="240" y="59" textAnchor="middle" fontFamily="Bricolage Grotesque, sans-serif" fontWeight="700" fontSize="10" fill="#14532D">RJ</text>
+                  </g>
+                </svg>
+                <span className="lp-vis-tag">3 filiais · 1 inbox</span>
+              </div>
+              <div className="lp-vcard-body">
+                <div className="lp-vcard-icon"><Network size={18} /></div>
+                <h3 className="lp-vcard-title">Várias unidades, <em>uma operação</em></h3>
+                <p className="lp-vcard-desc">Filiais sincronizadas em tempo real. Recepção de qualquer unidade vê a conversa, agenda no profissional certo e o paciente nem percebe.</p>
+              </div>
+            </article>
+
+            {/* 03 — preços */}
+            <article className="lp-vcard lp-vcard-03">
+              <span className="lp-vcard-num">03</span>
+              <div className="lp-vcard-visual lp-vis-price">
+                <div className="lp-tag lp-tag-conv">
+                  <span className="lp-tag-label">Unimed</span>
+                  <span className="lp-tag-value">R$ 180</span>
+                </div>
+                <div className="lp-tag lp-tag-part">
+                  <span className="lp-tag-label">Particular</span>
+                  <span className="lp-tag-value">R$ 350</span>
+                </div>
+              </div>
+              <div className="lp-vcard-body">
+                <div className="lp-vcard-icon"><Wallet size={18} /></div>
+                <h3 className="lp-vcard-title">Convênio e particular <em>no mesmo fluxo</em></h3>
+                <p className="lp-vcard-desc">Cadastre valores por convênio, por procedimento e por médico. O agendamento puxa o preço certo automaticamente — sem planilha paralela.</p>
+              </div>
+            </article>
+
+            {/* 04 — humano + IA */}
+            <article className="lp-vcard lp-vcard-04">
+              <span className="lp-vcard-num">04</span>
+              <div className="lp-vcard-visual lp-vis-duality">
+                <div className="lp-dual lp-dual-human">
+                  <span className="lp-dual-emoji"><Headset size={16} /></span>
+                  <span className="lp-dual-label">Humano</span>
+                </div>
+                <div className="lp-dual-divider" />
+                <div className="lp-dual lp-dual-ai">
+                  <span className="lp-dual-emoji"><BotIcon size={16} /></span>
+                  <span className="lp-dual-label">IA</span>
+                </div>
+              </div>
+              <div className="lp-vcard-body">
+                <div className="lp-vcard-icon"><BotIcon size={18} /></div>
+                <h3 className="lp-vcard-title">Atendimento humano <em>+ IA sob demanda</em></h3>
+                <p className="lp-vcard-desc">Comece com a equipe atendendo no inbox unificado. Ative a IA quando quiser — em horários específicos, fins de semana, ou pra qualificar antes de passar pra recepção.</p>
+              </div>
+            </article>
+
           </div>
         </div>
       </section>
@@ -1375,16 +1447,6 @@ function FichaMock() {
           </div>
         </div>
       </div>
-    </div>
-  )
-}
-
-function VersatilityCard({ tone, icon, title, description }) {
-  return (
-    <div className={`lp-versatility-card lp-tone-${tone}`}>
-      <div className="lp-versatility-icon">{icon}</div>
-      <h3 className="lp-versatility-title">{title}</h3>
-      <p className="lp-versatility-desc">{description}</p>
     </div>
   )
 }
