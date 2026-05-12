@@ -1448,8 +1448,8 @@ export default function CompanyConversations() {
                 )}
                 <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
                   <input
-                    className="nx-input"
-                    style={{ flex: 1, fontSize: 13 }}
+                    className="nx-input chat-composer-input"
+                    style={{ flex: 1 }}
                     placeholder={
                       !canRespond(selected) ? "Conversa está com outro atendente — você não pode responder"
                       : recordedAudio ? "Mensagem opcional para acompanhar o áudio..."

@@ -354,6 +354,12 @@
   gap: 10px;
 }
 
+/* Composer (campo de digitação do chat) — desktop fica em 13px,
+   mobile sobe pra 16px pra evitar auto-zoom do iOS Safari ao focar input */
+.chat-composer-input {
+  font-size: 13px;
+}
+
 /* Back button mobile na chat-header — escondido em desktop */
 .chat-back-mobile {
   display: none;
@@ -472,6 +478,12 @@
   .msg-bubble {
     max-width: 85%;
     font-size: 13.5px;
+  }
+
+  /* iOS Safari força zoom quando o input tem font-size < 16px.
+     16px mantém o composer visualmente igual e impede o zoom no focus. */
+  .chat-composer-input {
+    font-size: 16px;
   }
 }
 
