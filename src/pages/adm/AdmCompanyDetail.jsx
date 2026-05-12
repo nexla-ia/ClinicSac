@@ -98,6 +98,7 @@ export default function AdmCompanyDetail() {
       maxUsers: company.max_users ?? '',
       maxProfessionals: company.max_professionals ?? '',
       maxAgendas: company.max_agendas ?? '',
+      planPriceOverride: company.plan_price_override ?? '',
       digisacUrl: company.digisac_url || '',
       aiEnabled: company.ai_enabled !== false,
       instagramEnabled: company.instagram_enabled === true,
@@ -125,6 +126,9 @@ export default function AdmCompanyDetail() {
       max_users: companyForm.maxUsers === '' || companyForm.maxUsers == null ? null : parseInt(companyForm.maxUsers),
       max_professionals: companyForm.maxProfessionals === '' || companyForm.maxProfessionals == null ? null : parseInt(companyForm.maxProfessionals),
       max_agendas: companyForm.maxAgendas === '' || companyForm.maxAgendas == null ? null : parseInt(companyForm.maxAgendas),
+      plan_price_override: companyForm.planPriceOverride === '' || companyForm.planPriceOverride == null
+        ? null
+        : parseFloat(companyForm.planPriceOverride),
       digisac_url: companyForm.digisacUrl?.trim() || null,
       ai_enabled: !!companyForm.aiEnabled,
       instagram_enabled: !!companyForm.instagramEnabled,
@@ -611,6 +615,18 @@ export default function AdmCompanyDetail() {
                     <input className="nx-input" type="number" min={0} max={200} value={companyForm.extraUsers}
                       onChange={e => setCompanyForm(p => ({ ...p, extraUsers: e.target.value }))} />
                   </div>
+                </div>
+                <div>
+                  <label style={labelStyle}>Valor negociado (R$) <span style={{ fontWeight: 400, textTransform: 'none' }}>— deixe vazio pra usar o preço padrão do plano</span></label>
+                  <input className="nx-input" type="number" min={0} step="0.01"
+                    placeholder={companyForm.plan === 'Starter' ? '247' : companyForm.plan === 'Pro' ? '597' : ''}
+                    value={companyForm.planPriceOverride}
+                    onChange={e => setCompanyForm(p => ({ ...p, planPriceOverride: e.target.value }))} />
+                  {companyForm.planPriceOverride !== '' && companyForm.planPriceOverride != null && (
+                    <div style={{ fontSize: 11, color: '#92400E', marginTop: 4, fontWeight: 500 }}>
+                      Preço individual: <strong>R$ {parseFloat(companyForm.planPriceOverride).toFixed(2).replace('.', ',')}</strong> (plano {companyForm.plan})
+                    </div>
+                  )}
                 </div>
                 <div style={{ fontSize: 11, color: '#92400E', fontWeight: 500, marginTop: -2 }}>
                   Overrides individuais — deixe vazio pra usar o default do plano:
