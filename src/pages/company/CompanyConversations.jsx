@@ -977,6 +977,7 @@ export default function CompanyConversations() {
                     {saved && (
                       <span style={{ fontSize: 10, color: 'var(--text-muted)', fontFamily: 'monospace' }}>{c.phone}</span>
                     )}
+                    <TagList tags={tagsOf(c.phone)} max={2} size="sm" />
                     {nextAppt && (
                       <span style={{
                         display: 'inline-flex', alignItems: 'center', gap: 3,

@@ -104,6 +104,7 @@ export default function AdmCompanyDetail() {
       instagramEnabled: company.instagram_enabled === true,
       instagramWebhookPath: company.instagram_webhook_path || '',
       evolutionUrl: company.evolution_url || '',
+      timezone: company.timezone || '-03:00',
     })
     setCompanyErr('')
     setCompanyModal(true)
@@ -136,6 +137,7 @@ export default function AdmCompanyDetail() {
         ? (companyForm.instagramWebhookPath?.trim().replace(/^\/+|\/+$/g, '') || null)
         : null,
       evolution_url: companyForm.evolutionUrl?.trim().replace(/\/+$/, '') || null,
+      timezone: companyForm.timezone || '-03:00',
     }
     const { error } = await supabase.from('companies').update(updates).eq('id', company.id)
     setSaving(false)
@@ -200,8 +202,12 @@ export default function AdmCompanyDetail() {
 
   async function handleAssignUser(userId) {
     if (!assignModal) return
-    // Remove de qualquer setor anterior
-    await supabase.from('sector_members').delete().eq('user_id', userId)
+    // Remove apenas dos setores desta empresa (evita apagar atribuições de outra empresa)
+    const companySectorIds = sectors.map(s => s.id)
+    if (companySectorIds.length) {
+      await supabase.from('sector_members').delete()
+        .eq('user_id', userId).in('sector_id', companySectorIds)
+    }
     const { data } = await supabase.from('sector_members').insert({
       sector_id: assignModal.id,
       user_id: userId,
@@ -578,6 +584,16 @@ export default function AdmCompanyDetail() {
                   <label style={labelStyle}>API Instância <span style={{ color: '#DC2626' }}>*</span></label>
                   <input className="nx-input" placeholder="Token/chave da API" value={companyForm.apiInstancia} onChange={e => setCompanyForm(p => ({ ...p, apiInstancia: e.target.value.trim() }))} />
                 </div>
+              </div>
+              <div>
+                <label style={labelStyle}>Fuso horário da clínica</label>
+                <select className="nx-select" value={companyForm.timezone}
+                  onChange={e => setCompanyForm(p => ({ ...p, timezone: e.target.value }))}>
+                  <option value="-02:00">UTC-2 — Fernando de Noronha</option>
+                  <option value="-03:00">UTC-3 — Brasília / SP / RJ (padrão)</option>
+                  <option value="-04:00">UTC-4 — AM / MT / MS / RO</option>
+                  <option value="-05:00">UTC-5 — Acre / AM Oeste</option>
+                </select>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                 <div>

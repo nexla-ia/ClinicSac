@@ -372,15 +372,24 @@ export default function CompanyAgenda() {
   async function handleSaveAppt() {
     if (!apptModal.contact_nome?.trim()) { setApptErr('Nome do paciente é obrigatório'); return }
     if (!apptModal.date || !apptModal.time) { setApptErr('Data e hora são obrigatórios'); return }
-    const startsAt = new Date(`${apptModal.date}T${apptModal.time}:00`)
+    // Ancora o horário ao fuso da clínica, não do browser
+    const tz = session?.company?.timezone || '-03:00'
+    const startsAt = new Date(`${apptModal.date}T${apptModal.time}:00${tz}`)
     const duration = parseInt(apptModal.duration_minutes) || 30
     const endsAt = new Date(startsAt.getTime() + duration * 60000)
+
+    // Dia da semana no fuso da clínica (não do browser)
+    function dayInTz(date) {
+      const sign = tz[0] === '-' ? -1 : 1
+      const [h, m] = tz.slice(1).split(':').map(Number)
+      return new Date(date.getTime() + sign * (h * 60 + m) * 60000).getUTCDay()
+    }
 
     // Validação: dia/horário do profissional
     if (apptModal.professional_id) {
       const pro = professionals.find(p => p.id === apptModal.professional_id)
       if (pro) {
-        const dayOfWeek = startsAt.getDay()
+        const dayOfWeek = dayInTz(startsAt)
         const workingDays = pro.working_days || [1, 2, 3, 4, 5]
         if (!workingDays.includes(dayOfWeek)) {
           const dayLabel = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'][dayOfWeek]
@@ -969,7 +978,22 @@ export default function CompanyAgenda() {
                   const exact = normTyped && normTyped.length >= 11
                     ? chatContacts.find(c => c.numero === normTyped)
                     : null
-                  if (matches.length === 0 && !exact) return null
+                  if (matches.length === 0 && !exact) {
+                    if (normTyped.length >= 11) {
+                      return (
+                        <div style={{
+                          marginTop: 6, padding: '7px 10px',
+                          background: '#FFFBEB', border: '1px solid #FDE68A',
+                          borderRadius: 8, fontSize: 11.5, color: '#92400E',
+                          display: 'inline-flex', alignItems: 'center', gap: 6,
+                        }}>
+                          <AlertCircle size={12} />
+                          Número novo — paciente ainda não conversou com a clínica. A mensagem de confirmação pode não ser lida.
+                        </div>
+                      )
+                    }
+                    return null
+                  }
                   return (
                     <>
                       {exact && (

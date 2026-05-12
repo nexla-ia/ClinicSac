@@ -55,7 +55,7 @@ export default function CompanyKanban() {
   const [cards, setCards]         = useState([])
   const [users, setUsers]         = useState([])
   const [loading, setLoading]     = useState(true)
-  const [filter, setFilter]       = useState({ assignee: 'todos', priority: 'todas' })
+  const [filter, setFilter]       = useState({ assignee: 'todos', priority: 'todas', due: 'todos' })
 
   const [columnModal, setColumnModal] = useState(null)
   const [columnErr, setColumnErr]     = useState('')
@@ -264,11 +264,24 @@ export default function CompanyKanban() {
 
   // Filtros
   const visibleCards = useMemo(() => {
+    const today = new Date(); today.setHours(0, 0, 0, 0)
+    const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1)
+    const weekEnd = new Date(today); weekEnd.setDate(today.getDate() + 7)
     return cards.filter(c => {
       if (filter.assignee === 'meus' && c.assigned_user_id !== session?.user?.id) return false
       if (filter.assignee === 'sem' && c.assigned_user_id) return false
       if (filter.assignee !== 'todos' && filter.assignee !== 'meus' && filter.assignee !== 'sem' && c.assigned_user_id !== filter.assignee) return false
       if (filter.priority !== 'todas' && c.priority !== filter.priority) return false
+      if (filter.due !== 'todos') {
+        if (filter.due === 'sem-prazo') { if (c.due_date) return false }
+        else {
+          if (!c.due_date) return false
+          const due = new Date(c.due_date + 'T23:59:59')
+          if (filter.due === 'atrasado' && due >= today) return false
+          if (filter.due === 'hoje' && (due < today || due >= tomorrow)) return false
+          if (filter.due === 'semana' && (due < today || due >= weekEnd)) return false
+        }
+      }
       return true
     })
   }, [cards, filter, session?.user?.id])
@@ -306,6 +319,14 @@ export default function CompanyKanban() {
             value={filter.priority} onChange={e => setFilter(p => ({ ...p, priority: e.target.value }))}>
             <option value="todas">Todas prioridades</option>
             {PRIORITIES.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
+          </select>
+          <select className="nx-select" style={{ fontSize: 12 }}
+            value={filter.due} onChange={e => setFilter(p => ({ ...p, due: e.target.value }))}>
+            <option value="todos">Todos os prazos</option>
+            <option value="atrasado">Atrasados</option>
+            <option value="hoje">Hoje</option>
+            <option value="semana">Esta semana</option>
+            <option value="sem-prazo">Sem prazo</option>
           </select>
           {isAdmin && (
             <button className="nx-btn-primary" onClick={openNewColumn} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, padding: '7px 14px' }}>
