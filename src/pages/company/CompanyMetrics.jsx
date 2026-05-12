@@ -222,15 +222,15 @@ export default function CompanyMetrics({ companyOverride = null, hideHeader = fa
     setLoading(true)
     const queries = [
       supabase.from('mensagens_geral').select('id, numero, type, mensagem, "horaLastMessage", created_at').eq('instancia', instance).order('id', { ascending: false }).limit(20000),
-      supabase.from('conversations').select('*').eq('instancia', instance),
-      supabase.from('attendances').select('*').eq('instancia', instance),
+      supabase.from('conversations').select('session_id, reason, closed_at').eq('instancia', instance),
+      supabase.from('attendances').select('numero, sector_id, sector_name, sector_color, attendant_name, attendant_email, assumed_at').eq('instancia', instance),
       supabase.from('appointments').select('*, agendas(name, color)').eq('instancia', instance),
       supabase.from('alerts').select('*').eq('instancia', instance),
       supabase.from('kanban_cards').select('*').eq('instancia', instance),
       supabase.from('kanban_columns').select('*').eq('instancia', instance).order('position'),
       supabase.from('users').select('id, name, email, role, active').eq('company_id', companyId),
       supabase.from('sectors').select('*').eq('instancia', instance),
-      supabase.from('sector_members').select('*'),
+      supabase.from('sector_members').select('user_id, sector_id'),
       supabase.from('professionals').select('*').eq('instancia', instance),
       supabase.from('procedures').select('*').eq('instancia', instance),
       supabase.from('insurance_plans').select('*').eq('instancia', instance),
@@ -247,7 +247,8 @@ export default function CompanyMetrics({ companyOverride = null, hideHeader = fa
     setKanbanColumns(results[6].data || [])
     setUsers((results[7].data || []).filter(u => u.active !== false))
     setSectors(results[8].data || [])
-    setSectorMembers(results[9].data || [])
+    const sectorIds = new Set((results[8].data || []).map(s => s.id))
+    setSectorMembers((results[9].data || []).filter(sm => sectorIds.has(sm.sector_id)))
     setProfessionals(results[10].data || [])
     setProcedures(results[11].data || [])
     setInsurancePlans(results[12].data || [])

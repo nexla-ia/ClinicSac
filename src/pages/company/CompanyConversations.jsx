@@ -341,10 +341,11 @@ export default function CompanyConversations() {
   useEffect(() => {
     if (!instance) return
     setLoadingContacts(true)
-    supabase.from(CONV_TABLE).select('*')
+    supabase.from(CONV_TABLE).select('id, numero, type, "horaLastMessage", created_at')
       .eq('instancia', instance)
       .or('aplicativo.eq.whatsapp,aplicativo.is.null')
       .order('id', { ascending: false })
+      .limit(50000)
       .then(({ data, error }) => {
         if (!error && data) {
           const seen = new Set()
@@ -498,11 +499,12 @@ export default function CompanyConversations() {
     if (!selected || !instance) return
     setLoadingMsgs(true)
     setMessages([])
-    supabase.from(CONV_TABLE).select('*')
+    supabase.from(CONV_TABLE).select('id, numero, type, mensagem, base64, "horaLastMessage", created_at')
       .eq('instancia', instance)
       .eq('numero', selected.session_id)
       .or('aplicativo.eq.whatsapp,aplicativo.is.null')
       .order('id', { ascending: true })
+      .limit(2000)
       .then(({ data, error }) => {
         if (!error && data) {
           setMessages(data.filter(r => !isToolMessage(r)).map(r => ({
