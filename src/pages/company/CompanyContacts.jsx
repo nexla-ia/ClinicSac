@@ -47,6 +47,7 @@ export default function CompanyContacts() {
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [tagFilter, setTagFilter] = useState([])
+  const { tagsOf, assignments: tagAssignments } = useContactTags(instance)
   const [newModal, setNewModal] = useState(null)
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState('')
@@ -133,7 +134,6 @@ export default function CompanyContacts() {
     })
   }
 
-  const { tagsOf, assignments: tagAssignments } = useContactTags(instance)
   const tagMatch = buildTagFilter(tagFilter, tagAssignments)
   const filtered = patients.filter(c => {
     const s = search.toLowerCase()
