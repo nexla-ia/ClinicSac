@@ -393,8 +393,7 @@ export default function CompanyAdmin() {
             background: planTheme.glow, filter: 'blur(60px)', pointerEvents: 'none',
           }} />
 
-          <div style={{ position: 'relative', display: 'grid',
-            gridTemplateColumns: '1fr 1.4fr', gap: 28, alignItems: 'center' }}>
+          <div className="plan-card-grid" style={{ position: 'relative' }}>
 
             {/* Coluna esquerda: badge do plano + status billing */}
             <div>
@@ -410,7 +409,7 @@ export default function CompanyAdmin() {
                 <PlanIcon size={11} /> Plano atual
               </div>
 
-              <div style={{
+              <div className="plan-name-display" style={{
                 marginTop: 12,
                 fontFamily: 'var(--font-display, "Bricolage Grotesque")',
                 fontWeight: 800, fontSize: 44, lineHeight: 1, letterSpacing: '-0.04em',

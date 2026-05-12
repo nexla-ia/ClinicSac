@@ -89,6 +89,7 @@
   color: #fff;
 }
 .sw-back:active, .sw-close:active { transform: scale(0.94); }
+.sw-btn-label { display: none; }
 .sw-header-info { flex: 1; min-width: 0; position: relative; z-index: 1; }
 .sw-header-title {
   font-family: 'Bricolage Grotesque', 'DM Sans', sans-serif;
@@ -650,9 +651,33 @@
   .sw-overlay { padding: 0; }
   .sw-panel {
     max-width: 100%;
-    height: 100vh;
-    max-height: 100vh;
+    height: 100dvh;
+    max-height: 100dvh;
     border-radius: 0;
   }
   .sw-msg { max-width: 90%; }
+  /* Header: padding-top respeita o notch / barra de status */
+  .sw-header {
+    padding-top: max(22px, env(safe-area-inset-top));
+  }
+  /* Botão de fechar/voltar com rótulo visível pra o usuário não ficar perdido */
+  .sw-back, .sw-close {
+    width: auto;
+    padding: 0 12px;
+    gap: 6px;
+    height: 38px;
+    background: rgba(255, 255, 255, 0.14);
+    border-color: rgba(255, 255, 255, 0.22);
+  }
+  .sw-btn-label {
+    display: inline;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+  }
+  /* Inputs em 16px no mobile pra impedir auto-zoom do iOS Safari */
+  .sw-input, .sw-textarea, .sw-textarea-inline {
+    font-size: 16px;
+  }
 }

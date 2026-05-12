@@ -109,6 +109,7 @@ export default function SupportWidget({ session, open, onClose, onUnreadChange }
               {view === 'chat' && (
                 <button className="sw-back" onClick={() => { setActiveTicket(null); setView('list') }}>
                   <ArrowLeft size={16} />
+                  <span className="sw-btn-label">Voltar</span>
                 </button>
               )}
               <div className="sw-header-info">
@@ -128,6 +129,7 @@ export default function SupportWidget({ session, open, onClose, onUnreadChange }
               </div>
               <button className="sw-close" onClick={onClose} aria-label="Fechar">
                 <X size={16} />
+                <span className="sw-btn-label">Fechar</span>
               </button>
             </div>
 

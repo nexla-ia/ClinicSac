@@ -408,6 +408,24 @@
   font-family: inherit;
 }
 
+/* Plano e cobrança — grid responsivo (Administração) */
+.plan-card-grid {
+  display: grid;
+  grid-template-columns: 1fr 1.4fr;
+  gap: 28px;
+  align-items: center;
+}
+
+/* Tabelas dentro do painel não devem causar overflow horizontal da página.
+   Quando estourarem, ficam scrolláveis dentro do .nx-card. */
+.nx-card {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.data-table {
+  min-width: 100%;
+}
+
 /* ─── Responsividade do painel ─────────────────────────────────────────── */
 @media (max-width: 900px) {
   .company-hamburger {
@@ -484,6 +502,23 @@
      16px mantém o composer visualmente igual e impede o zoom no focus. */
   .chat-composer-input {
     font-size: 16px;
+  }
+
+  /* Administração — padding e seções */
+  .page-body {
+    padding: 0 1rem 1.5rem !important;
+  }
+  .plan-card-grid {
+    grid-template-columns: 1fr !important;
+    gap: 18px !important;
+  }
+  /* Cards de seção: padding interno menor */
+  .nx-card {
+    padding: 1rem !important;
+  }
+  /* Nome do plano gigante (44px) reduzido pra caber em telinha */
+  .plan-name-display {
+    font-size: 32px !important;
   }
 }
 

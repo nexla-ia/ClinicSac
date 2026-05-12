@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
-import { MessageSquare, Bot, User, PhoneCall, Info, Headset } from 'lucide-react'
+import { MessageSquare, Bot, User, PhoneCall, Info, Headset, ChevronLeft } from 'lucide-react'
 import './Company.css'
 
 const REASON_STYLE = {
@@ -277,7 +277,7 @@ export default function CompanyHistory() {
   const filtered = contacts.filter(c => c.phone.includes(search))
 
   return (
-    <div className="contacts-root">
+    <div className={`contacts-root ${selected ? 'has-selected' : ''}`}>
       {/* Lista lateral */}
       <div className="contacts-list">
         <div className="contacts-list-header">
@@ -391,6 +391,13 @@ export default function CompanyHistory() {
         ) : (
           <>
             <div className="chat-header">
+              <button
+                className="chat-back-mobile"
+                onClick={() => setSelected(null)}
+                title="Voltar para a lista"
+              >
+                <ChevronLeft size={16} />
+              </button>
               <div className="contact-avatar" style={{ width: 38, height: 38, fontSize: 15 }}>
                 <User size={14} style={{ opacity: 0.4 }} />
               </div>
