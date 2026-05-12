@@ -15,7 +15,9 @@
 
 .company-root {
   display: flex;
-  min-height: 100vh;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
 }
 
 .company-main-wrap {
@@ -82,7 +84,7 @@
 
 .contacts-root {
   display: flex;
-  height: calc(100vh - 50px);
+  height: 100%;
 }
 
 .contacts-list {
@@ -377,19 +379,22 @@
   .alerts-root {
     padding: 1rem;
   }
-  /* Layout de contatos/chat — em mobile vira coluna única */
+  /* Layout de contatos/chat — em mobile vira coluna única, mantendo
+     altura confinada pra topbar/composer ficarem fixos no lugar */
   .contacts-root {
     flex-direction: column;
-    height: auto;
+    height: 100%;
   }
   .contacts-list {
     width: 100%;
     border-right: none;
     border-bottom: 1px solid var(--border);
-    max-height: 280px;
+    flex-shrink: 0;
+    max-height: 240px;
   }
   .chat-panel {
-    min-height: calc(100dvh - 50px - 280px);
+    flex: 1;
+    min-height: 0;
   }
   .msg-bubble {
     max-width: 85%;

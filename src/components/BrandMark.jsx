@@ -1,27 +1,47 @@
 /**
- * BrandMark — Monograma "MM" Medicina Marketing
- * Círculo com dois "M" estilizados em traços finos elegantes (cor padrão cobre).
+ * BrandMark — Logo CliniSac
+ * Círculo com gradiente verde→violet→azul + bolha de chat com pulse line.
+ * Props 'color' e 'strokeWidth' são ignoradas (mantidas só por backwards-compat
+ * com chamadas antigas no codebase).
  */
-export default function BrandMark({ size = 32, color = '#C9A074', strokeWidth = 1.4 }) {
+export default function BrandMark({ size = 32 }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 100 100" fill="none" aria-label="Medicina Marketing">
-      <circle cx="50" cy="50" r="44" stroke={color} strokeWidth={strokeWidth * 0.85} />
-      {/* M esquerdo */}
+    <svg width={size} height={size} viewBox="0 0 100 100" fill="none" aria-label="CliniSac">
+      <defs>
+        <linearGradient id="cs-ring" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%"  stopColor="#10B981" />
+          <stop offset="50%" stopColor="#8B5CF6" />
+          <stop offset="100%" stopColor="#3B82F6" />
+        </linearGradient>
+      </defs>
+      {/* Anel com gradiente */}
+      <circle cx="50" cy="50" r="48" fill="url(#cs-ring)" />
+      {/* Bolha de chat (branca, com cauda no canto inferior esquerdo) */}
       <path
-        d="M23 68 L23 34 L34 52 L45 34 L45 68"
-        stroke={color}
-        strokeWidth={strokeWidth}
-        strokeLinejoin="miter"
-        strokeLinecap="square"
-        fill="none"
+        d="M50 17
+           C 32 17, 18 31, 18 49
+           C 18 60, 24 70, 33 75
+           L 28 88
+           C 27 90, 30 92, 32 90
+           L 47 80
+           C 48 80, 49 80, 50 80
+           C 68 80, 82 67, 82 49
+           C 82 31, 68 17, 50 17 Z"
+        fill="#fff"
       />
-      {/* M direito */}
+      {/* Linha de pulse */}
       <path
-        d="M55 68 L55 34 L66 52 L77 34 L77 68"
-        stroke={color}
-        strokeWidth={strokeWidth}
-        strokeLinejoin="miter"
-        strokeLinecap="square"
+        d="M30 51
+           L 41 51
+           L 46 41
+           L 51 63
+           L 57 38
+           L 62 51
+           L 72 51"
+        stroke="#2563EB"
+        strokeWidth="5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
         fill="none"
       />
     </svg>
