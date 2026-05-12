@@ -22,7 +22,8 @@ export function useContactTags(instancia) {
 
   useEffect(() => {
     if (!instancia) return
-    const ch = supabase.channel(`tags-${instancia}`)
+    const uid = Math.random().toString(36).slice(2)
+    const ch = supabase.channel(`tags-${instancia}-${uid}`)
       .on('postgres_changes',
         { event: '*', schema: 'public', table: 'contact_tags', filter: `instancia=eq.${instancia}` },
         () => load())
