@@ -46,7 +46,7 @@ export default function LoginPage() {
             <BrandMark size={32} color="#0F0E1B" strokeWidth={1.6} />
             <div className="login-brand-text">
               <span>Clini<span style={{ color: '#2563EB' }}>Sac</span></span>
-              <small>Lucro e ética andam juntos</small>
+              <small>O SAC inteligente da sua clínica</small>
             </div>
           </Link>
 

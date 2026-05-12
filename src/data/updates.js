@@ -151,7 +151,7 @@ export const UPDATES = [
     tags: ['Marca'],
     items: [
       'Vocês reparam que o logo MM em cobre apareceu por todos os cantos? Sim, é a nossa identidade oficial agora — pensamos numa cara mais sóbria, sem perder a vivacidade do produto.',
-      'A frase "Lucro e ética andam juntos" virou nossa tagline oficial. Vocês vão ver ela aparecendo em pontos discretos, lembrando o porquê de tudo isso existir.',
+      'A frase "O SAC inteligente da sua clínica" virou nossa tagline oficial. Vocês vão ver ela aparecendo em pontos discretos, lembrando o porquê de tudo isso existir.',
       'O nome "CliniSac" continua o mesmo — só ficou mais bonito em cima do monograma novo.',
     ],
   },

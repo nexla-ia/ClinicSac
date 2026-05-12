@@ -1399,7 +1399,7 @@ export default function Landing() {
                 </div>
                 <div>
                   <span className="lp-brand-text">Clini<span style={{ color: '#60A5FA' }}>Sac</span></span>
-                  <span className="lp-brand-tagline">Lucro e ética andam juntos</span>
+                  <span className="lp-brand-tagline">O SAC inteligente da sua clínica</span>
                 </div>
               </Link>
               <p>
@@ -1428,7 +1428,7 @@ export default function Landing() {
           </div>
           <div className="lp-footer-bottom">
             <span>© 2026 CliniSac · Todos os direitos reservados</span>
-            <span className="lp-footer-made">Lucro e ética andam juntos.</span>
+            <span className="lp-footer-made">O SAC inteligente da sua clínica.</span>
           </div>
         </div>
       </footer>
