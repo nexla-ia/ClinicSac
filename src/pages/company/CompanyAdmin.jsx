@@ -6,10 +6,11 @@ import ConfirmModal from '../../components/ConfirmModal'
 import LimitReachedModal from '../../components/LimitReachedModal'
 import { getEffectiveLimits, reachedLimit, upgradeMessage, formatLimit, PLAN_DEFAULTS, UNLIMITED } from '../../lib/planLimits'
 import { computeBillingStatus, fmtMoney, fmtDateBR, statusBadge, BILLING_STATUS } from '../../lib/billing'
-import { Plus, X, UserMinus, RefreshCw, UserCheck, UserX, Pencil, QrCode, Wifi, WifiOff, LogOut, Trash2, Lock, Bell, Crown, Sparkles, TrendingUp, ArrowUpRight, Calendar as CalendarIcon, Users as UsersIcon, Stethoscope, Layers } from 'lucide-react'
+import { Plus, X, UserMinus, RefreshCw, UserCheck, UserX, Pencil, QrCode, Wifi, WifiOff, LogOut, Trash2, Lock, Bell, Crown, Sparkles, TrendingUp, ArrowUpRight, Calendar as CalendarIcon, Users as UsersIcon, Stethoscope, Layers, Tag as TagIcon, Check } from 'lucide-react'
 import './Company.css'
 
 const SECTOR_COLORS = ['#2563EB', '#16A34A', '#7C3AED', '#DC2626', '#D97706', '#0891B2']
+const TAG_COLORS = ['#2563EB', '#7C3AED', '#DB2777', '#16A34A', '#D97706', '#DC2626', '#0891B2', '#6B7280']
 
 const REMINDER_OPTIONS = [
   { value: 30,    label: '30 minutos antes' },
@@ -54,6 +55,12 @@ export default function CompanyAdmin() {
   const [sectorForm, setSectorForm]     = useState({ name: '', color: SECTOR_COLORS[0] })
   const [sectorErr, setSectorErr]       = useState('')
   const [assignModal, setAssignModal]   = useState(null)
+
+  // Etiquetas (tags) de pacientes
+  const [tags, setTags] = useState([])
+  const [tagForm, setTagForm] = useState({ name: '', color: TAG_COLORS[0] })
+  const [tagErr, setTagErr] = useState('')
+  const [savingTag, setSavingTag] = useState(false)
 
   const [userModal, setUserModal]       = useState(false)
   const [userForm, setUserForm]         = useState({ name: '', email: '', password: '', role: 'viewer' })
@@ -201,6 +208,39 @@ export default function CompanyAdmin() {
     supabase.from('sector_members').select('*').in('sector_id', sectors.map(s => s.id))
       .then(({ data }) => { if (data) setSectorMembers(data) })
   }, [sectors])
+
+  // Carrega etiquetas
+  useEffect(() => {
+    if (!instance) return
+    supabase.from('contact_tags').select('*').eq('instancia', instance).order('name')
+      .then(({ data }) => { if (data) setTags(data) })
+  }, [instance])
+
+  async function handleCreateTag() {
+    const name = tagForm.name.trim()
+    if (!name) { setTagErr('Dê um nome pra etiqueta.'); return }
+    if (tags.some(t => t.name.toLowerCase() === name.toLowerCase())) {
+      setTagErr('Já existe uma etiqueta com esse nome.'); return
+    }
+    setSavingTag(true); setTagErr('')
+    const { data, error } = await supabase.from('contact_tags').insert({
+      instancia: instance, name, color: tagForm.color,
+    }).select().single()
+    setSavingTag(false)
+    if (error) { setTagErr('Erro: ' + error.message); return }
+    setTags(prev => [...prev, data].sort((a, b) => a.name.localeCompare(b.name)))
+    setTagForm({ name: '', color: TAG_COLORS[0] })
+  }
+
+  async function handleDeleteTag(tagId) {
+    await supabase.from('contact_tags').delete().eq('id', tagId)
+    setTags(prev => prev.filter(t => t.id !== tagId))
+  }
+
+  async function handleUpdateTagColor(tagId, color) {
+    await supabase.from('contact_tags').update({ color }).eq('id', tagId)
+    setTags(prev => prev.map(t => t.id === tagId ? { ...t, color } : t))
+  }
 
   async function handleCreateSector() {
     if (!sectorForm.name.trim()) { setSectorErr('Nome é obrigatório.'); return }
@@ -771,6 +811,121 @@ export default function CompanyAdmin() {
             })}
           </div>
         )}
+      </div>
+
+      {/* Etiquetas (Tags) */}
+      <div className="page-body">
+        <div className="section-header">
+          <div className="section-title">Etiquetas de pacientes</div>
+        </div>
+        <div className="nx-card" style={{ padding: '1.25rem 1.5rem' }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: 16 }}>
+            <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#F5F3FF', border: '1px solid #DDD6FE', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <TagIcon size={16} style={{ color: '#7C3AED' }} />
+            </div>
+            <div style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5, maxWidth: 560 }}>
+              Crie etiquetas (ex: <em>VIP</em>, <em>Inadimplente</em>, <em>Pós-operatório</em>) e marque pacientes/contatos
+              nas Conversas, Finalizados e Pacientes. Use depois pra filtrar e enxergar grupos específicos.
+            </div>
+          </div>
+
+          {/* Form de criar */}
+          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-end', gap: 10, marginBottom: 14 }}>
+            <div style={{ flex: '1 1 220px', minWidth: 180 }}>
+              <div style={labelStyle}>Nome da etiqueta</div>
+              <input
+                className="nx-input"
+                style={{ width: '100%' }}
+                placeholder="Ex: VIP, Inadimplente, Pós-cirúrgico..."
+                value={tagForm.name}
+                onChange={e => { setTagForm(f => ({ ...f, name: e.target.value })); setTagErr('') }}
+                onKeyDown={e => { if (e.key === 'Enter') handleCreateTag() }}
+                maxLength={32}
+              />
+            </div>
+            <div>
+              <div style={labelStyle}>Cor</div>
+              <div style={{ display: 'flex', gap: 5 }}>
+                {TAG_COLORS.map(c => (
+                  <button
+                    key={c}
+                    type="button"
+                    onClick={() => setTagForm(f => ({ ...f, color: c }))}
+                    title={c}
+                    style={{
+                      width: 26, height: 26, borderRadius: 7,
+                      background: c, cursor: 'pointer',
+                      border: tagForm.color === c ? '2px solid #0F0E1B' : '2px solid transparent',
+                      boxShadow: tagForm.color === c ? '0 0 0 2px #fff inset' : 'none',
+                    }}
+                  />
+                ))}
+              </div>
+            </div>
+            <button
+              className="nx-btn-primary"
+              onClick={handleCreateTag}
+              disabled={savingTag}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
+              <Plus size={13} /> {savingTag ? 'Criando...' : 'Criar etiqueta'}
+            </button>
+          </div>
+
+          {tagErr && (
+            <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', color: '#B91C1C',
+              padding: '8px 12px', borderRadius: 8, fontSize: 12, marginBottom: 12 }}>
+              {tagErr}
+            </div>
+          )}
+
+          {/* Lista */}
+          {tags.length === 0 ? (
+            <div style={{ fontSize: 12.5, color: 'var(--text-muted)', padding: '12px 0' }}>
+              Nenhuma etiqueta criada ainda.
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              {tags.map(t => (
+                <div key={t.id} style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 8,
+                  background: t.color + '12',
+                  border: `1px solid ${t.color}44`,
+                  borderRadius: 10, padding: '6px 6px 6px 12px',
+                }}>
+                  <span style={{ width: 7, height: 7, borderRadius: '50%', background: t.color }} />
+                  <span style={{ fontSize: 12.5, fontWeight: 600, color: t.color }}>{t.name}</span>
+                  {/* Color swatches */}
+                  <div style={{ display: 'flex', gap: 3, marginLeft: 4, paddingLeft: 6, borderLeft: `1px solid ${t.color}33` }}>
+                    {TAG_COLORS.map(c => (
+                      <button
+                        key={c}
+                        onClick={() => handleUpdateTagColor(t.id, c)}
+                        title={c}
+                        style={{
+                          width: 13, height: 13, borderRadius: 4,
+                          background: c, cursor: 'pointer', flexShrink: 0,
+                          border: t.color === c ? '1.5px solid #0F0E1B' : '1.5px solid transparent',
+                        }}
+                      />
+                    ))}
+                  </div>
+                  <button
+                    onClick={() => handleDeleteTag(t.id)}
+                    title="Excluir etiqueta"
+                    style={{
+                      background: 'transparent', border: 'none', cursor: 'pointer',
+                      color: t.color, opacity: 0.55, padding: 4,
+                      display: 'inline-flex', alignItems: 'center',
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.opacity = 1}
+                    onMouseLeave={e => e.currentTarget.style.opacity = 0.55}>
+                    <Trash2 size={12} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Usuários */}

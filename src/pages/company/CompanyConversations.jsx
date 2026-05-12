@@ -4,6 +4,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
 import { MessageSquare, Bot, User, PhoneCall, CheckCircle2, X, Send, Headset, Sparkles, Inbox, UserCheck, Archive, Mic, Square, Trash2, Paperclip, FileText, Image as ImageIcon, Calendar, UserPlus, BookUser, Lock, ArrowRightLeft, ChevronLeft } from 'lucide-react'
+import { useContactTags, TagPicker, TagList, TagFilter, stripPhoneSuffix, buildTagFilter } from '../../components/Tags'
 import './Company.css'
 
 const CONV_TABLE = 'mensagens_geral'
@@ -125,6 +126,7 @@ export default function CompanyConversations() {
   const [tab, setTab]                 = useState('recepcao')
   const [loadingContacts, setLoadingContacts] = useState(false)
   const [search, setSearch]           = useState('')
+  const [tagFilter, setTagFilter]     = useState([])
   const [selected, setSelected]       = useState(null)
   const [messages, setMessages]       = useState([])
   const [loadingMsgs, setLoadingMsgs] = useState(false)
@@ -867,7 +869,11 @@ export default function CompanyConversations() {
   ]
 
   const currentList = tab === 'recepcao' ? recepcao : tab === 'meu-setor' ? meuSetor : finalizados
-  const filtered = currentList.filter(c => c.phone.includes(search))
+  const { tagsOf, assignments: tagAssignments } = useContactTags(instance)
+  const tagMatch = buildTagFilter(tagFilter, tagAssignments)
+  const filtered = currentList
+    .filter(c => c.phone.includes(search))
+    .filter(c => tagMatch(c.phone))
   const isClosed = selected ? closed.has(selected.session_id) : false
 
   return (
@@ -912,6 +918,9 @@ export default function CompanyConversations() {
             value={search}
             onChange={e => setSearch(e.target.value)}
           />
+          <div style={{ marginTop: 8 }}>
+            <TagFilter instancia={instance} value={tagFilter} onChange={setTagFilter} />
+          </div>
         </div>
 
         <div className="contacts-list-body">
@@ -991,6 +1000,10 @@ export default function CompanyConversations() {
                     {tab === 'finalizados' && rs && (
                       <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 7px', borderRadius: 20, color: rs.color, background: rs.bg, border: `1px solid ${rs.border}`, lineHeight: '16px' }}>{rs.label}</span>
                     )}
+                    {(() => {
+                      const myTags = tagsOf(c.phone)
+                      return myTags.length > 0 ? <TagList tags={myTags} size="xs" max={3} /> : null
+                    })()}
                   </div>
                   {tab === 'recepcao' && (
                     <button
@@ -1071,6 +1084,12 @@ export default function CompanyConversations() {
                 const hasContact = !!saved
                 return (
                   <>
+                    <TagPicker
+                      instancia={instance}
+                      numero={selected.phone}
+                      userEmail={session?.user?.email}
+                      anchor="bottom-right"
+                    />
                     <button
                       className="nx-btn-ghost"
                       style={{
@@ -1125,15 +1144,25 @@ export default function CompanyConversations() {
                   </>
                 )
               })()}
-              {isClosed && (() => {
-                const rs = REASONS.find(r => r.value === closedMap[selected.session_id])
-                return rs ? (
-                  <span style={{
-                    fontSize: 11, fontWeight: 700, padding: '4px 12px', borderRadius: 20,
-                    color: rs.color, background: rs.bg, border: `1px solid ${rs.border}`,
-                  }}>{rs.label}</span>
-                ) : null
-              })()}
+              {isClosed && (
+                <>
+                  <TagPicker
+                    instancia={instance}
+                    numero={selected.phone}
+                    userEmail={session?.user?.email}
+                    anchor="bottom-right"
+                  />
+                  {(() => {
+                    const rs = REASONS.find(r => r.value === closedMap[selected.session_id])
+                    return rs ? (
+                      <span style={{
+                        fontSize: 11, fontWeight: 700, padding: '4px 12px', borderRadius: 20,
+                        color: rs.color, background: rs.bg, border: `1px solid ${rs.border}`,
+                      }}>{rs.label}</span>
+                    ) : null
+                  })()}
+                </>
+              )}
             </div>
 
             {/* Banner: conversa assumida por outro atendente (não-dono e não-admin) */}

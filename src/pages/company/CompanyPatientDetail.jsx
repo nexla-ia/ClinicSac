@@ -9,6 +9,7 @@ import {
   Activity, Briefcase, Users, Clock, CheckCircle2, XCircle, Clipboard,
   FileText, Plus, AlertCircle,
 } from 'lucide-react'
+import { TagPicker, TagList, useContactTags } from '../../components/Tags'
 import './CompanyPatientDetail.css'
 
 const STATUS_META = {
@@ -237,6 +238,7 @@ export default function CompanyPatientDetail() {
             {plan ? <span>· <ShieldCheck size={12} style={{ verticalAlign: 'middle' }} /> {plan.name}</span> : <span>· Particular</span>}
             {patient.profession && <span>· {patient.profession}</span>}
           </div>
+          <PatientTagsRow instancia={instance} numero={patient.numero} userEmail={session?.user?.email} />
           <div className="pat-actions">
             {patient.numero && (
               <button className="pat-btn pat-btn-primary" onClick={() => navigate(`/painel/conversas?contact=${patient.numero}`)}>
@@ -763,4 +765,16 @@ function ModalField({ label, children }) {
 
 function Row({ children }) {
   return <div className="pat-modal-row">{children}</div>
+}
+
+function PatientTagsRow({ instancia, numero, userEmail }) {
+  const { tagsOf } = useContactTags(instancia)
+  if (!numero) return null
+  const myTags = tagsOf(numero)
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', margin: '10px 0 4px' }}>
+      {myTags.length > 0 && <TagList tags={myTags} size="sm" />}
+      <TagPicker instancia={instancia} numero={numero} userEmail={userEmail} anchor="bottom-left" />
+    </div>
+  )
 }

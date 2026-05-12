@@ -8,6 +8,7 @@ import {
   Users, Search, Pencil, Trash2, X, Plus, Phone, Copy, Check, MessageSquare,
   Mail, ShieldCheck, Sparkles,
 } from 'lucide-react'
+import { TagFilter, TagList, useContactTags, buildTagFilter } from '../../components/Tags'
 import './Company.css'
 
 function fmtCpf(v) {
@@ -45,6 +46,7 @@ export default function CompanyContacts() {
   const [chatPhones, setChatPhones] = useState([]) // números das conversas que não estão salvos
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
+  const [tagFilter, setTagFilter] = useState([])
   const [newModal, setNewModal] = useState(null)
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState('')
@@ -131,14 +133,17 @@ export default function CompanyContacts() {
     })
   }
 
+  const { tagsOf, assignments: tagAssignments } = useContactTags(instance)
+  const tagMatch = buildTagFilter(tagFilter, tagAssignments)
   const filtered = patients.filter(c => {
     const s = search.toLowerCase()
-    return (
+    const matchesSearch = (
       c.nome?.toLowerCase().includes(s) ||
       (c.numero || '').includes(search) ||
       (c.cpf || '').includes(search.replace(/\D/g, '')) ||
       (c.email || '').toLowerCase().includes(s)
     )
+    return matchesSearch && tagMatch(c.numero || '')
   })
 
   // Sugestão de números das conversas conforme o digitado
@@ -164,14 +169,15 @@ export default function CompanyContacts() {
         </button>
       </div>
 
-      <div className="nx-card" style={{ padding: '12px 16px', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 10 }}>
+      <div className="nx-card" style={{ padding: '12px 16px', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
         <Search size={15} style={{ color: 'var(--text-muted)' }} />
         <input
-          style={{ flex: 1, border: 'none', outline: 'none', background: 'transparent', fontSize: 13, color: 'var(--text-primary)' }}
+          style={{ flex: '1 1 240px', minWidth: 200, border: 'none', outline: 'none', background: 'transparent', fontSize: 13, color: 'var(--text-primary)' }}
           placeholder="Buscar por nome, telefone, CPF ou e-mail..."
           value={search}
           onChange={e => setSearch(e.target.value)}
         />
+        <TagFilter instancia={instance} value={tagFilter} onChange={setTagFilter} />
       </div>
 
       {!loading && filtered.length === 0 && (
@@ -221,6 +227,14 @@ export default function CompanyContacts() {
                             {c.cpf && <span>CPF {fmtCpf(c.cpf)}</span>}
                             {age != null && <span>{age} anos</span>}
                           </div>
+                          {(() => {
+                            const myTags = tagsOf(c.numero || '')
+                            return myTags.length > 0 ? (
+                              <div style={{ marginTop: 4 }}>
+                                <TagList tags={myTags} size="xs" max={4} />
+                              </div>
+                            ) : null
+                          })()}
                         </div>
                       </div>
                     </td>
