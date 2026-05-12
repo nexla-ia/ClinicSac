@@ -135,6 +135,7 @@ export default function CompanyCatalog() {
       name: '', type: 'consulta',
       duration_minutes: 30, price_particular: 0,
       professional_id: null, active: true,
+      reminder_message: '',
       _prices: {}, // map insurance_plan_id → price
     })
     setErr('')
@@ -157,6 +158,7 @@ export default function CompanyCatalog() {
       price_particular: parseFloat(procModal.price_particular) || 0,
       professional_id: procModal.professional_id || null,
       active: procModal.active !== false,
+      reminder_message: procModal.reminder_message?.trim() || null,
       instancia: instance,
     }
     const { data, error } = procModal.id
@@ -561,6 +563,15 @@ export default function CompanyCatalog() {
               <input type="checkbox" checked={procModal.active !== false} onChange={e => setProcModal(p => ({ ...p, active: e.target.checked }))} style={{ width: 16, height: 16 }} />
               Procedimento ativo
             </label>
+            <Field label="Mensagem de confirmação personalizada (opcional)">
+              <textarea className="nx-input" rows={3}
+                placeholder={`Olá {nome}! Seu agendamento foi marcado para {data}. Qualquer dúvida é só responder aqui!`}
+                value={procModal.reminder_message || ''}
+                onChange={e => setProcModal(p => ({ ...p, reminder_message: e.target.value }))} />
+              <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
+                Use <strong>{'{nome}'}</strong> e <strong>{'{data}'}</strong> como variáveis. Se vazio, usa a mensagem padrão da clínica.
+              </div>
+            </Field>
           </ModalBody>
           <ModalFooter err={err} onCancel={() => setProcModal(null)} onSave={handleSaveProc} saving={saving} />
         </Modal>, document.body)}

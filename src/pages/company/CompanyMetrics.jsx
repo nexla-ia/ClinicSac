@@ -445,6 +445,25 @@ function OverviewTab({ msgs, convs, atts, appts, alerts, kanbanCards, range, per
   const alertasPend = alerts.filter(a => !a.resolved).length
   const cardsAtrasados = kanbanCards.filter(c => c.due_date && new Date(`${c.due_date}T23:59:59`) < new Date()).length
 
+  // IA vs Humano: conta sessões por tipo de atendimento
+  const iaHumano = useMemo(() => {
+    const byNumero = {}
+    m.forEach(x => {
+      if (!x.numero) return
+      if (!byNumero[x.numero]) byNumero[x.numero] = { ia: 0, humano: 0 }
+      const t = (x.type || '').toLowerCase()
+      if (t === 'ia') byNumero[x.numero].ia++
+      if (t === 'atendente' || t === 'humano') byNumero[x.numero].humano++
+    })
+    let soIa = 0, comHumano = 0, semAtend = 0
+    Object.values(byNumero).forEach(s => {
+      if (s.humano > 0) comHumano++
+      else if (s.ia > 0) soIa++
+      else semAtend++
+    })
+    return { soIa, comHumano, semAtend }
+  }, [m])
+
   // Volume mensagens por dia
   const dayVolume = useMemo(() => {
     const map = {}
@@ -479,6 +498,32 @@ function OverviewTab({ msgs, convs, atts, appts, alerts, kanbanCards, range, per
         </div>
         <BarTimeline data={dayVolume} />
       </div>
+
+      {(iaHumano.soIa + iaHumano.comHumano + iaHumano.semAtend) > 0 && (
+        <div className="nx-card" style={{ padding: '1.25rem', marginBottom: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+            <Bot size={15} color="#7C3AED" />
+            <div style={{ fontWeight: 700, fontSize: 14 }}>Atendimento — IA vs Humano</div>
+            <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--text-muted)' }}>{periodLabel(period)}</span>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+            {[
+              { label: 'Só IA', value: iaHumano.soIa,     color: '#7C3AED', bg: '#F5F3FF', icon: Bot,      sub: 'sem intervenção humana' },
+              { label: 'Com humano', value: iaHumano.comHumano, color: '#16A34A', bg: '#F0FDF4', icon: Headset, sub: 'atendente respondeu' },
+              { label: 'Não atendido', value: iaHumano.semAtend, color: '#D97706', bg: '#FFFBEB', icon: Inbox,   sub: 'sem resposta da clínica' },
+            ].map(s => (
+              <div key={s.label} style={{ background: s.bg, borderRadius: 10, padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: s.color }}>
+                  <s.icon size={14} />
+                  <span style={{ fontSize: 11, fontWeight: 700 }}>{s.label}</span>
+                </div>
+                <div style={{ fontSize: 22, fontWeight: 800, color: s.color }}>{loading ? '—' : s.value}</div>
+                <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>{s.sub}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -145,6 +145,7 @@ export default function CompanyAgenda() {
   const [apptErr, setApptErr]         = useState('')
   const [savingAppt, setSavingAppt]   = useState(false)
   const [patientHistory, setPatientHistory] = useState([])
+  const [patientAppts, setPatientAppts] = useState([])
   const [loadingHistory, setLoadingHistory] = useState(false)
   const [confirmDeleteAgenda, setConfirmDeleteAgenda] = useState(null)
   const [confirmDeleteAppt, setConfirmDeleteAppt] = useState(false)
@@ -341,19 +342,29 @@ export default function CompanyAgenda() {
     }
   }, [searchParams, agendas, selectedAgendaId])
 
-  // Carrega últimas mensagens do paciente quando o modal abre com número
+  // Carrega últimas mensagens + agendamentos anteriores do paciente quando o modal abre
   useEffect(() => {
-    const num = apptModal?.contact_numero?.replace(/\D/g, '')
-    if (!num || !instance) { setPatientHistory([]); return }
+    const normNum = normalizeWhatsAppNumber(apptModal?.contact_numero)
+    if (!normNum || normNum.length < 10 || !instance) {
+      setPatientHistory([])
+      setPatientAppts([])
+      return
+    }
     setLoadingHistory(true)
-    supabase.from('mensagens_geral').select('id, mensagem, type, "horaLastMessage", created_at')
-      .eq('instancia', instance)
-      .like('numero', `${num}%`)
-      .order('id', { ascending: false }).limit(5)
-      .then(({ data }) => {
-        if (data) setPatientHistory(data.reverse())
-        setLoadingHistory(false)
-      })
+    Promise.all([
+      supabase.from('mensagens_geral').select('id, mensagem, type, "horaLastMessage", created_at')
+        .eq('instancia', instance)
+        .like('numero', `${normNum}%`)
+        .order('id', { ascending: false }).limit(5),
+      supabase.from('appointments').select('id, starts_at, status, procedure_id, notes')
+        .eq('instancia', instance)
+        .eq('contact_numero', normNum)
+        .order('starts_at', { ascending: false }).limit(8),
+    ]).then(([{ data: mgs }, { data: aps }]) => {
+      if (mgs) setPatientHistory(mgs.reverse())
+      if (aps) setPatientAppts(aps.filter(a => a.id !== apptModal?.id))
+      setLoadingHistory(false)
+    })
   }, [apptModal?.contact_numero, instance])
 
   function openEditAppt(a) {
@@ -367,6 +378,7 @@ export default function CompanyAgenda() {
     })
     setApptErr('')
     setPatientHistory([])
+    setPatientAppts([])
   }
 
   async function handleSaveAppt() {
@@ -482,7 +494,10 @@ export default function CompanyAgenda() {
       // Texto patient-friendly por tipo de evento
       let patientMsg = null
       if (isNew && payload.status !== 'cancelado') {
-        patientMsg = `Olá ${firstName}! 📅 Seu agendamento foi marcado para *${dateStr}*. Qualquer dúvida é só responder aqui!`
+        const proc = procedures.find(x => x.id === payload.procedure_id)
+        patientMsg = proc?.reminder_message?.trim()
+          ? proc.reminder_message.replace(/\{nome\}/gi, firstName).replace(/\{data\}/gi, dateStr)
+          : `Olá ${firstName}! 📅 Seu agendamento foi marcado para *${dateStr}*. Qualquer dúvida é só responder aqui!`
       } else if (statusChanged && payload.status === 'cancelado') {
         patientMsg = `Olá ${firstName}, infelizmente seu agendamento de ${dateStr} foi cancelado. Em caso de dúvidas, entre em contato.`
       } else if (statusChanged && payload.status === 'confirmado') {
@@ -941,18 +956,63 @@ export default function CompanyAgenda() {
                   {agendas.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
                 </select>
               </div>
-              <div>
+              <div style={{ position: 'relative' }}>
                 <label style={labelStyle}>Nome do paciente</label>
-                <input className="nx-input" autoFocus list="agenda-contact-list" placeholder="Digite ou escolha um contato salvo"
+                <input className="nx-input" autoFocus placeholder="Digite ou escolha um contato salvo"
                   value={apptModal.contact_nome}
-                  onChange={e => {
-                    const value = e.target.value
-                    const match = savedContacts.find(c => c.nome === value)
-                    setApptModal(p => ({ ...p, contact_nome: value, contact_numero: match?.numero || p.contact_numero }))
-                  }} />
-                <datalist id="agenda-contact-list">
-                  {savedContacts.map(c => <option key={c.id} value={c.nome}>{c.numero}</option>)}
-                </datalist>
+                  onChange={e => setApptModal(p => ({ ...p, contact_nome: e.target.value }))} />
+                {(() => {
+                  const q = (apptModal.contact_nome || '').trim().toLowerCase()
+                  if (q.length < 2) return null
+                  const seen = new Set()
+                  const matches = []
+                  savedContacts.filter(c => c.nome?.toLowerCase().includes(q)).forEach(c => {
+                    const norm = normalizeWhatsAppNumber(c.numero)
+                    if (seen.has(norm)) return
+                    seen.add(norm)
+                    matches.push({ nome: c.nome, numero: norm })
+                  })
+                  chatContacts.filter(c => c.nome && c.nome.toLowerCase().includes(q) && !seen.has(c.numero)).forEach(c => {
+                    seen.add(c.numero)
+                    matches.push({ nome: c.nome, numero: c.numero })
+                  })
+                  if (matches.length === 0) return null
+                  return (
+                    <div style={{
+                      marginTop: 6,
+                      background: '#fff', border: '1px solid var(--border)',
+                      borderRadius: 8, overflow: 'hidden',
+                      boxShadow: '0 4px 12px rgba(15, 23, 42, 0.08)',
+                    }}>
+                      <div style={{ padding: '6px 10px', fontSize: 10, fontWeight: 700, letterSpacing: '0.06em',
+                        textTransform: 'uppercase', color: 'var(--text-muted)',
+                        background: '#F8FAFC', borderBottom: '1px solid var(--border)' }}>
+                        Contatos correspondentes
+                      </div>
+                      {matches.slice(0, 6).map(c => (
+                        <button key={c.numero} type="button"
+                          onClick={() => setApptModal(p => ({ ...p, contact_nome: c.nome, contact_numero: c.numero }))}
+                          style={{
+                            width: '100%', textAlign: 'left', padding: '8px 10px',
+                            background: 'transparent', border: 'none',
+                            borderBottom: '1px solid #F1F5F9', cursor: 'pointer',
+                            display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10,
+                            fontFamily: 'inherit',
+                          }}
+                          onMouseEnter={e => e.currentTarget.style.background = '#F8FAFC'}
+                          onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                          <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)',
+                            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {c.nome}
+                          </span>
+                          <span style={{ fontSize: 12, color: 'var(--text-muted)', fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>
+                            {formatPhoneDisplay(c.numero)}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  )
+                })()}
               </div>
               <div style={{ position: 'relative' }}>
                 <label style={labelStyle}>Telefone</label>
@@ -1245,6 +1305,38 @@ export default function CompanyAgenda() {
                         )
                       })}
                     </div>
+                  )}
+                  {patientAppts.length > 0 && (
+                    <>
+                      <div style={{ margin: '10px 0 6px', fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        Agendamentos anteriores
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        {patientAppts.map(a => {
+                          const st = STATUS_OPTIONS.find(s => s.value === a.status)
+                          const procName = procedures.find(p => p.id === a.procedure_id)?.name
+                          const dt = new Date(a.starts_at).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })
+                          return (
+                            <button key={a.id} type="button"
+                              onClick={() => { setApptModal(null); setTimeout(() => openEditAppt({ ...a, contact_nome: apptModal.contact_nome, contact_numero: apptModal.contact_numero }), 50) }}
+                              style={{
+                                textAlign: 'left', background: 'transparent', border: 'none',
+                                padding: '4px 0', cursor: 'pointer', fontFamily: 'inherit',
+                                display: 'flex', alignItems: 'center', gap: 8, width: '100%',
+                              }}
+                              onMouseEnter={e => e.currentTarget.style.opacity = '0.7'}
+                              onMouseLeave={e => e.currentTarget.style.opacity = '1'}>
+                              <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 999, fontWeight: 700, flexShrink: 0,
+                                background: st?.bg || '#F1F5F9', color: st?.color || '#64748B', border: `1px solid ${st?.border || st?.color || '#CBD5E1'}` }}>
+                                {st?.label || a.status}
+                              </span>
+                              <span style={{ fontSize: 11, color: 'var(--text-secondary)', flexShrink: 0 }}>{dt}</span>
+                              {procName && <span style={{ fontSize: 11, color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>· {procName}</span>}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </>
                   )}
                 </div>
               )}
