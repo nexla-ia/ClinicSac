@@ -127,6 +127,7 @@ export default function CompanyConversations() {
   const [loadingContacts, setLoadingContacts] = useState(false)
   const [search, setSearch]           = useState('')
   const [tagFilter, setTagFilter]     = useState([])
+  const { tagsOf, assignments: tagAssignments } = useContactTags(instance)
   const [selected, setSelected]       = useState(null)
   const [messages, setMessages]       = useState([])
   const [loadingMsgs, setLoadingMsgs] = useState(false)
@@ -869,7 +870,6 @@ export default function CompanyConversations() {
   ]
 
   const currentList = tab === 'recepcao' ? recepcao : tab === 'meu-setor' ? meuSetor : finalizados
-  const { tagsOf, assignments: tagAssignments } = useContactTags(instance)
   const tagMatch = buildTagFilter(tagFilter, tagAssignments)
   const filtered = currentList
     .filter(c => c.phone.includes(search))
