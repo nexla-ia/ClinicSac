@@ -877,7 +877,7 @@ export default function CompanyConversations() {
         .maybeSingle()
       const id_mensagem = fresh?.id_mensagem || msg.id_mensagem
 
-      const res = await fetch('https://n8n.nexladesenvolvimento.com.br/webhook/editarmensagem', {
+      const res = await fetch('https://n8n.nexladesenvolvimento.com.br/webhook/envioNexlaeditar', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
