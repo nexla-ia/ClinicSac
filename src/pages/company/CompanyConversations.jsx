@@ -836,11 +836,9 @@ export default function CompanyConversations() {
           sender_email: session?.user?.email,
         }),
       })
-        .then(r => r.json())
-        .then(async resp => {
-          const msgId      = resp?.id_mensagem || null
-          const instResp   = resp?.instancia   || null
-          const msgResp    = resp?.mensagem || resp?.message || null
+        .then(r => r.text())
+        .then(async text => {
+          const [instResp, msgResp, msgId] = text.trim().split('\n').map(l => l.trim())
           if (!msgId || !instResp || !msgResp) return
           // Acha a linha pelo conteúdo da mensagem + instancia + numero (mais recente)
           const { data: row } = await supabase
