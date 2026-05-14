@@ -152,6 +152,8 @@ export default function CompanyAgenda() {
   const [deletingNow, setDeletingNow] = useState(false)
   const [draggingId, setDraggingId] = useState(null)
   const [dragOverSlot, setDragOverSlot] = useState(null)
+  const [ctxMenu, setCtxMenu] = useState(null) // { x, y, appt }
+  const [confirmDeleteApptDirect, setConfirmDeleteApptDirect] = useState(null)
 
   // Carrega agendas + agendamentos + contatos
   useEffect(() => {
@@ -221,6 +223,19 @@ export default function CompanyAgenda() {
       .lt('starts_at', to.toISOString())
       .then(({ data }) => { if (data) setAppointments(data) })
   }, [instance, weekStart])
+
+  // Fecha context menu ao clicar fora ou pressionar Escape
+  useEffect(() => {
+    if (!ctxMenu) return
+    function close() { setCtxMenu(null) }
+    function onKey(e) { if (e.key === 'Escape') setCtxMenu(null) }
+    document.addEventListener('mousedown', close)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', close)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [!!ctxMenu])
 
   // Realtime para agendamentos
   useEffect(() => {
@@ -864,6 +879,13 @@ export default function CompanyAgenda() {
                                   setDraggingId(appt.id)
                                 }}
                                 onDragEnd={() => { setDraggingId(null); setDragOverSlot(null) }}
+                                onContextMenu={e => {
+                                  e.preventDefault()
+                                  e.stopPropagation()
+                                  const x = Math.min(e.clientX, window.innerWidth - 185)
+                                  const y = Math.min(e.clientY, window.innerHeight - 95)
+                                  setCtxMenu({ x, y, appt })
+                                }}
                                 style={{
                                   background: status.color,
                                   color: '#fff',
@@ -1025,6 +1047,68 @@ export default function CompanyAgenda() {
         planName={limits.plan}
         onClose={() => setLimitModal(null)}
       />
+
+      <ConfirmModal
+        open={!!confirmDeleteApptDirect}
+        variant="delete"
+        title="Excluir agendamento"
+        message={`Tem certeza que deseja excluir o agendamento de "${confirmDeleteApptDirect?.contact_nome || ''}"? Essa ação não pode ser desfeita.`}
+        confirmLabel="Excluir"
+        loading={deletingNow}
+        onConfirm={async () => {
+          if (!confirmDeleteApptDirect) return
+          setDeletingNow(true)
+          await supabase.from('appointments').delete().eq('id', confirmDeleteApptDirect.id)
+          setDeletingNow(false)
+          setConfirmDeleteApptDirect(null)
+        }}
+        onCancel={() => setConfirmDeleteApptDirect(null)}
+      />
+
+      {/* Context menu botão direito */}
+      {ctxMenu && createPortal(
+        <div
+          onMouseDown={e => e.stopPropagation()}
+          style={{
+            position: 'fixed',
+            top: ctxMenu.y,
+            left: ctxMenu.x,
+            zIndex: 99999,
+            background: '#fff',
+            border: '1px solid rgba(15,23,42,0.1)',
+            borderRadius: 10,
+            boxShadow: '0 8px 28px -6px rgba(15,23,42,0.2), 0 2px 8px -3px rgba(15,23,42,0.08)',
+            padding: 4,
+            minWidth: 180,
+          }}>
+          <button
+            onClick={() => { openEditAppt(ctxMenu.appt); setCtxMenu(null) }}
+            style={{
+              width: '100%', textAlign: 'left', background: 'transparent', border: 'none',
+              padding: '8px 12px', borderRadius: 7, cursor: 'pointer', fontFamily: 'inherit',
+              fontSize: 13, fontWeight: 600, color: '#1E293B',
+              display: 'flex', alignItems: 'center', gap: 8,
+            }}
+            onMouseEnter={e => e.currentTarget.style.background = '#EFF6FF'}
+            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+            <Pencil size={13} style={{ color: '#2563EB', flexShrink: 0 }} /> Editar agendamento
+          </button>
+          <div style={{ height: 1, background: 'rgba(15,23,42,0.06)', margin: '3px 4px' }} />
+          <button
+            onClick={() => { setConfirmDeleteApptDirect(ctxMenu.appt); setCtxMenu(null) }}
+            style={{
+              width: '100%', textAlign: 'left', background: 'transparent', border: 'none',
+              padding: '8px 12px', borderRadius: 7, cursor: 'pointer', fontFamily: 'inherit',
+              fontSize: 13, fontWeight: 600, color: '#DC2626',
+              display: 'flex', alignItems: 'center', gap: 8,
+            }}
+            onMouseEnter={e => e.currentTarget.style.background = '#FEF2F2'}
+            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+            <Trash2 size={13} style={{ flexShrink: 0 }} /> Apagar agendamento
+          </button>
+        </div>,
+        document.body
+      )}
 
       {/* Modal agendamento */}
       {apptModal && createPortal(
