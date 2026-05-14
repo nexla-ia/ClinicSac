@@ -965,7 +965,13 @@ export default function CompanyConversations() {
   const currentList = tab === 'recepcao' ? recepcao : tab === 'meu-setor' ? meuSetor : finalizados
   const tagMatch = buildTagFilter(tagFilter, tagAssignments)
   const filtered = currentList
-    .filter(c => c.phone.includes(search))
+    .filter(c => {
+      if (!search) return true
+      const cleanNum = c.phone.replace(/\D/g, '')
+      const nome = savedContacts[cleanNum]?.nome || ''
+      return cleanNum.includes(search.replace(/\D/g, '')) ||
+             nome.toLowerCase().includes(search.toLowerCase())
+    })
     .filter(c => tagMatch(c.phone))
   const isClosed = selected ? closed.has(selected.session_id) : false
 
