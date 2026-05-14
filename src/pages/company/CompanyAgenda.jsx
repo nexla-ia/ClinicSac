@@ -558,7 +558,7 @@ export default function CompanyAgenda() {
         })
 
         // 2) Dispara pelo webhook do n8n → Evolution → WhatsApp do paciente
-        fetch('https://n8n.nexladesenvolvimento.com.br/webhook/envioNexla', {
+        fetch('https://n8n.nexladesenvolvimento.com.br/webhook/envioclinisac', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

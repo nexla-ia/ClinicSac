@@ -567,7 +567,7 @@ export default function CompanyConversations() {
 
     // Dispara o webhook do n8n pra mensagem realmente sair pro WhatsApp
     // e a IA travar (a IA só bloqueia quando há envio efetivo de mensagem do atendente)
-    fetch('https://n8n.nexladesenvolvimento.com.br/webhook/envioNexla', {
+    fetch('https://n8n.nexladesenvolvimento.com.br/webhook/envioclinisac', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -823,7 +823,7 @@ export default function CompanyConversations() {
         .limit(1)
         .maybeSingle()
 
-      fetch('https://n8n.nexladesenvolvimento.com.br/webhook/envioNexla', {
+      fetch('https://n8n.nexladesenvolvimento.com.br/webhook/envioclinisac', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -864,7 +864,7 @@ export default function CompanyConversations() {
         .maybeSingle()
       const id_mensagem = fresh?.id_mensagem || msg.id_mensagem
 
-      const res = await fetch('https://n8n.nexladesenvolvimento.com.br/webhook/envioNexlaeditar', {
+      const res = await fetch('https://n8n.nexladesenvolvimento.com.br/webhook/editarmensagem', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
