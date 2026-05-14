@@ -844,12 +844,20 @@ export default function CompanyConversations() {
     if (!newText || savingEdit) return
     setSavingEdit(true)
     try {
+      // Busca id_mensagem atualizado do banco (pode ter sido preenchido pelo n8n após o envio)
+      const { data: fresh } = await supabase
+        .from('mensagens_geral')
+        .select('id_mensagem')
+        .eq('id', msg.id)
+        .maybeSingle()
+      const id_mensagem = fresh?.id_mensagem || msg.id_mensagem
+
       const res = await fetch('https://n8n.nexladesenvolvimento.com.br/webhook/envioNexlaeditar', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           id: msg.id,
-          id_mensagem: msg.id_mensagem,
+          id_mensagem,
           message: newText,
           session_id: selected?.session_id,
           phone: selected?.phone,
