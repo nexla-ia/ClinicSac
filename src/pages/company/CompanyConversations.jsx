@@ -567,7 +567,7 @@ export default function CompanyConversations() {
 
     // Dispara o webhook do n8n pra mensagem realmente sair pro WhatsApp
     // e a IA travar (a IA só bloqueia quando há envio efetivo de mensagem do atendente)
-    fetch('https://n8n.nexladesenvolvimento.com.br/webhook/envioclinisac', {
+    fetch('https://n8n.nexladesenvolvimento.com.br/webhook/envioNexla', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -813,7 +813,7 @@ export default function CompanyConversations() {
       if (insErr) console.error('send_mensagem_geral:', insErr)
 
       // Aguarda resposta do n8n (retorna instancia + mensagem + id_mensagem) para gravar no banco
-      fetch('https://n8n.nexladesenvolvimento.com.br/webhook/envioclinisac', {
+      fetch('https://n8n.nexladesenvolvimento.com.br/webhook/envioNexla', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
