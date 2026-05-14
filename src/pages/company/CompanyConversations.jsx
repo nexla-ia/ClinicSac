@@ -469,6 +469,7 @@ export default function CompanyConversations() {
           if (selectedRef.current?.session_id === sid) {
             setMessages(msgs => [...msgs, {
               id: row.id,
+              id_mensagem: row.id_mensagem || null,
               type: getMessageType(row),
               content: getMessageContent(row),
               base64: row.base64 || null,
@@ -502,7 +503,7 @@ export default function CompanyConversations() {
     if (!selected || !instance) return
     setLoadingMsgs(true)
     setMessages([])
-    supabase.from(CONV_TABLE).select('id, numero, type, mensagem, base64, "horaLastMessage", created_at')
+    supabase.from(CONV_TABLE).select('id, id_mensagem, numero, type, mensagem, base64, "horaLastMessage", created_at')
       .eq('instancia', instance)
       .eq('numero', selected.session_id)
       .or('aplicativo.eq.whatsapp,aplicativo.is.null')
@@ -512,6 +513,7 @@ export default function CompanyConversations() {
         if (!error && data) {
           setMessages(data.filter(r => !isToolMessage(r)).map(r => ({
             id: r.id,
+            id_mensagem: r.id_mensagem || null,
             type: getMessageType(r),
             content: getMessageContent(r),
             base64: r.base64 || null,
@@ -847,6 +849,7 @@ export default function CompanyConversations() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           id: msg.id,
+          id_mensagem: msg.id_mensagem,
           message: newText,
           instancia: instance,
           session_id: selected?.session_id,
