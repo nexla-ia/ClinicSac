@@ -528,6 +528,13 @@ export default function CompanyConversations() {
     if (!loadingMsgs) bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, loadingMsgs])
 
+  // Scroll para o fim ao abrir edição (evita textarea ficar atrás do compositor)
+  useEffect(() => {
+    if (editingMsgId) {
+      setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 50)
+    }
+  }, [editingMsgId])
+
   async function handleAssume(contact, e) {
     e?.stopPropagation()
     if (attendancesMap[contact.session_id] || assuming === contact.session_id) return
@@ -1477,12 +1484,12 @@ export default function CompanyConversations() {
                                     if (e.key === 'Escape') { setEditingMsgId(null); setEditingText('') }
                                   }}
                                   style={{
-                                    width: '100%', minHeight: 64, boxSizing: 'border-box',
+                                    width: '100%', minHeight: 44, maxHeight: 120, boxSizing: 'border-box',
                                     background: 'rgba(255,255,255,0.15)',
                                     border: '1.5px solid rgba(255,255,255,0.45)',
                                     borderRadius: 8, padding: '8px 10px',
                                     color: '#fff', fontSize: 13.5,
-                                    lineHeight: 1.5, resize: 'vertical',
+                                    lineHeight: 1.5, resize: 'none',
                                     fontFamily: 'inherit', outline: 'none',
                                   }}
                                 />
