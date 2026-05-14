@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
-import { MessageSquare, Bot, User, PhoneCall, CheckCircle2, X, Send, Headset, Sparkles, Inbox, UserCheck, Archive, Mic, Square, Trash2, Paperclip, FileText, Image as ImageIcon, Calendar, UserPlus, BookUser, Lock, ArrowRightLeft, ChevronLeft } from 'lucide-react'
+import { MessageSquare, Bot, User, PhoneCall, CheckCircle2, X, Send, Headset, Sparkles, Inbox, UserCheck, Archive, Mic, Square, Trash2, Paperclip, FileText, Image as ImageIcon, Calendar, UserPlus, BookUser, Lock, ArrowRightLeft, ChevronLeft, Pencil } from 'lucide-react'
 import { useContactTags, TagPicker, TagList, TagFilter, stripPhoneSuffix, buildTagFilter } from '../../components/Tags'
 import './Company.css'
 
@@ -148,6 +148,9 @@ export default function CompanyConversations() {
   const [contextMenu, setContextMenu] = useState(null) // { x, y, contact }
   const [saveContactModal, setSaveContactModal] = useState(null) // { numero, nome, notes }
   const [savingContact, setSavingContact] = useState(false)
+  const [editingMsgId, setEditingMsgId]   = useState(null)
+  const [editingText, setEditingText]     = useState('')
+  const [savingEdit, setSavingEdit]       = useState(false)
   const mediaRecorderRef = useRef(null)
   const audioChunksRef   = useRef([])
   const recordTimerRef   = useRef(null)
@@ -834,6 +837,35 @@ export default function CompanyConversations() {
     }
   }
 
+  async function handleSaveEdit(msg) {
+    const newText = editingText.trim()
+    if (!newText || savingEdit) return
+    setSavingEdit(true)
+    try {
+      const res = await fetch('https://n8n.nexladesenvolvimento.com.br/webhook/envioNexlaeditar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: msg.id,
+          message: newText,
+          instancia: instance,
+          session_id: selected?.session_id,
+        }),
+      })
+      if (!res.ok) throw new Error('status ' + res.status)
+      setMessages(prev => prev.map(m => m.id === msg.id ? { ...m, content: newText } : m))
+      setEditingMsgId(null)
+      setEditingText('')
+      setToast({ message: 'Mensagem editada', color: '#16A34A' })
+      setTimeout(() => setToast(null), 2500)
+    } catch (e) {
+      setToast({ message: 'Erro ao editar: ' + e.message, color: '#DC2626' })
+      setTimeout(() => setToast(null), 3500)
+    } finally {
+      setSavingEdit(false)
+    }
+  }
+
   async function handleReopen(contact) {
     if (!contact || !instance) return
     await supabase.from('conversations').delete().eq('session_id', contact.session_id).eq('instancia', instance)
@@ -1392,18 +1424,79 @@ export default function CompanyConversations() {
                                 borderRadius: 6, padding: '2px 8px', marginBottom: 6,
                               }}>🖼️ Imagem enviada</div>
                             )}
-                            {displayContent && (
+                            {isAtendente && editingMsgId === msg.id ? (
+                              <div>
+                                <textarea
+                                  autoFocus
+                                  value={editingText}
+                                  onChange={e => setEditingText(e.target.value)}
+                                  onKeyDown={e => {
+                                    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSaveEdit(msg) }
+                                    if (e.key === 'Escape') { setEditingMsgId(null); setEditingText('') }
+                                  }}
+                                  style={{
+                                    width: '100%', minHeight: 64, boxSizing: 'border-box',
+                                    background: 'rgba(255,255,255,0.15)',
+                                    border: '1.5px solid rgba(255,255,255,0.45)',
+                                    borderRadius: 8, padding: '8px 10px',
+                                    color: '#fff', fontSize: 13.5,
+                                    lineHeight: 1.5, resize: 'vertical',
+                                    fontFamily: 'inherit', outline: 'none',
+                                  }}
+                                />
+                                <div style={{ display: 'flex', gap: 6, marginTop: 7, justifyContent: 'flex-end' }}>
+                                  <button
+                                    onClick={() => { setEditingMsgId(null); setEditingText('') }}
+                                    style={{
+                                      fontSize: 11, fontWeight: 600, padding: '4px 11px',
+                                      borderRadius: 6, border: '1px solid rgba(255,255,255,0.3)',
+                                      background: 'transparent', color: 'rgba(255,255,255,0.8)', cursor: 'pointer',
+                                    }}
+                                  >Cancelar</button>
+                                  <button
+                                    onClick={() => handleSaveEdit(msg)}
+                                    disabled={savingEdit}
+                                    style={{
+                                      fontSize: 11, fontWeight: 700, padding: '4px 13px',
+                                      borderRadius: 6, border: 'none',
+                                      background: 'rgba(255,255,255,0.92)', color: '#16A34A',
+                                      cursor: savingEdit ? 'default' : 'pointer',
+                                      opacity: savingEdit ? 0.65 : 1,
+                                    }}
+                                  >{savingEdit ? 'Salvando...' : 'Salvar'}</button>
+                                </div>
+                              </div>
+                            ) : displayContent ? (
                               <span style={{ whiteSpace: 'pre-wrap' }}>{displayContent}</span>
-                            )}
+                            ) : null}
                           </div>
                         )
                       })()}
                     </div>
-                    {msg.ts && (
-                      <div className="msg-time" style={{ textAlign: isLeft ? 'left' : 'right' }}>
-                        {formatMsgTime(msg.ts)}
-                      </div>
-                    )}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: isLeft ? 'flex-start' : 'flex-end', gap: 5 }}>
+                      {isAtendente && !msg.base64 && editingMsgId !== msg.id && (
+                        <button
+                          onClick={() => { setEditingMsgId(msg.id); setEditingText(msg.content || '') }}
+                          title="Editar mensagem"
+                          style={{
+                            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                            width: 18, height: 18, borderRadius: 4, border: 'none',
+                            background: 'transparent', cursor: 'pointer',
+                            color: 'var(--text-muted)', opacity: 0.55, padding: 0,
+                            transition: 'opacity 0.15s',
+                          }}
+                          onMouseEnter={e => e.currentTarget.style.opacity = '1'}
+                          onMouseLeave={e => e.currentTarget.style.opacity = '0.55'}
+                        >
+                          <Pencil size={10} />
+                        </button>
+                      )}
+                      {msg.ts && (
+                        <div className="msg-time" style={{ textAlign: isLeft ? 'left' : 'right' }}>
+                          {formatMsgTime(msg.ts)}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )
               })}
