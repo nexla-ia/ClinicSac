@@ -1429,7 +1429,7 @@ export default function CompanyConversations() {
                       {(() => {
                         const media = detectMedia(msg.base64)
                         const rawContent = msg.content || ''
-                        const fileLineMatch = rawContent.match(/^(🎤 Áudio|🖼️ [^\n]+|📄 [^\n]+|📎 [^\n]+)(\n([\s\S]*))?$/)
+                        const fileLineMatch = rawContent.match(/^(🎤 Áudio|🖼️ [^\n]+|📄 [^\n]+|🎬 [^\n]+|📎 [^\n]+)(\n([\s\S]*))?$/)
                         const fileLine = fileLineMatch?.[1] || null
                         const extraText = fileLineMatch?.[3]?.trim() || ''
                         const isPlaceholder = !!fileLine
@@ -1491,6 +1491,28 @@ export default function CompanyConversations() {
                                 background: '#F3F4F6', border: '1px solid #E5E7EB',
                                 borderRadius: 6, padding: '2px 8px', marginBottom: 6,
                               }}>🖼️ Imagem enviada</div>
+                            )}
+                            {fileLine?.startsWith('🎬') && !media && (
+                              <div style={{
+                                display: 'inline-flex', alignItems: 'center', gap: 10,
+                                background: '#F5F3FF', border: '1px solid #DDD6FE',
+                                borderRadius: 8, padding: '10px 14px', marginBottom: extraText ? 6 : 0,
+                                minWidth: 200,
+                              }}>
+                                <div style={{
+                                  width: 36, height: 36, borderRadius: 6, background: '#EDE9FE',
+                                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                  color: '#7C3AED', flexShrink: 0,
+                                }}>
+                                  <Film size={18} />
+                                </div>
+                                <div style={{ flex: 1, minWidth: 0 }}>
+                                  <div style={{ fontSize: 12, fontWeight: 600, color: '#111827', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                    {fileLine.replace(/^🎬\s*/, '')}
+                                  </div>
+                                  <div style={{ fontSize: 11, color: '#6B7280' }}>Vídeo enviado</div>
+                                </div>
+                              </div>
                             )}
                             {isAtendente && editingMsgId === msg.id ? (
                               <div>
