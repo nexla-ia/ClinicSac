@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
-import { MessageSquare, Bot, User, PhoneCall, CheckCircle2, X, Send, Headset, Sparkles, Inbox, UserCheck, Archive, Mic, Square, Trash2, Paperclip, FileText, Image as ImageIcon, Calendar, UserPlus, BookUser, Lock, ArrowRightLeft, ChevronLeft, Pencil } from 'lucide-react'
+import { MessageSquare, Bot, User, PhoneCall, CheckCircle2, X, Send, Headset, Sparkles, Inbox, UserCheck, Archive, Mic, Square, Trash2, Paperclip, FileText, Image as ImageIcon, Calendar, UserPlus, BookUser, Lock, ArrowRightLeft, ChevronLeft, Pencil, Film } from 'lucide-react'
 import { useContactTags, TagPicker, TagList, TagFilter, stripPhoneSuffix, buildTagFilter } from '../../components/Tags'
 import './Company.css'
 
@@ -43,6 +43,12 @@ function detectMedia(b64) {
   if (b64.startsWith('UklGR')) return { type: 'image', mime: 'image/webp' }
   if (b64.startsWith('R0lGOD')) return { type: 'image', mime: 'image/gif' }
   if (b64.startsWith('JVBERi')) return { type: 'pdf', mime: 'application/pdf' }
+  // MP4/MOV/3GP: verifica marcador 'ftyp' no offset 4
+  try {
+    if (b64.length > 100 && atob(b64.slice(0, 16)).slice(4, 8) === 'ftyp') {
+      return { type: 'video', mime: 'video/mp4' }
+    }
+  } catch {}
   return null
 }
 
@@ -725,9 +731,10 @@ export default function CompanyConversations() {
     const file = e.target.files?.[0]
     e.target.value = ''
     if (!file) return
-    const MAX = 15 * 1024 * 1024 // 15 MB
+    const isVideo = file.type.startsWith('video/')
+    const MAX = isVideo ? 50 * 1024 * 1024 : 15 * 1024 * 1024
     if (file.size > MAX) {
-      setToast({ message: 'Arquivo muito grande (máx 15 MB)', color: '#DC2626' })
+      setToast({ message: isVideo ? 'Vídeo muito grande (máx 50 MB)' : 'Arquivo muito grande (máx 15 MB)', color: '#DC2626' })
       setTimeout(() => setToast(null), 3000)
       return
     }
@@ -741,6 +748,7 @@ export default function CompanyConversations() {
     const base64 = btoa(bin)
     const kind = file.type.startsWith('image/') ? 'image'
       : file.type === 'application/pdf' ? 'pdf'
+      : file.type.startsWith('video/') ? 'video'
       : 'file'
     setAttachedFile({ base64, mime: file.type || 'application/octet-stream', name: file.name, size: file.size, kind })
   }
@@ -801,7 +809,7 @@ export default function CompanyConversations() {
       setAttachedFile(null)
 
       const filePrefix = file
-        ? (file.kind === 'image' ? '🖼️ ' : file.kind === 'pdf' ? '📄 ' : '📎 ') + file.name
+        ? (file.kind === 'image' ? '🖼️ ' : file.kind === 'pdf' ? '📄 ' : file.kind === 'video' ? '🎬 ' : '📎 ') + file.name
         : null
       const mensagemPayload = audio
         ? (text || '🎤 Áudio')
@@ -1445,6 +1453,11 @@ export default function CompanyConversations() {
                                 <img src={src} alt="mídia" style={{ maxWidth: 280, width: '100%', borderRadius: 8, display: 'block', marginBottom: hasOnlyMedia ? 0 : 6, cursor: 'zoom-in' }}
                                   onClick={() => setLightbox(src)} />
                               )
+                              if (media.type === 'video') return (
+                                <video controls style={{ maxWidth: 280, width: '100%', borderRadius: 8, display: 'block', marginBottom: hasOnlyMedia ? 0 : 6 }}>
+                                  <source src={src} type={media.mime} />
+                                </video>
+                              )
                               if (media.type === 'pdf') {
                                 const fileName = (fileLine || '').replace(/^📄\s*/, '').trim() || 'documento.pdf'
                                 return (
@@ -1570,6 +1583,14 @@ export default function CompanyConversations() {
                       <img src={`data:${attachedFile.mime};base64,${attachedFile.base64}`}
                         alt={attachedFile.name}
                         style={{ width: 44, height: 44, objectFit: 'cover', borderRadius: 6, flexShrink: 0 }} />
+                    ) : attachedFile.kind === 'video' ? (
+                      <div style={{
+                        width: 44, height: 44, borderRadius: 6,
+                        background: '#EDE9FE', color: '#7C3AED',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                      }}>
+                        <Film size={20} />
+                      </div>
                     ) : (
                       <div style={{
                         width: 44, height: 44, borderRadius: 6,
@@ -1585,7 +1606,10 @@ export default function CompanyConversations() {
                         {attachedFile.name}
                       </div>
                       <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-                        {(attachedFile.size / 1024).toFixed(0)} KB · {attachedFile.kind === 'pdf' ? 'PDF' : attachedFile.kind === 'image' ? 'Imagem' : 'Arquivo'}
+                        {attachedFile.size >= 1024 * 1024
+                          ? (attachedFile.size / (1024 * 1024)).toFixed(1) + ' MB'
+                          : (attachedFile.size / 1024).toFixed(0) + ' KB'
+                        } · {attachedFile.kind === 'pdf' ? 'PDF' : attachedFile.kind === 'image' ? 'Imagem' : attachedFile.kind === 'video' ? 'Vídeo' : 'Arquivo'}
                       </div>
                     </div>
                     <button onClick={discardFile} title="Remover arquivo"
@@ -1654,7 +1678,7 @@ export default function CompanyConversations() {
                   <input
                     ref={fileInputRef}
                     type="file"
-                    accept="image/*,application/pdf"
+                    accept="image/*,application/pdf,video/*"
                     style={{ display: 'none' }}
                     onChange={handlePickFile}
                   />
@@ -1662,7 +1686,7 @@ export default function CompanyConversations() {
                     <>
                       <button
                         onClick={() => fileInputRef.current?.click()}
-                        title="Anexar imagem ou PDF"
+                        title="Anexar imagem, PDF ou vídeo"
                         disabled={!canRespond(selected)}
                         style={{
                           padding: '0 14px', flexShrink: 0,
