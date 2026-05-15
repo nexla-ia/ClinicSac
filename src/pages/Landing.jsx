@@ -1090,45 +1090,6 @@ export default function Landing() {
       {/* TESTIMONIAL */}
       <TestimonialsSection items={TESTIMONIALS} />
 
-      {/* SEGURANÇA & LGPD */}
-      <section className="lp-security" id="seguranca">
-        <div className="lp-container">
-          <SectionHeader
-            kicker="Segurança em primeiro lugar"
-            title={<>Conformidade que <em>clínica de verdade</em><br />exige</>}
-          />
-          <div className="lp-security-grid">
-            <SecurityItem
-              icon={<Server size={18} />}
-              title="Dados em servidor brasileiro"
-              description="Infraestrutura hospedada no Brasil, em conformidade com LGPD."
-              flag="🇧🇷"
-            />
-            <SecurityItem
-              icon={<Lock size={18} />}
-              title="Criptografia ponta a ponta"
-              description="Mensagens e dados de pacientes criptografados em trânsito e em repouso."
-            />
-            <SecurityItem
-              icon={<FileText size={18} />}
-              title="Cláusula de tratamento de dados"
-              description="DPO designado e termo de tratamento de dados de pacientes incluído no contrato."
-            />
-            <SecurityItem
-              icon={<Trash2 size={18} />}
-              title="Política de retenção e exclusão"
-              description="Você controla por quanto tempo os dados ficam armazenados e pode solicitar exclusão a qualquer momento."
-            />
-          </div>
-          <div className="lp-security-cta">
-            <a href="/seguranca" className="lp-security-link">
-              Ver política de privacidade completa
-              <ArrowRight size={14} />
-            </a>
-          </div>
-        </div>
-      </section>
-
       {/* PARA QUEM É */}
       <section className="lp-icp" id="para-quem">
         <div className="lp-container">
