@@ -269,110 +269,289 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* QUALQUER OPERAÇÃO */}
-      <section className="lp-versatility">
+      {/* PARA QUEM É */}
+      <section className="lp-icp" id="para-quem">
         <div className="lp-container">
           <SectionHeader
-            kicker="Para qualquer operação de saúde"
-            title={<>Funciona do consultório solo<br /><em>à rede com várias unidades</em></>}
+            kicker="Pra quem é"
+            title={<>Feita pra clínicas que levam<br /><em>crescimento a sério</em></>}
           />
-          <div className="lp-versatility-bento">
+          <p className="lp-icp-intro">
+            Quatro perfis que a gente atende todo dia. <strong>Provavelmente um deles é você.</strong>
+          </p>
 
-            {/* 01 — hero · crescimento */}
-            <article className="lp-vcard lp-vcard-01">
-              <span className="lp-vcard-num">01</span>
-              <div className="lp-vcard-visual lp-vis-growth">
-                <div className="lp-grow-avatars">
-                  <span className="lp-av lp-av-1">RT</span>
-                  <span className="lp-av lp-av-2">JM</span>
-                  <span className="lp-av lp-av-3">LC</span>
-                  <span className="lp-av lp-av-4">PS</span>
-                  <span className="lp-av lp-av-more">+46</span>
-                </div>
-                <div className="lp-grow-scale">
-                  <span className="lp-grow-from">1</span>
-                  <svg className="lp-grow-arrow" viewBox="0 0 80 24" fill="none" aria-hidden="true">
-                    <path d="M2 12 L72 12 M62 4 L72 12 L62 20" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                  <span className="lp-grow-to">50<sup>+</sup></span>
-                </div>
+          <div className="lp-icp-grid">
+            {/* 01 — Investe em marketing */}
+            <article className="lp-icp-card lp-icp-marketing" data-tone="amber">
+              <div className="lp-icp-card-head">
+                <span className="lp-icp-num">01</span>
+                <span className="lp-icp-tag">
+                  <ScanLine size={11} /> Performance
+                </span>
               </div>
-              <div className="lp-vcard-body">
-                <div className="lp-vcard-icon"><Users size={18} /></div>
-                <h3 className="lp-vcard-title">1 a 50<sup>+</sup> <em>profissionais</em></h3>
-                <p className="lp-vcard-desc">Do consultório solo à clínica com várias salas atendendo em paralelo. A plataforma escala com você sem trocar de sistema.</p>
+              <div className="lp-icp-card-title">
+                <span>Investe em marketing</span>
+                <em>e quer ver retorno</em>
+              </div>
+              <p className="lp-icp-card-desc">
+                Faz tráfego pago no Meta e Google. Quer saber qual ad trouxe
+                <strong> paciente que apareceu na consulta</strong>, não só lead que abriu chat.
+              </p>
+              <div className="lp-icp-card-visual lp-icp-visual-bars">
+                <div className="lp-icp-visual-label">Receita por origem · out/26</div>
+                <div className="lp-icp-bars">
+                  <div className="lp-icp-bar" style={{ '--h': '78%', '--c': '#F59E0B' }}>
+                    <span className="lp-icp-bar-val">R$ 9.3k</span>
+                    <span className="lp-icp-bar-lbl">Meta</span>
+                  </div>
+                  <div className="lp-icp-bar" style={{ '--h': '52%', '--c': '#FCD34D' }}>
+                    <span className="lp-icp-bar-val">R$ 6.2k</span>
+                    <span className="lp-icp-bar-lbl">Google</span>
+                  </div>
+                  <div className="lp-icp-bar" style={{ '--h': '34%', '--c': '#FDE68A' }}>
+                    <span className="lp-icp-bar-val">R$ 4.1k</span>
+                    <span className="lp-icp-bar-lbl">Indica.</span>
+                  </div>
+                </div>
               </div>
             </article>
 
-            {/* 02 — rede de unidades */}
-            <article className="lp-vcard lp-vcard-02">
-              <span className="lp-vcard-num">02</span>
-              <div className="lp-vcard-visual lp-vis-network">
-                <svg viewBox="0 0 280 100" fill="none" className="lp-net-svg" aria-hidden="true">
-                  <path d="M40 75 Q90 30, 140 50 T240 55" stroke="#15803D" strokeWidth="1.5" strokeDasharray="3 5" opacity="0.45" />
-                  <g className="lp-net-node lp-net-node-1">
-                    <circle cx="40" cy="75" r="15" fill="white" stroke="#22C55E" strokeWidth="1.6" />
-                    <text x="40" y="79" textAnchor="middle" fontFamily="Bricolage Grotesque, sans-serif" fontWeight="700" fontSize="10" fill="#14532D">CO</text>
-                  </g>
-                  <g className="lp-net-node lp-net-node-2">
-                    <circle cx="140" cy="40" r="20" fill="#DCFCE7" stroke="#22C55E" strokeWidth="1.6" />
-                    <text x="140" y="44" textAnchor="middle" fontFamily="Bricolage Grotesque, sans-serif" fontWeight="700" fontSize="11" fill="#14532D">SP</text>
-                  </g>
-                  <g className="lp-net-node lp-net-node-3">
-                    <circle cx="240" cy="55" r="14" fill="white" stroke="#22C55E" strokeWidth="1.6" />
-                    <text x="240" y="59" textAnchor="middle" fontFamily="Bricolage Grotesque, sans-serif" fontWeight="700" fontSize="10" fill="#14532D">RJ</text>
-                  </g>
+            {/* 02 — Multi-canal */}
+            <article className="lp-icp-card lp-icp-multichannel" data-tone="emerald">
+              <div className="lp-icp-card-head">
+                <span className="lp-icp-num">02</span>
+                <span className="lp-icp-tag">
+                  <Network size={11} /> Multi-canal
+                </span>
+              </div>
+              <div className="lp-icp-card-title">
+                <span>Paciente chega</span>
+                <em>por todo lugar</em>
+              </div>
+              <p className="lp-icp-card-desc">
+                WhatsApp, Instagram Direct, site, indicação. Hoje gerencia tudo
+                <strong> separado e perde conversa</strong> quando o telefone toca.
+              </p>
+              <div className="lp-icp-card-visual lp-icp-visual-channels">
+                <div className="lp-icp-channel" style={{ background: 'linear-gradient(135deg, #25D366, #128C7E)' }}>
+                  <MessageSquare size={14} />
+                </div>
+                <div className="lp-icp-channel" style={{ background: 'linear-gradient(135deg, #F472B6, #EC4899)' }}>
+                  <Instagram size={14} />
+                </div>
+                <div className="lp-icp-channel" style={{ background: 'linear-gradient(135deg, #60A5FA, #3B82F6)' }}>
+                  <Network size={14} />
+                </div>
+                <svg className="lp-icp-channel-flow" viewBox="0 0 200 60" preserveAspectRatio="none" aria-hidden="true">
+                  <path d="M 20,12 Q 100,30 180,30" stroke="#10B981" strokeWidth="1.5" fill="none" strokeDasharray="3 3" />
+                  <path d="M 20,30 Q 100,30 180,30" stroke="#10B981" strokeWidth="1.5" fill="none" strokeDasharray="3 3" />
+                  <path d="M 20,48 Q 100,30 180,30" stroke="#10B981" strokeWidth="1.5" fill="none" strokeDasharray="3 3" />
                 </svg>
-                <span className="lp-vis-tag">3 filiais · 1 inbox</span>
-              </div>
-              <div className="lp-vcard-body">
-                <div className="lp-vcard-icon"><Network size={18} /></div>
-                <h3 className="lp-vcard-title">Várias unidades, <em>uma operação</em></h3>
-                <p className="lp-vcard-desc">Filiais sincronizadas em tempo real. Recepção de qualquer unidade vê a conversa, agenda no profissional certo e o paciente nem percebe.</p>
+                <div className="lp-icp-channel-target">
+                  <Inbox size={14} />
+                  <span>1 inbox</span>
+                </div>
               </div>
             </article>
 
-            {/* 03 — preços */}
-            <article className="lp-vcard lp-vcard-03">
-              <span className="lp-vcard-num">03</span>
-              <div className="lp-vcard-visual lp-vis-price">
-                <div className="lp-tag lp-tag-conv">
-                  <span className="lp-tag-label">Unimed</span>
-                  <span className="lp-tag-value">R$ 180</span>
-                </div>
-                <div className="lp-tag lp-tag-part">
-                  <span className="lp-tag-label">Particular</span>
-                  <span className="lp-tag-value">R$ 350</span>
-                </div>
+            {/* 03 — Multi-profissional */}
+            <article className="lp-icp-card lp-icp-multidoc" data-tone="sky">
+              <div className="lp-icp-card-head">
+                <span className="lp-icp-num">03</span>
+                <span className="lp-icp-tag">
+                  <Users size={11} /> Equipe
+                </span>
               </div>
-              <div className="lp-vcard-body">
-                <div className="lp-vcard-icon"><Wallet size={18} /></div>
-                <h3 className="lp-vcard-title">Convênio e particular <em>no mesmo fluxo</em></h3>
-                <p className="lp-vcard-desc">Cadastre valores por convênio, por procedimento e por médico. O agendamento puxa o preço certo automaticamente — sem planilha paralela.</p>
+              <div className="lp-icp-card-title">
+                <span>Tem dois ou mais</span>
+                <em>profissionais</em>
+              </div>
+              <p className="lp-icp-card-desc">
+                Agenda complexa, especialidades diferentes, setores que se misturam.
+                <strong> Excel e WhatsApp Web não dão mais conta.</strong>
+              </p>
+              <div className="lp-icp-card-visual lp-icp-visual-team">
+                <div className="lp-icp-team-card" style={{ background: 'linear-gradient(135deg, #DBEAFE, #BFDBFE)', borderColor: '#93C5FD' }}>
+                  <div className="lp-icp-team-avatar" style={{ background: 'linear-gradient(135deg, #60A5FA, #3B82F6)' }}>C</div>
+                  <div>
+                    <div className="lp-icp-team-name">Dra. Camila</div>
+                    <div className="lp-icp-team-spec">Dermato</div>
+                  </div>
+                </div>
+                <div className="lp-icp-team-card" style={{ background: 'linear-gradient(135deg, #E0E7FF, #C7D2FE)', borderColor: '#A5B4FC' }}>
+                  <div className="lp-icp-team-avatar" style={{ background: 'linear-gradient(135deg, #A78BFA, #6366F1)' }}>R</div>
+                  <div>
+                    <div className="lp-icp-team-name">Dr. Rafael</div>
+                    <div className="lp-icp-team-spec">Cardio</div>
+                  </div>
+                </div>
+                <div className="lp-icp-team-card" style={{ background: 'linear-gradient(135deg, #DBEAFE, #BFDBFE)', borderColor: '#93C5FD' }}>
+                  <div className="lp-icp-team-avatar" style={{ background: 'linear-gradient(135deg, #34D399, #06B6D4)' }}>M</div>
+                  <div>
+                    <div className="lp-icp-team-name">Dra. Marina</div>
+                    <div className="lp-icp-team-spec">Pediatra</div>
+                  </div>
+                </div>
               </div>
             </article>
 
-            {/* 04 — humano + IA */}
-            <article className="lp-vcard lp-vcard-04">
-              <span className="lp-vcard-num">04</span>
-              <div className="lp-vcard-visual lp-vis-duality">
-                <div className="lp-dual lp-dual-human">
-                  <span className="lp-dual-emoji"><Headset size={16} /></span>
-                  <span className="lp-dual-label">Humano</span>
-                </div>
-                <div className="lp-dual-divider" />
-                <div className="lp-dual lp-dual-ai">
-                  <span className="lp-dual-emoji"><BotIcon size={16} /></span>
-                  <span className="lp-dual-label">IA</span>
-                </div>
+            {/* 04 — Quer controle */}
+            <article className="lp-icp-card lp-icp-control" data-tone="rose">
+              <div className="lp-icp-card-head">
+                <span className="lp-icp-num">04</span>
+                <span className="lp-icp-tag">
+                  <BarChart3 size={11} /> Dados
+                </span>
               </div>
-              <div className="lp-vcard-body">
-                <div className="lp-vcard-icon"><BotIcon size={18} /></div>
-                <h3 className="lp-vcard-title">Atendimento humano <em>+ IA sob demanda</em></h3>
-                <p className="lp-vcard-desc">Comece com a equipe atendendo no inbox unificado. Ative a IA quando quiser — em horários específicos, fins de semana, ou pra qualificar antes de passar pra recepção.</p>
+              <div className="lp-icp-card-title">
+                <span>Quer controle,</span>
+                <em>não só ferramenta</em>
+              </div>
+              <p className="lp-icp-card-desc">
+                Métrica de cada profissional, taxa de no-show, atribuição de marketing.
+                <strong> Decisão por dado, não achismo.</strong>
+              </p>
+              <div className="lp-icp-card-visual lp-icp-visual-kpis">
+                <div className="lp-icp-kpi">
+                  <div className="lp-icp-kpi-val" style={{ color: '#16A34A' }}>R$ 87k</div>
+                  <div className="lp-icp-kpi-lbl">Faturamento</div>
+                  <div className="lp-icp-kpi-trend">↑ 12%</div>
+                </div>
+                <div className="lp-icp-kpi">
+                  <div className="lp-icp-kpi-val" style={{ color: '#DC2626' }}>8%</div>
+                  <div className="lp-icp-kpi-lbl">No-show</div>
+                  <div className="lp-icp-kpi-trend lp-icp-kpi-trend-down">↓ 3%</div>
+                </div>
+                <div className="lp-icp-kpi">
+                  <div className="lp-icp-kpi-val" style={{ color: '#7C3AED' }}>R$ 312</div>
+                  <div className="lp-icp-kpi-lbl">Ticket médio</div>
+                  <div className="lp-icp-kpi-trend">↑ 8%</div>
+                </div>
               </div>
             </article>
+          </div>
 
+          {/* Outro */}
+          <div className="lp-icp-outro">
+            <div className="lp-icp-outro-marker">
+              <Sparkles size={14} />
+            </div>
+            <div>
+              <strong>Se você se viu em pelo menos 2 desses</strong>, a gente já consegue
+              te mostrar resultado em 30 dias.
+            </div>
+            <a href="#cta" className="lp-icp-outro-cta">
+              Quero conversar <ArrowUpRight size={14} />
+            </a>
+          </div>
+        </div>
+      </section>
+
+      {/* COMO FUNCIONA */}
+      <section className="lp-how" id="como-funciona">
+        <div className="lp-container">
+          <SectionHeader
+            kicker="Em 3 passos"
+            title={<>Da bagunça do WhatsApp<br /><em>ao controle total</em></>}
+            light
+          />
+
+          <div className="lp-how-stage">
+            {/* Trilho da jornada — marching dashes + 3 pulses */}
+            <svg className="lp-how-rail" viewBox="0 0 1200 80" preserveAspectRatio="none" aria-hidden="true">
+              <defs>
+                <linearGradient id="howRailGrad" x1="0" y1="0" x2="1" y2="0">
+                  <stop offset="0%" stopColor="#FACC15" />
+                  <stop offset="50%" stopColor="#4ADE80" />
+                  <stop offset="100%" stopColor="#22D3EE" />
+                </linearGradient>
+              </defs>
+              <path className="lp-how-rail-path" d="M 80 40 Q 300 -10, 600 40 T 1120 40" stroke="url(#howRailGrad)" strokeWidth="1.5" fill="none" strokeDasharray="6 9" />
+              <g className="lp-how-rail-node lp-rail-node-1" transform="translate(180, 33)">
+                <circle r="14" fill="rgba(252,211,77,0.12)" />
+                <circle r="6" fill="#FACC15" />
+              </g>
+              <g className="lp-how-rail-node lp-rail-node-2" transform="translate(600, 33)">
+                <circle r="14" fill="rgba(74,222,128,0.12)" />
+                <circle r="6" fill="#4ADE80" />
+              </g>
+              <g className="lp-how-rail-node lp-rail-node-3" transform="translate(1020, 33)">
+                <circle r="14" fill="rgba(34,211,238,0.12)" />
+                <circle r="6" fill="#22D3EE" />
+              </g>
+            </svg>
+
+            <div className="lp-steps">
+              {/* 01 — Canais convergindo */}
+              <article className="lp-step lp-step-1">
+                <span className="lp-step-num">01</span>
+                <div className="lp-step-viz lp-viz-channels">
+                  <div className="lp-ch lp-ch-wa" title="WhatsApp">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M17.5 14.4c-.3-.1-1.6-.8-1.8-.9-.2-.1-.4-.1-.6.1-.2.2-.7.9-.8 1-.1.2-.3.2-.6.1-.3-.1-1.2-.4-2.2-1.3-.8-.7-1.4-1.6-1.5-1.9-.2-.3 0-.4.1-.5.1-.1.3-.3.4-.5.1-.1.2-.3.2-.4.1-.2 0-.3 0-.4 0-.1-.6-1.4-.8-1.9-.2-.5-.4-.4-.6-.4-.1 0-.3 0-.5 0s-.5.1-.7.3c-.3.3-1 1-1 2.4 0 1.4 1 2.7 1.2 2.9.1.2 2 3 4.8 4.2.7.3 1.2.5 1.6.6.7.2 1.3.2 1.8.1.5-.1 1.6-.7 1.9-1.3.2-.6.2-1.2.1-1.3 0-.1-.2-.2-.5-.3zM12 2C6.5 2 2 6.5 2 12c0 1.9.5 3.7 1.5 5.3L2 22l4.8-1.5C8.4 21.4 10.2 22 12 22c5.5 0 10-4.5 10-10S17.5 2 12 2z"/></svg>
+                  </div>
+                  <div className="lp-ch lp-ch-ig" title="Instagram"><Instagram size={20} /></div>
+                  <svg className="lp-ch-lines" viewBox="0 0 200 100" preserveAspectRatio="none" aria-hidden="true">
+                    <path d="M 30 25 Q 100 50, 170 50" stroke="rgba(252,211,77,0.45)" strokeWidth="1.4" strokeDasharray="3 4" fill="none" />
+                    <path d="M 30 75 Q 100 50, 170 50" stroke="rgba(252,211,77,0.45)" strokeWidth="1.4" strokeDasharray="3 4" fill="none" />
+                  </svg>
+                  <div className="lp-ch lp-ch-inbox" title="Inbox unificado"><Inbox size={20} /></div>
+                </div>
+                <h3 className="lp-step-title">Conecte seus canais</h3>
+                <p className="lp-step-desc">Escaneie o QR Code do WhatsApp e conecte sua conta do Instagram Business. Em segundos, ambos começam a chegar na mesma inbox.</p>
+              </article>
+
+              {/* 02 — Mini calendário com avatar */}
+              <article className="lp-step lp-step-2">
+                <span className="lp-step-num">02</span>
+                <div className="lp-step-viz lp-viz-setup">
+                  <div className="lp-mini-cal">
+                    <div className="lp-cal-head">
+                      <span>SEG</span><span>TER</span><span>QUA</span><span>QUI</span><span>SEX</span>
+                    </div>
+                    <div className="lp-cal-row">
+                      <span /><span className="on" /><span /><span className="on" /><span />
+                    </div>
+                    <div className="lp-cal-row">
+                      <span className="on" /><span /><span className="on" /><span /><span className="on" />
+                    </div>
+                    <div className="lp-cal-row">
+                      <span /><span className="on pulse" /><span /><span /><span />
+                    </div>
+                  </div>
+                  <div className="lp-doc-avatar">
+                    <span>DR</span>
+                    <div className="lp-doc-badge"><Check size={10} strokeWidth={3} /></div>
+                  </div>
+                </div>
+                <h3 className="lp-step-title">Configure profissionais e procedimentos</h3>
+                <p className="lp-step-desc">Cadastre médicos com horários, intervalos e dias de atendimento. Adicione procedimentos com valor particular e por convênio.</p>
+              </article>
+
+              {/* 03 — Bot + chart subindo */}
+              <article className="lp-step lp-step-3">
+                <span className="lp-step-num">03</span>
+                <div className="lp-step-viz lp-viz-ai">
+                  <div className="lp-ai-bot">
+                    <BotIcon size={22} strokeWidth={1.8} />
+                    <Sparkles className="lp-ai-spark lp-spark-1" size={11} />
+                    <Sparkles className="lp-ai-spark lp-spark-2" size={9} />
+                  </div>
+                  <svg className="lp-ai-chart" viewBox="0 0 140 60" aria-hidden="true">
+                    <defs>
+                      <linearGradient id="aiChartFill" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#22D3EE" stopOpacity="0.45" />
+                        <stop offset="100%" stopColor="#22D3EE" stopOpacity="0" />
+                      </linearGradient>
+                    </defs>
+                    <path className="lp-ai-chart-area" d="M 0 52 L 24 46 L 48 40 L 72 30 L 96 22 L 120 12 L 140 6 L 140 60 L 0 60 Z" fill="url(#aiChartFill)" />
+                    <path className="lp-ai-chart-line" d="M 0 52 L 24 46 L 48 40 L 72 30 L 96 22 L 120 12 L 140 6" stroke="#22D3EE" strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                    <circle className="lp-ai-chart-end" cx="140" cy="6" r="3.5" fill="#22D3EE" />
+                  </svg>
+                </div>
+                <h3 className="lp-step-title">Deixe a IA trabalhar (e medir)</h3>
+                <p className="lp-step-desc">A IA atende, qualifica, agenda e te avisa quando precisa de atenção humana. E ainda registra de onde cada paciente veio — você foca em cuidar dos pacientes e tomar decisões com dado real.</p>
+              </article>
+            </div>
           </div>
         </div>
       </section>
@@ -978,295 +1157,116 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* COMO FUNCIONA */}
-      <section className="lp-how" id="como-funciona">
+      {/* QUALQUER OPERAÇÃO */}
+      <section className="lp-versatility">
         <div className="lp-container">
           <SectionHeader
-            kicker="Em 3 passos"
-            title={<>Da bagunça do WhatsApp<br /><em>ao controle total</em></>}
-            light
+            kicker="Para qualquer operação de saúde"
+            title={<>Funciona do consultório solo<br /><em>à rede com várias unidades</em></>}
           />
+          <div className="lp-versatility-bento">
 
-          <div className="lp-how-stage">
-            {/* Trilho da jornada — marching dashes + 3 pulses */}
-            <svg className="lp-how-rail" viewBox="0 0 1200 80" preserveAspectRatio="none" aria-hidden="true">
-              <defs>
-                <linearGradient id="howRailGrad" x1="0" y1="0" x2="1" y2="0">
-                  <stop offset="0%" stopColor="#FACC15" />
-                  <stop offset="50%" stopColor="#4ADE80" />
-                  <stop offset="100%" stopColor="#22D3EE" />
-                </linearGradient>
-              </defs>
-              <path className="lp-how-rail-path" d="M 80 40 Q 300 -10, 600 40 T 1120 40" stroke="url(#howRailGrad)" strokeWidth="1.5" fill="none" strokeDasharray="6 9" />
-              <g className="lp-how-rail-node lp-rail-node-1" transform="translate(180, 33)">
-                <circle r="14" fill="rgba(252,211,77,0.12)" />
-                <circle r="6" fill="#FACC15" />
-              </g>
-              <g className="lp-how-rail-node lp-rail-node-2" transform="translate(600, 33)">
-                <circle r="14" fill="rgba(74,222,128,0.12)" />
-                <circle r="6" fill="#4ADE80" />
-              </g>
-              <g className="lp-how-rail-node lp-rail-node-3" transform="translate(1020, 33)">
-                <circle r="14" fill="rgba(34,211,238,0.12)" />
-                <circle r="6" fill="#22D3EE" />
-              </g>
-            </svg>
-
-            <div className="lp-steps">
-              {/* 01 — Canais convergindo */}
-              <article className="lp-step lp-step-1">
-                <span className="lp-step-num">01</span>
-                <div className="lp-step-viz lp-viz-channels">
-                  <div className="lp-ch lp-ch-wa" title="WhatsApp">
-                    <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M17.5 14.4c-.3-.1-1.6-.8-1.8-.9-.2-.1-.4-.1-.6.1-.2.2-.7.9-.8 1-.1.2-.3.2-.6.1-.3-.1-1.2-.4-2.2-1.3-.8-.7-1.4-1.6-1.5-1.9-.2-.3 0-.4.1-.5.1-.1.3-.3.4-.5.1-.1.2-.3.2-.4.1-.2 0-.3 0-.4 0-.1-.6-1.4-.8-1.9-.2-.5-.4-.4-.6-.4-.1 0-.3 0-.5 0s-.5.1-.7.3c-.3.3-1 1-1 2.4 0 1.4 1 2.7 1.2 2.9.1.2 2 3 4.8 4.2.7.3 1.2.5 1.6.6.7.2 1.3.2 1.8.1.5-.1 1.6-.7 1.9-1.3.2-.6.2-1.2.1-1.3 0-.1-.2-.2-.5-.3zM12 2C6.5 2 2 6.5 2 12c0 1.9.5 3.7 1.5 5.3L2 22l4.8-1.5C8.4 21.4 10.2 22 12 22c5.5 0 10-4.5 10-10S17.5 2 12 2z"/></svg>
-                  </div>
-                  <div className="lp-ch lp-ch-ig" title="Instagram"><Instagram size={20} /></div>
-                  <svg className="lp-ch-lines" viewBox="0 0 200 100" preserveAspectRatio="none" aria-hidden="true">
-                    <path d="M 30 25 Q 100 50, 170 50" stroke="rgba(252,211,77,0.45)" strokeWidth="1.4" strokeDasharray="3 4" fill="none" />
-                    <path d="M 30 75 Q 100 50, 170 50" stroke="rgba(252,211,77,0.45)" strokeWidth="1.4" strokeDasharray="3 4" fill="none" />
+            {/* 01 — hero · crescimento */}
+            <article className="lp-vcard lp-vcard-01">
+              <span className="lp-vcard-num">01</span>
+              <div className="lp-vcard-visual lp-vis-growth">
+                <div className="lp-grow-avatars">
+                  <span className="lp-av lp-av-1">RT</span>
+                  <span className="lp-av lp-av-2">JM</span>
+                  <span className="lp-av lp-av-3">LC</span>
+                  <span className="lp-av lp-av-4">PS</span>
+                  <span className="lp-av lp-av-more">+46</span>
+                </div>
+                <div className="lp-grow-scale">
+                  <span className="lp-grow-from">1</span>
+                  <svg className="lp-grow-arrow" viewBox="0 0 80 24" fill="none" aria-hidden="true">
+                    <path d="M2 12 L72 12 M62 4 L72 12 L62 20" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
-                  <div className="lp-ch lp-ch-inbox" title="Inbox unificado"><Inbox size={20} /></div>
+                  <span className="lp-grow-to">50<sup>+</sup></span>
                 </div>
-                <h3 className="lp-step-title">Conecte seus canais</h3>
-                <p className="lp-step-desc">Escaneie o QR Code do WhatsApp e conecte sua conta do Instagram Business. Em segundos, ambos começam a chegar na mesma inbox.</p>
-              </article>
+              </div>
+              <div className="lp-vcard-body">
+                <div className="lp-vcard-icon"><Users size={18} /></div>
+                <h3 className="lp-vcard-title">1 a 50<sup>+</sup> <em>profissionais</em></h3>
+                <p className="lp-vcard-desc">Do consultório solo à clínica com várias salas atendendo em paralelo. A plataforma escala com você sem trocar de sistema.</p>
+              </div>
+            </article>
 
-              {/* 02 — Mini calendário com avatar */}
-              <article className="lp-step lp-step-2">
-                <span className="lp-step-num">02</span>
-                <div className="lp-step-viz lp-viz-setup">
-                  <div className="lp-mini-cal">
-                    <div className="lp-cal-head">
-                      <span>SEG</span><span>TER</span><span>QUA</span><span>QUI</span><span>SEX</span>
-                    </div>
-                    <div className="lp-cal-row">
-                      <span /><span className="on" /><span /><span className="on" /><span />
-                    </div>
-                    <div className="lp-cal-row">
-                      <span className="on" /><span /><span className="on" /><span /><span className="on" />
-                    </div>
-                    <div className="lp-cal-row">
-                      <span /><span className="on pulse" /><span /><span /><span />
-                    </div>
-                  </div>
-                  <div className="lp-doc-avatar">
-                    <span>DR</span>
-                    <div className="lp-doc-badge"><Check size={10} strokeWidth={3} /></div>
-                  </div>
-                </div>
-                <h3 className="lp-step-title">Configure profissionais e procedimentos</h3>
-                <p className="lp-step-desc">Cadastre médicos com horários, intervalos e dias de atendimento. Adicione procedimentos com valor particular e por convênio.</p>
-              </article>
+            {/* 02 — rede de unidades */}
+            <article className="lp-vcard lp-vcard-02">
+              <span className="lp-vcard-num">02</span>
+              <div className="lp-vcard-visual lp-vis-network">
+                <svg viewBox="0 0 280 100" fill="none" className="lp-net-svg" aria-hidden="true">
+                  <path d="M40 75 Q90 30, 140 50 T240 55" stroke="#15803D" strokeWidth="1.5" strokeDasharray="3 5" opacity="0.45" />
+                  <g className="lp-net-node lp-net-node-1">
+                    <circle cx="40" cy="75" r="15" fill="white" stroke="#22C55E" strokeWidth="1.6" />
+                    <text x="40" y="79" textAnchor="middle" fontFamily="Bricolage Grotesque, sans-serif" fontWeight="700" fontSize="10" fill="#14532D">CO</text>
+                  </g>
+                  <g className="lp-net-node lp-net-node-2">
+                    <circle cx="140" cy="40" r="20" fill="#DCFCE7" stroke="#22C55E" strokeWidth="1.6" />
+                    <text x="140" y="44" textAnchor="middle" fontFamily="Bricolage Grotesque, sans-serif" fontWeight="700" fontSize="11" fill="#14532D">SP</text>
+                  </g>
+                  <g className="lp-net-node lp-net-node-3">
+                    <circle cx="240" cy="55" r="14" fill="white" stroke="#22C55E" strokeWidth="1.6" />
+                    <text x="240" y="59" textAnchor="middle" fontFamily="Bricolage Grotesque, sans-serif" fontWeight="700" fontSize="10" fill="#14532D">RJ</text>
+                  </g>
+                </svg>
+                <span className="lp-vis-tag">3 filiais · 1 inbox</span>
+              </div>
+              <div className="lp-vcard-body">
+                <div className="lp-vcard-icon"><Network size={18} /></div>
+                <h3 className="lp-vcard-title">Várias unidades, <em>uma operação</em></h3>
+                <p className="lp-vcard-desc">Filiais sincronizadas em tempo real. Recepção de qualquer unidade vê a conversa, agenda no profissional certo e o paciente nem percebe.</p>
+              </div>
+            </article>
 
-              {/* 03 — Bot + chart subindo */}
-              <article className="lp-step lp-step-3">
-                <span className="lp-step-num">03</span>
-                <div className="lp-step-viz lp-viz-ai">
-                  <div className="lp-ai-bot">
-                    <BotIcon size={22} strokeWidth={1.8} />
-                    <Sparkles className="lp-ai-spark lp-spark-1" size={11} />
-                    <Sparkles className="lp-ai-spark lp-spark-2" size={9} />
-                  </div>
-                  <svg className="lp-ai-chart" viewBox="0 0 140 60" aria-hidden="true">
-                    <defs>
-                      <linearGradient id="aiChartFill" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#22D3EE" stopOpacity="0.45" />
-                        <stop offset="100%" stopColor="#22D3EE" stopOpacity="0" />
-                      </linearGradient>
-                    </defs>
-                    <path className="lp-ai-chart-area" d="M 0 52 L 24 46 L 48 40 L 72 30 L 96 22 L 120 12 L 140 6 L 140 60 L 0 60 Z" fill="url(#aiChartFill)" />
-                    <path className="lp-ai-chart-line" d="M 0 52 L 24 46 L 48 40 L 72 30 L 96 22 L 120 12 L 140 6" stroke="#22D3EE" strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-                    <circle className="lp-ai-chart-end" cx="140" cy="6" r="3.5" fill="#22D3EE" />
-                  </svg>
+            {/* 03 — preços */}
+            <article className="lp-vcard lp-vcard-03">
+              <span className="lp-vcard-num">03</span>
+              <div className="lp-vcard-visual lp-vis-price">
+                <div className="lp-tag lp-tag-conv">
+                  <span className="lp-tag-label">Unimed</span>
+                  <span className="lp-tag-value">R$ 180</span>
                 </div>
-                <h3 className="lp-step-title">Deixe a IA trabalhar (e medir)</h3>
-                <p className="lp-step-desc">A IA atende, qualifica, agenda e te avisa quando precisa de atenção humana. E ainda registra de onde cada paciente veio — você foca em cuidar dos pacientes e tomar decisões com dado real.</p>
-              </article>
-            </div>
+                <div className="lp-tag lp-tag-part">
+                  <span className="lp-tag-label">Particular</span>
+                  <span className="lp-tag-value">R$ 350</span>
+                </div>
+              </div>
+              <div className="lp-vcard-body">
+                <div className="lp-vcard-icon"><Wallet size={18} /></div>
+                <h3 className="lp-vcard-title">Convênio e particular <em>no mesmo fluxo</em></h3>
+                <p className="lp-vcard-desc">Cadastre valores por convênio, por procedimento e por médico. O agendamento puxa o preço certo automaticamente — sem planilha paralela.</p>
+              </div>
+            </article>
+
+            {/* 04 — humano + IA */}
+            <article className="lp-vcard lp-vcard-04">
+              <span className="lp-vcard-num">04</span>
+              <div className="lp-vcard-visual lp-vis-duality">
+                <div className="lp-dual lp-dual-human">
+                  <span className="lp-dual-emoji"><Headset size={16} /></span>
+                  <span className="lp-dual-label">Humano</span>
+                </div>
+                <div className="lp-dual-divider" />
+                <div className="lp-dual lp-dual-ai">
+                  <span className="lp-dual-emoji"><BotIcon size={16} /></span>
+                  <span className="lp-dual-label">IA</span>
+                </div>
+              </div>
+              <div className="lp-vcard-body">
+                <div className="lp-vcard-icon"><BotIcon size={18} /></div>
+                <h3 className="lp-vcard-title">Atendimento humano <em>+ IA sob demanda</em></h3>
+                <p className="lp-vcard-desc">Comece com a equipe atendendo no inbox unificado. Ative a IA quando quiser — em horários específicos, fins de semana, ou pra qualificar antes de passar pra recepção.</p>
+              </div>
+            </article>
+
           </div>
         </div>
       </section>
 
       {/* TESTIMONIAL */}
       <TestimonialsSection items={TESTIMONIALS} />
-
-      {/* PARA QUEM É */}
-      <section className="lp-icp" id="para-quem">
-        <div className="lp-container">
-          <SectionHeader
-            kicker="Pra quem é"
-            title={<>Feita pra clínicas que levam<br /><em>crescimento a sério</em></>}
-          />
-          <p className="lp-icp-intro">
-            Quatro perfis que a gente atende todo dia. <strong>Provavelmente um deles é você.</strong>
-          </p>
-
-          <div className="lp-icp-grid">
-            {/* 01 — Investe em marketing */}
-            <article className="lp-icp-card lp-icp-marketing" data-tone="amber">
-              <div className="lp-icp-card-head">
-                <span className="lp-icp-num">01</span>
-                <span className="lp-icp-tag">
-                  <ScanLine size={11} /> Performance
-                </span>
-              </div>
-              <div className="lp-icp-card-title">
-                <span>Investe em marketing</span>
-                <em>e quer ver retorno</em>
-              </div>
-              <p className="lp-icp-card-desc">
-                Faz tráfego pago no Meta e Google. Quer saber qual ad trouxe
-                <strong> paciente que apareceu na consulta</strong>, não só lead que abriu chat.
-              </p>
-              <div className="lp-icp-card-visual lp-icp-visual-bars">
-                <div className="lp-icp-visual-label">Receita por origem · out/26</div>
-                <div className="lp-icp-bars">
-                  <div className="lp-icp-bar" style={{ '--h': '78%', '--c': '#F59E0B' }}>
-                    <span className="lp-icp-bar-val">R$ 9.3k</span>
-                    <span className="lp-icp-bar-lbl">Meta</span>
-                  </div>
-                  <div className="lp-icp-bar" style={{ '--h': '52%', '--c': '#FCD34D' }}>
-                    <span className="lp-icp-bar-val">R$ 6.2k</span>
-                    <span className="lp-icp-bar-lbl">Google</span>
-                  </div>
-                  <div className="lp-icp-bar" style={{ '--h': '34%', '--c': '#FDE68A' }}>
-                    <span className="lp-icp-bar-val">R$ 4.1k</span>
-                    <span className="lp-icp-bar-lbl">Indica.</span>
-                  </div>
-                </div>
-              </div>
-            </article>
-
-            {/* 02 — Multi-canal */}
-            <article className="lp-icp-card lp-icp-multichannel" data-tone="emerald">
-              <div className="lp-icp-card-head">
-                <span className="lp-icp-num">02</span>
-                <span className="lp-icp-tag">
-                  <Network size={11} /> Multi-canal
-                </span>
-              </div>
-              <div className="lp-icp-card-title">
-                <span>Paciente chega</span>
-                <em>por todo lugar</em>
-              </div>
-              <p className="lp-icp-card-desc">
-                WhatsApp, Instagram Direct, site, indicação. Hoje gerencia tudo
-                <strong> separado e perde conversa</strong> quando o telefone toca.
-              </p>
-              <div className="lp-icp-card-visual lp-icp-visual-channels">
-                <div className="lp-icp-channel" style={{ background: 'linear-gradient(135deg, #25D366, #128C7E)' }}>
-                  <MessageSquare size={14} />
-                </div>
-                <div className="lp-icp-channel" style={{ background: 'linear-gradient(135deg, #F472B6, #EC4899)' }}>
-                  <Instagram size={14} />
-                </div>
-                <div className="lp-icp-channel" style={{ background: 'linear-gradient(135deg, #60A5FA, #3B82F6)' }}>
-                  <Network size={14} />
-                </div>
-                <svg className="lp-icp-channel-flow" viewBox="0 0 200 60" preserveAspectRatio="none" aria-hidden="true">
-                  <path d="M 20,12 Q 100,30 180,30" stroke="#10B981" strokeWidth="1.5" fill="none" strokeDasharray="3 3" />
-                  <path d="M 20,30 Q 100,30 180,30" stroke="#10B981" strokeWidth="1.5" fill="none" strokeDasharray="3 3" />
-                  <path d="M 20,48 Q 100,30 180,30" stroke="#10B981" strokeWidth="1.5" fill="none" strokeDasharray="3 3" />
-                </svg>
-                <div className="lp-icp-channel-target">
-                  <Inbox size={14} />
-                  <span>1 inbox</span>
-                </div>
-              </div>
-            </article>
-
-            {/* 03 — Multi-profissional */}
-            <article className="lp-icp-card lp-icp-multidoc" data-tone="sky">
-              <div className="lp-icp-card-head">
-                <span className="lp-icp-num">03</span>
-                <span className="lp-icp-tag">
-                  <Users size={11} /> Equipe
-                </span>
-              </div>
-              <div className="lp-icp-card-title">
-                <span>Tem dois ou mais</span>
-                <em>profissionais</em>
-              </div>
-              <p className="lp-icp-card-desc">
-                Agenda complexa, especialidades diferentes, setores que se misturam.
-                <strong> Excel e WhatsApp Web não dão mais conta.</strong>
-              </p>
-              <div className="lp-icp-card-visual lp-icp-visual-team">
-                <div className="lp-icp-team-card" style={{ background: 'linear-gradient(135deg, #DBEAFE, #BFDBFE)', borderColor: '#93C5FD' }}>
-                  <div className="lp-icp-team-avatar" style={{ background: 'linear-gradient(135deg, #60A5FA, #3B82F6)' }}>C</div>
-                  <div>
-                    <div className="lp-icp-team-name">Dra. Camila</div>
-                    <div className="lp-icp-team-spec">Dermato</div>
-                  </div>
-                </div>
-                <div className="lp-icp-team-card" style={{ background: 'linear-gradient(135deg, #E0E7FF, #C7D2FE)', borderColor: '#A5B4FC' }}>
-                  <div className="lp-icp-team-avatar" style={{ background: 'linear-gradient(135deg, #A78BFA, #6366F1)' }}>R</div>
-                  <div>
-                    <div className="lp-icp-team-name">Dr. Rafael</div>
-                    <div className="lp-icp-team-spec">Cardio</div>
-                  </div>
-                </div>
-                <div className="lp-icp-team-card" style={{ background: 'linear-gradient(135deg, #DBEAFE, #BFDBFE)', borderColor: '#93C5FD' }}>
-                  <div className="lp-icp-team-avatar" style={{ background: 'linear-gradient(135deg, #34D399, #06B6D4)' }}>M</div>
-                  <div>
-                    <div className="lp-icp-team-name">Dra. Marina</div>
-                    <div className="lp-icp-team-spec">Pediatra</div>
-                  </div>
-                </div>
-              </div>
-            </article>
-
-            {/* 04 — Quer controle */}
-            <article className="lp-icp-card lp-icp-control" data-tone="rose">
-              <div className="lp-icp-card-head">
-                <span className="lp-icp-num">04</span>
-                <span className="lp-icp-tag">
-                  <BarChart3 size={11} /> Dados
-                </span>
-              </div>
-              <div className="lp-icp-card-title">
-                <span>Quer controle,</span>
-                <em>não só ferramenta</em>
-              </div>
-              <p className="lp-icp-card-desc">
-                Métrica de cada profissional, taxa de no-show, atribuição de marketing.
-                <strong> Decisão por dado, não achismo.</strong>
-              </p>
-              <div className="lp-icp-card-visual lp-icp-visual-kpis">
-                <div className="lp-icp-kpi">
-                  <div className="lp-icp-kpi-val" style={{ color: '#16A34A' }}>R$ 87k</div>
-                  <div className="lp-icp-kpi-lbl">Faturamento</div>
-                  <div className="lp-icp-kpi-trend">↑ 12%</div>
-                </div>
-                <div className="lp-icp-kpi">
-                  <div className="lp-icp-kpi-val" style={{ color: '#DC2626' }}>8%</div>
-                  <div className="lp-icp-kpi-lbl">No-show</div>
-                  <div className="lp-icp-kpi-trend lp-icp-kpi-trend-down">↓ 3%</div>
-                </div>
-                <div className="lp-icp-kpi">
-                  <div className="lp-icp-kpi-val" style={{ color: '#7C3AED' }}>R$ 312</div>
-                  <div className="lp-icp-kpi-lbl">Ticket médio</div>
-                  <div className="lp-icp-kpi-trend">↑ 8%</div>
-                </div>
-              </div>
-            </article>
-          </div>
-
-          {/* Outro */}
-          <div className="lp-icp-outro">
-            <div className="lp-icp-outro-marker">
-              <Sparkles size={14} />
-            </div>
-            <div>
-              <strong>Se você se viu em pelo menos 2 desses</strong>, a gente já consegue
-              te mostrar resultado em 30 dias.
-            </div>
-            <a href="#cta" className="lp-icp-outro-cta">
-              Quero conversar <ArrowUpRight size={14} />
-            </a>
-          </div>
-        </div>
-      </section>
 
       {/* PLANOS */}
       <section className="lp-pricing" id="planos">
