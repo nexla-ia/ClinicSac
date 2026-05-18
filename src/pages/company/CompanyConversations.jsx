@@ -1420,7 +1420,7 @@ export default function CompanyConversations() {
                       color: labelColor,
                     }}>
                       {isCliente
-                        ? <><User size={10} /> Cliente</>
+                        ? <><User size={10} /> {savedContacts[selected?.session_id?.replace(/\D/g, '')]?.nome || 'Cliente'}</>
                         : isAtendente
                           ? <><Headset size={10} /> Atendente</>
                           : <><Bot size={10} /> IA</>}
