@@ -251,7 +251,7 @@ export default function CompanyConversations() {
   // Carrega contacts_table (clientes) para fallback de nome/pushname
   useEffect(() => {
     if (!instance || !contactsTable) return
-    supabase.from(contactsTable).select('numero, nome, pushname').eq('instancia', instance)
+    supabase.from(contactsTable).select('numero, nome').eq('instancia', instance)
       .then(({ data }) => {
         if (!data) return
         const map = {}
