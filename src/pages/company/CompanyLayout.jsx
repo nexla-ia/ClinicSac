@@ -49,25 +49,30 @@ export default function CompanyLayout() {
     supabase.rpc('ensure_table_setup', { p_table: 'conversations' })
   }, [])
 
-  // Conta conversas ativas = números únicos na mensagens_geral - encerradas
+  // Conta conversas na Recepção = únicas em mensagens_geral, sem encerradas e sem atendimento ativo
   useEffect(() => {
     if (!instance) return
 
     async function refresh() {
-      const [{ data: msgs }, { data: closed }] = await Promise.all([
+      const [{ data: msgs }, { data: closed }, { data: attended }] = await Promise.all([
         supabase.from('mensagens_geral').select('numero').eq('instancia', instance),
         supabase.from('conversations').select('session_id').eq('instancia', instance),
+        supabase.from('attendances').select('numero').eq('instancia', instance),
       ])
-      const closedSet = new Set((closed || []).map(r => r.session_id))
+      const closedSet   = new Set((closed   || []).map(r => r.session_id))
+      const attendedSet = new Set((attended || []).map(r => r.numero))
       const unique = new Set((msgs || []).map(r => r.numero))
-      setActiveCount([...unique].filter(s => !closedSet.has(s)).length)
+      // Badge = só o que está na Recepção (sem atendente e não encerrada)
+      setActiveCount([...unique].filter(s => !closedSet.has(s) && !attendedSet.has(s)).length)
     }
     refresh()
 
     const ch = supabase.channel('layout-conversations')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'mensagens_geral', filter: `instancia=eq.${instance}` },
         () => refresh())
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'conversations', filter: `instancia=eq.${instance}` },
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'conversations', filter: `instancia=eq.${instance}` },
+        () => refresh())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'attendances', filter: `instancia=eq.${instance}` },
         () => refresh())
       .subscribe()
     return () => supabase.removeChannel(ch)
