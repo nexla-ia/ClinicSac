@@ -141,10 +141,6 @@ export default function Landing() {
         <div className="lp-container">
           <div className="lp-hero-grid">
             <div className="lp-hero-left">
-              <div className="lp-eyebrow">
-                <span className="lp-pulse-dot" />
-                Para clínicas, consultórios e operadoras de saúde
-              </div>
 
               <h1 className="lp-h1">
                 Onde paciente <span className="lp-h1-em">fala</span>,
