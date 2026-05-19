@@ -79,6 +79,7 @@ export default function AdmLanding() {
   const [loading, setLoading]   = useState(true)
   const [range, setRange]       = useState('7d')
   const [refreshAt, setRefreshAt] = useState(Date.now())
+  const [liveFlash, setLiveFlash] = useState(false)
 
   async function load() {
     setLoading(true)
@@ -94,6 +95,21 @@ export default function AdmLanding() {
   }
 
   useEffect(() => { load() }, [range, refreshAt])
+
+  // Realtime: insert → prepend; update → merge in-place
+  useEffect(() => {
+    const ch = supabase.channel('adm-landing-rt')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'landing_analytics' }, ({ new: row }) => {
+        setRows(prev => [row, ...prev])
+        setLiveFlash(true)
+        setTimeout(() => setLiveFlash(false), 1200)
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'landing_analytics' }, ({ new: row }) => {
+        setRows(prev => prev.map(r => r.id === row.id ? row : r))
+      })
+      .subscribe()
+    return () => supabase.removeChannel(ch)
+  }, [])
 
   /* ── derived ── */
   const stats = useMemo(() => {
@@ -178,7 +194,7 @@ export default function AdmLanding() {
       {/* HEADER */}
       <div className="al-header">
         <div className="al-header-left">
-          <div className="al-live-dot" />
+          <div className={`al-live-dot ${liveFlash ? 'flash' : ''}`} />
           <div>
             <h1 className="al-title">Pulso da Landing</h1>
             <p className="al-sub">Visitantes, engajamento e conversões em tempo real</p>

@@ -26,3 +26,6 @@ create policy "landing_anon_update" on landing_analytics
 -- Any authenticated user (admins) can read
 create policy "landing_auth_read" on landing_analytics
   for select using (auth.role() = 'authenticated' or true);
+
+-- Enable Realtime so the admin page receives live updates
+alter publication supabase_realtime add table landing_analytics;
