@@ -74,7 +74,30 @@
   display: flex;
   gap: 9px;
   align-items: flex-start;
-  padding: 6px 4px;
+  padding: 6px 8px 6px 4px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s;
+  position: relative;
+}
+.lp-rastreio-row:hover {
+  background: rgba(0,0,0,0.035);
+}
+.lp-rastreio-row::after {
+  content: '›';
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%) translateX(4px);
+  font-size: 13px;
+  color: #94A3B8;
+  opacity: 0;
+  transition: opacity 0.15s, transform 0.15s;
+  line-height: 1;
+}
+.lp-rastreio-row:hover::after {
+  opacity: 1;
+  transform: translateY(-50%) translateX(0);
 }
 .lp-rastreio-icon {
   width: 22px;
