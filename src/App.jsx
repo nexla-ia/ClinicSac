@@ -29,6 +29,7 @@ import CompanyMetrics from './pages/company/CompanyMetrics'
 import CompanyAdmin from './pages/company/CompanyAdmin'
 import CompanySeguranca from './pages/company/CompanySeguranca'
 import CompanyFeedback from './pages/company/CompanyFeedback'
+import CompanyGroups from './pages/company/CompanyGroups'
 
 function PrivateAdm({ children }) {
   const { session } = useAuth()
@@ -85,6 +86,7 @@ export default function App() {
             <Route path="admin" element={<CompanyAdmin />} />
             <Route path="seguranca" element={<CompanySeguranca />} />
             <Route path="feedback"  element={<CompanyFeedback />} />
+            <Route path="grupos"    element={<CompanyGroups />} />
           </Route>
 
           <Route path="*" element={<Navigate to="/" replace />} />

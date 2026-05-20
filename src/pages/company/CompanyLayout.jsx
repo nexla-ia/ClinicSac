@@ -7,7 +7,7 @@ import BlockedScreen from '../../components/BlockedScreen'
 import SupportWidget from '../../components/SupportWidget'
 import { MessageToastContainer } from '../../components/MessageToast'
 import { shouldBlockAccess } from '../../lib/billing'
-import { MessageSquare, History, BellRing, BarChart2, Settings2, Contact2, Calendar, Sparkles, Kanban, Stethoscope, GraduationCap, Instagram, ShieldCheck, Headset, MessageSquareHeart, Menu, X } from 'lucide-react'
+import { MessageSquare, History, BellRing, BarChart2, Settings2, Contact2, Calendar, Sparkles, Kanban, Stethoscope, GraduationCap, Instagram, ShieldCheck, Headset, MessageSquareHeart, Menu, X, Users } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { latestUpdateDate } from '../../data/updates'
@@ -108,6 +108,7 @@ export default function CompanyLayout() {
       badge: activeCount > 0 ? activeCount : null, badgeColor: 'cyan' },
     ...(aiEnabled ? [{ to: '/painel/historico', icon: History, label: 'Conversas IA' }] : []),
     { to: '/painel/instagram', icon: Instagram,     label: 'Instagram' },
+    { to: '/painel/grupos',   icon: Users,          label: 'Grupos' },
     { to: '/painel/contatos',  icon: Contact2,      label: 'Pacientes' },
     { to: '/painel/agenda',    icon: Calendar,      label: 'Agenda' },
     { to: '/painel/atividades', icon: Kanban,       label: 'Kanban' },
