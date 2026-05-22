@@ -138,6 +138,8 @@ export default function CompanyConversations() {
   const [selected, setSelected]       = useState(null)
   const [messages, setMessages]       = useState([])
   const [loadingMsgs, setLoadingMsgs] = useState(false)
+  const [hasMoreMsgs, setHasMoreMsgs] = useState(false)
+  const [loadingMoreMsgs, setLoadingMoreMsgs] = useState(false)
   const [closeModal, setCloseModal]   = useState(null)
   const [reason, setReason]           = useState('')
   const [closing, setClosing]         = useState(false)
@@ -165,6 +167,8 @@ export default function CompanyConversations() {
   const recordStartRef   = useRef(0)
   const fileInputRef     = useRef(null)
   const bottomRef    = useRef(null)
+  const chatBodyRef  = useRef(null)
+  const skipScrollRef = useRef(false)
   const selectedRef  = useRef(null)
   const autoCloseDone = useRef(false)
 
@@ -524,21 +528,26 @@ export default function CompanyConversations() {
     return () => supabase.removeChannel(ch)
   }, [instance])
 
-  // Carrega mensagens da conversa selecionada
+  const MSG_PAGE = 50
+
+  // Carrega mensagens da conversa selecionada (apenas as 50 mais recentes)
   useEffect(() => {
     if (!selected || !instance) return
     setLoadingMsgs(true)
     setMessages([])
+    setHasMoreMsgs(false)
     supabase.from(CONV_TABLE).select('id, id_mensagem, numero, type, mensagem, base64, "horaLastMessage", created_at')
       .eq('instancia', instance)
       .eq('numero', selected.session_id)
       .is('idgrupo', null)
       .or('aplicativo.eq.whatsapp,aplicativo.is.null')
-      .order('id', { ascending: true })
-      .limit(2000)
+      .order('id', { ascending: false })
+      .limit(MSG_PAGE)
       .then(({ data, error }) => {
         if (!error && data) {
-          setMessages(data.filter(r => !isToolMessage(r)).map(r => ({
+          const sorted = [...data].reverse()
+          setHasMoreMsgs(data.length === MSG_PAGE)
+          setMessages(sorted.filter(r => !isToolMessage(r)).map(r => ({
             id: r.id,
             id_mensagem: r.id_mensagem || null,
             type: getMessageType(r),
@@ -551,7 +560,45 @@ export default function CompanyConversations() {
       })
   }, [selected, instance])
 
+  async function loadMoreMessages() {
+    if (loadingMoreMsgs || !hasMoreMsgs || !selected || !instance) return
+    const oldestId = messages[0]?.id
+    if (!oldestId) return
+    setLoadingMoreMsgs(true)
+    const prevScrollHeight = chatBodyRef.current?.scrollHeight || 0
+    const { data, error } = await supabase.from(CONV_TABLE)
+      .select('id, id_mensagem, numero, type, mensagem, base64, "horaLastMessage", created_at')
+      .eq('instancia', instance)
+      .eq('numero', selected.session_id)
+      .is('idgrupo', null)
+      .or('aplicativo.eq.whatsapp,aplicativo.is.null')
+      .lt('id', oldestId)
+      .order('id', { ascending: false })
+      .limit(MSG_PAGE)
+    if (!error && data) {
+      const sorted = [...data].reverse()
+      setHasMoreMsgs(data.length === MSG_PAGE)
+      const older = sorted.filter(r => !isToolMessage(r)).map(r => ({
+        id: r.id,
+        id_mensagem: r.id_mensagem || null,
+        type: getMessageType(r),
+        content: getMessageContent(r),
+        base64: r.base64 || null,
+        ts: getTimestamp(r),
+      }))
+      skipScrollRef.current = true
+      setMessages(prev => [...older, ...prev])
+      requestAnimationFrame(() => {
+        if (chatBodyRef.current) {
+          chatBodyRef.current.scrollTop = chatBodyRef.current.scrollHeight - prevScrollHeight
+        }
+      })
+    }
+    setLoadingMoreMsgs(false)
+  }
+
   useEffect(() => {
+    if (skipScrollRef.current) { skipScrollRef.current = false; return }
     if (!loadingMsgs) bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, loadingMsgs])
 
@@ -1429,10 +1476,26 @@ export default function CompanyConversations() {
               </div>
             )}
 
-            <div className="chat-body">
+            <div className="chat-body" ref={chatBodyRef}>
               {loadingMsgs && (
                 <div style={{ textAlign: 'center', fontSize: 13, color: 'var(--text-muted)', marginTop: '2rem' }}>
                   Carregando mensagens...
+                </div>
+              )}
+              {!loadingMsgs && hasMoreMsgs && (
+                <div style={{ display: 'flex', justifyContent: 'center', padding: '10px 0 4px' }}>
+                  <button
+                    onClick={loadMoreMessages}
+                    disabled={loadingMoreMsgs}
+                    style={{
+                      fontSize: 12, color: 'var(--text-muted)', background: 'var(--bg-surface)',
+                      border: '1px solid var(--border)', borderRadius: 20,
+                      padding: '4px 14px', cursor: loadingMoreMsgs ? 'default' : 'pointer',
+                      opacity: loadingMoreMsgs ? 0.6 : 1,
+                    }}
+                  >
+                    {loadingMoreMsgs ? 'Carregando...' : 'Carregar mensagens anteriores'}
+                  </button>
                 </div>
               )}
               {!loadingMsgs && messages.length === 0 && (
