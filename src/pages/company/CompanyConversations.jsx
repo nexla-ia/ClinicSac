@@ -52,6 +52,14 @@ function detectMedia(b64) {
   return null
 }
 
+function toImgSrc(val) {
+  if (!val) return null
+  if (val.startsWith('data:') || val.startsWith('http')) return val
+  const media = detectMedia(val)
+  const mime = media?.mime || 'image/jpeg'
+  return `data:${mime};base64,${val}`
+}
+
 function isToolMessage(row) {
   const type = getMessageType(row)
   const content = row.mensagem || ''
@@ -1135,7 +1143,7 @@ export default function CompanyConversations() {
                 }}
               >
                 {(() => {
-                  const contactPhoto = saved?.photo || cliente?.foto
+                  const contactPhoto = toImgSrc(saved?.photo) || toImgSrc(cliente?.foto)
                   return (
                     <div className="contact-avatar" style={contactPhoto ? { background: 'transparent', overflow: 'hidden' } : {}}>
                       {contactPhoto
@@ -1239,7 +1247,7 @@ export default function CompanyConversations() {
                 return (
                   <>
                     {(() => {
-                      const headerPhoto = saved?.photo || cliente?.foto
+                      const headerPhoto = toImgSrc(saved?.photo) || toImgSrc(cliente?.foto)
                       return (
                         <div className="contact-avatar"
                           style={{
