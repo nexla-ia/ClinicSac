@@ -104,6 +104,7 @@ export default function AdmCompanyDetail() {
       instagramEnabled: company.instagram_enabled === true,
       instagramWebhookPath: company.instagram_webhook_path || '',
       evolutionUrl: company.evolution_url || '',
+      numeroBase: company.numero_base || '',
       timezone: company.timezone || '-03:00',
     })
     setCompanyErr('')
@@ -137,6 +138,7 @@ export default function AdmCompanyDetail() {
         ? (companyForm.instagramWebhookPath?.trim().replace(/^\/+|\/+$/g, '') || null)
         : null,
       evolution_url: companyForm.evolutionUrl?.trim().replace(/\/+$/, '') || null,
+      numero_base: companyForm.numeroBase?.trim() || null,
       timezone: companyForm.timezone || '-03:00',
     }
     const { error } = await supabase.from('companies').update(updates).eq('id', company.id)
@@ -674,6 +676,11 @@ export default function AdmCompanyDetail() {
                 <label style={labelStyle}>URL Evolution API <span style={{ fontWeight: 400, textTransform: 'none' }}>(opcional — padrão: evolutionapi.nexladesenvolvimento.com.br)</span></label>
                 <input className="nx-input" placeholder="Padrão: https://evolutionapi.nexladesenvolvimento.com.br" value={companyForm.evolutionUrl}
                   onChange={e => setCompanyForm(p => ({ ...p, evolutionUrl: e.target.value }))} />
+              </div>
+              <div>
+                <label style={labelStyle}>Número base WhatsApp <span style={{ fontWeight: 400, textTransform: 'none' }}>(JID do número cadastrado na instância)</span></label>
+                <input className="nx-input" placeholder="Ex: 5511999999999@s.whatsapp.net" value={companyForm.numeroBase}
+                  onChange={e => setCompanyForm(p => ({ ...p, numeroBase: e.target.value.trim() }))} />
               </div>
               <div>
                 <label style={labelStyle}>Atendimento por IA</label>

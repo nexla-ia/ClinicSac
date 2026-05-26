@@ -42,7 +42,7 @@ export default function CompanyGroups() {
   const { session } = useAuth()
   const instance = session?.company?.instance
   const apiInstancia = session?.company?.api_instancia
-  const evolutionUrl = session?.company?.evolution_url || 'https://evolutionapi.nexladesenvolvimento.com.br'
+  const instanceOwner = session?.company?.numero_base || null
   const [groups, setGroups] = useState([])
   const [selected, setSelected] = useState(null)
   const [messages, setMessages] = useState([])
@@ -50,26 +50,9 @@ export default function CompanyGroups() {
   const [loadingMsgs, setLoadingMsgs] = useState(false)
   const [msgText, setMsgText] = useState('')
   const [sending, setSending] = useState(false)
-  const [instanceOwner, setInstanceOwner] = useState(null)
   const bottomRef = useRef(null)
   const selectedRef = useRef(null)
   selectedRef.current = selected
-
-  // Busca o número WhatsApp da própria instância na Evolution API
-  useEffect(() => {
-    if (!instance || !apiInstancia) return
-    fetch(`${evolutionUrl}/instance/fetchInstances`, {
-      headers: { apikey: apiInstancia },
-    })
-      .then(r => r.ok ? r.json() : null)
-      .then(data => {
-        const arr = Array.isArray(data) ? data : (data ? [data] : [])
-        const found = arr.find(i => i?.instance?.instanceName === instance || i?.instanceName === instance)
-        const owner = found?.instance?.owner || found?.owner || null
-        if (owner) setInstanceOwner(owner)
-      })
-      .catch(() => {})
-  }, [instance, apiInstancia, evolutionUrl])
 
   useEffect(() => {
     if (!instance) return
