@@ -1,8 +1,16 @@
 import { useState, useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
-import { Users, ChevronLeft, Send, Mic, Square, Paperclip, Trash2, Film, FileText } from 'lucide-react'
+import { Users, ChevronLeft, Send, Mic, Square, Paperclip, Trash2, Film, FileText, BellOff, Bell } from 'lucide-react'
 import './Company.css'
+
+function getMutedGroups(instance) {
+  try { return JSON.parse(localStorage.getItem(`muted_groups_${instance}`) || '[]') } catch { return [] }
+}
+function setMutedGroups(instance, arr) {
+  localStorage.setItem(`muted_groups_${instance}`, JSON.stringify(arr))
+}
 
 const CONV_TABLE = 'mensagens_geral'
 
@@ -70,6 +78,8 @@ export default function CompanyGroups() {
   const [recordedAudio, setRecordedAudio] = useState(null)
   const [recordTime, setRecordTime] = useState(0)
   const [attachedFile, setAttachedFile] = useState(null)
+  const [mutedGroups, setMutedGroupsState] = useState(() => getMutedGroups(instance))
+  const [contextMenu, setContextMenu] = useState(null) // { x, y, group }
   const bottomRef = useRef(null)
   const selectedRef = useRef(null)
   const mediaRecorderRef = useRef(null)
@@ -297,9 +307,25 @@ export default function CompanyGroups() {
     }
   }
 
+  function toggleMute(idgrupo) {
+    const current = getMutedGroups(instance)
+    const next = current.includes(idgrupo)
+      ? current.filter(g => g !== idgrupo)
+      : [...current, idgrupo]
+    setMutedGroups(instance, next)
+    setMutedGroupsState(next)
+    setContextMenu(null)
+  }
+
+  function handleContextMenu(e, group) {
+    e.preventDefault()
+    setContextMenu({ x: e.clientX, y: e.clientY, group })
+  }
+
   const hasSelected = !!selected
 
   return (
+    <>
     <div className={`contacts-root${hasSelected ? ' has-selected' : ''}`}>
 
       {/* Lista de grupos */}
@@ -318,35 +344,44 @@ export default function CompanyGroups() {
               Nenhum grupo encontrado
             </div>
           )}
-          {groups.map(g => (
-            <div
-              key={g.idgrupo}
-              className={`contact-item${selected?.idgrupo === g.idgrupo ? ' selected' : ''}`}
-              onClick={() => setSelected(g)}
-            >
-              <div style={{
-                width: 38, height: 38, borderRadius: '50%',
-                background: '#E0E7FF', display: 'flex', alignItems: 'center',
-                justifyContent: 'center', flexShrink: 0,
-              }}>
-                <Users size={18} color="#4F46E5" />
-              </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-                  <span style={{ fontWeight: 600, fontSize: 13.5, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {groupLabel(g)}
-                  </span>
-                  <span style={{ fontSize: 11, color: 'var(--text-muted)', flexShrink: 0 }}>
-                    {formatTime(g.lastTs)}
-                  </span>
+          {groups.map(g => {
+            const isMuted = mutedGroups.includes(g.idgrupo)
+            return (
+              <div
+                key={g.idgrupo}
+                className={`contact-item${selected?.idgrupo === g.idgrupo ? ' selected' : ''}`}
+                onClick={() => setSelected(g)}
+                onContextMenu={e => handleContextMenu(e, g)}
+              >
+                <div style={{
+                  width: 38, height: 38, borderRadius: '50%',
+                  background: '#E0E7FF', display: 'flex', alignItems: 'center',
+                  justifyContent: 'center', flexShrink: 0, position: 'relative',
+                }}>
+                  <Users size={18} color="#4F46E5" />
+                  {isMuted && (
+                    <div style={{ position: 'absolute', bottom: -2, right: -2, background: '#6B7280', borderRadius: '50%', width: 14, height: 14, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <BellOff size={8} color="#fff" />
+                    </div>
+                  )}
                 </div>
-                <div style={{ fontSize: 12, color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: 2 }}>
-                  {g.lastSenderRow && <strong style={{ fontWeight: 600 }}>{senderLabel(g.lastSenderRow)}: </strong>}
-                  {g.lastMsg}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontWeight: 600, fontSize: 13.5, color: isMuted ? 'var(--text-muted)' : 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {groupLabel(g)}
+                    </span>
+                    <span style={{ fontSize: 11, color: 'var(--text-muted)', flexShrink: 0 }}>
+                      {formatTime(g.lastTs)}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: 12, color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: 2 }}>
+                    {g.lastSenderRow && <strong style={{ fontWeight: 600 }}>{senderLabel(g.lastSenderRow)}: </strong>}
+                    {g.lastMsg}
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       </div>
 
@@ -540,5 +575,35 @@ export default function CompanyGroups() {
         )}
       </div>
     </div>
+
+    {contextMenu && createPortal(
+      <>
+        <div style={{ position: 'fixed', inset: 0, zIndex: 99997 }} onClick={() => setContextMenu(null)} />
+        <div style={{
+          position: 'fixed', left: contextMenu.x, top: contextMenu.y, zIndex: 99998,
+          background: '#fff', border: '1px solid var(--border)',
+          borderRadius: 8, boxShadow: '0 6px 24px rgba(0,0,0,0.12)',
+          padding: 4, minWidth: 180,
+        }}>
+          <button
+            onClick={() => toggleMute(contextMenu.group.idgrupo)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 8,
+              width: '100%', padding: '8px 12px', border: 'none',
+              background: 'none', cursor: 'pointer', borderRadius: 6,
+              fontSize: 13, color: 'var(--text-primary)', textAlign: 'left',
+            }}
+            onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover, #F3F4F6)'}
+            onMouseLeave={e => e.currentTarget.style.background = 'none'}
+          >
+            {mutedGroups.includes(contextMenu.group.idgrupo)
+              ? <><Bell size={14} color="#16A34A" /> Ativar notificações</>
+              : <><BellOff size={14} color="#6B7280" /> Silenciar grupo</>}
+          </button>
+        </div>
+      </>,
+      document.body
+    )}
+    </>
   )
 }

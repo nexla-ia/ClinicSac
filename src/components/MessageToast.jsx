@@ -237,6 +237,10 @@ function SingleToast({ toast, onDismiss }) {
   )
 }
 
+function getMutedGroups(instance) {
+  try { return JSON.parse(localStorage.getItem(`muted_groups_${instance}`) || '[]') } catch { return [] }
+}
+
 export function MessageToastContainer({ instance }) {
   const location = useLocation()
   const [toasts, setToasts] = useState([])
@@ -258,6 +262,9 @@ export function MessageToastContainer({ instance }) {
         const row = payload.new
         const type = (row.type || 'human').toLowerCase()
         if (type !== 'cliente') return
+
+        // Ignora grupos silenciados
+        if (row.idgrupo && getMutedGroups(instance).includes(row.idgrupo)) return
 
         const content = getContent(row)
         const phone = stripSuffix(row.numero || '')
