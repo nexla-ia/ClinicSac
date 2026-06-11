@@ -88,6 +88,11 @@ export default function CompanyPatientDetail() {
   const [uploadApptId, setUploadApptId] = useState(null)
   const fileInputRef = useRef(null)
   const attachInputRef = useRef(null)
+  const [anamneses, setAnamneses] = useState([])
+  const [orcamentos, setOrcamentos] = useState([])
+  const [anamneseTemplates, setAnamneseTemplates] = useState([])
+  const [anamneseModal, setAnamneseModal] = useState(null)
+  const [orcamentoModal, setOrcamentoModal] = useState(null)
 
   useEffect(() => {
     if (!id) return
@@ -114,10 +119,23 @@ export default function CompanyPatientDetail() {
             .order('uploaded_at', { ascending: false })
             .then(({ data: att }) => { if (att) setAttachments(att) })
         }
+      supabase.from('anamnese_responses')
+        .select('*').eq('instancia', instance).eq('contact_id', id)
+        .order('filled_at', { ascending: false })
+        .then(({ data: r }) => { if (r) setAnamneses(r) })
+      supabase.from('orcamentos')
+        .select('*, orcamento_items(*)')
+        .eq('instancia', instance).eq('contact_id', id)
+        .order('created_at', { ascending: false })
+        .then(({ data: o }) => { if (o) setOrcamentos(o) })
       }
       if (plans) setInsurancePlans(plans)
       setLoading(false)
     })
+    supabase.from('anamnese_templates')
+      .select('*').eq('instancia', instance)
+      .order('nome', { ascending: true })
+      .then(({ data: t }) => { if (t) setAnamneseTemplates(t) })
   }, [id, instance])
 
   async function handleAttachUpload(files) {
@@ -153,6 +171,84 @@ export default function CompanyPatientDetail() {
     if (path) await supabase.storage.from('prontuario').remove([path])
     await supabase.from('prontuario_attachments').delete().eq('id', att.id)
     setAttachments(prev => prev.filter(a => a.id !== att.id))
+  }
+
+  async function handleDeleteAnamnese(resp) {
+    await supabase.from('anamnese_responses').delete().eq('id', resp.id)
+    setAnamneses(prev => prev.filter(r => r.id !== resp.id))
+  }
+
+  async function handleSaveAnamnese(templateName, templateId, questions, answers) {
+    const numDigits = (patient.numero || '').replace(/@.*$/, '').replace(/\D/g, '')
+    const { data } = await supabase.from('anamnese_responses').insert({
+      instancia: instance,
+      contact_id: id,
+      contact_numero: numDigits,
+      template_id: templateId || null,
+      template_name: templateName,
+      questions,
+      answers,
+      filled_by: session?.user?.name || session?.user?.email || null,
+      filled_at: new Date().toISOString(),
+    }).select().single()
+    if (data) setAnamneses(prev => [data, ...prev])
+    setAnamneseModal(null)
+  }
+
+  async function handleCreateTemplate(nome, questions) {
+    const { data } = await supabase.from('anamnese_templates').insert({
+      instancia: instance,
+      nome,
+      questions,
+      created_by: session?.user?.name || session?.user?.email || null,
+    }).select().single()
+    if (data) setAnamneseTemplates(prev => [...prev, data].sort((a, b) => a.nome.localeCompare(b.nome)))
+    return data
+  }
+
+  async function handleDeleteOrcamento(orc) {
+    await supabase.from('orcamentos').delete().eq('id', orc.id)
+    setOrcamentos(prev => prev.filter(o => o.id !== orc.id))
+  }
+
+  async function handleSaveOrcamento(form) {
+    const numDigits = (patient.numero || '').replace(/@.*$/, '').replace(/\D/g, '')
+    const { data: orc } = await supabase.from('orcamentos').insert({
+      instancia: instance,
+      contact_id: id,
+      contact_numero: numDigits,
+      status: form.status,
+      desconto: parseFloat(form.desconto) || 0,
+      entrada: parseFloat(form.entrada) || 0,
+      parcelas: parseInt(form.parcelas) || 1,
+      notes: form.notes?.trim() || null,
+      created_by: session?.user?.name || session?.user?.email || null,
+    }).select().single()
+    if (orc) {
+      const validItems = form.items.filter(it => it.procedimento?.trim())
+      let savedItems = []
+      if (validItems.length > 0) {
+        const { data } = await supabase.from('orcamento_items').insert(
+          validItems.map((it, i) => ({
+            orcamento_id: orc.id,
+            procedimento: it.procedimento.trim(),
+            dente: it.dente?.trim() || null,
+            faces: it.faces?.trim() || null,
+            valor: parseFloat(it.valor) || 0,
+            ordem: i,
+          }))
+        ).select()
+        savedItems = data || []
+      }
+      setOrcamentos(prev => [{ ...orc, orcamento_items: savedItems }, ...prev])
+    }
+    setOrcamentoModal(null)
+  }
+
+  async function handleUpdateOrcamentoStatus(orcId, newStatus) {
+    const updates = { status: newStatus, ...(newStatus === 'aprovado' ? { approved_at: new Date().toISOString() } : {}) }
+    await supabase.from('orcamentos').update(updates).eq('id', orcId)
+    setOrcamentos(prev => prev.map(o => o.id === orcId ? { ...o, ...updates } : o))
   }
 
   function startEdit() {
@@ -315,6 +411,8 @@ export default function CompanyPatientDetail() {
           { key: 'cadastro',    label: 'Cadastro' },
           { key: 'saude',       label: 'Saúde' },
           { key: 'prontuario',  label: `Prontuário (${appointments.filter(a => a.prontuario).length})` },
+          { key: 'anamneses',   label: `Anamneses (${anamneses.length})` },
+          { key: 'orcamentos',  label: `Orçamentos (${orcamentos.length})` },
           { key: 'historico',   label: `Histórico (${appointments.length})` },
         ].map(t => (
           <button key={t.key} onClick={() => setTab(t.key)} className={`pat-tab ${tab === t.key ? 'active' : ''}`}>
@@ -592,6 +690,168 @@ export default function CompanyPatientDetail() {
         </div>
       )}
 
+      {tab === 'anamneses' && (
+        <div className="pat-resumo">
+          <div style={{ display:'flex', justifyContent:'flex-end', marginBottom:12 }}>
+            <button
+              onClick={() => setAnamneseModal({ step: 'select' })}
+              style={{ display:'inline-flex', alignItems:'center', gap:6, background:'#2563EB', color:'#fff', border:'none', borderRadius:8, padding:'9px 16px', fontSize:13, fontWeight:700, cursor:'pointer' }}>
+              <Plus size={14} /> Nova anamnese
+            </button>
+          </div>
+          {anamneses.length === 0 ? (
+            <div className="pat-empty-card">
+              <Clipboard size={28} style={{ opacity:0.2 }} />
+              <span>Nenhuma anamnese preenchida ainda. Clique em "Nova anamnese" para começar.</span>
+            </div>
+          ) : (
+            <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+              {anamneses.map(resp => (
+                <div key={resp.id} className="pat-section-card">
+                  <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:10 }}>
+                    <div>
+                      <div style={{ fontWeight:700, fontSize:14, color:'var(--text-primary)' }}>{resp.template_name || 'Anamnese'}</div>
+                      <div style={{ fontSize:11, color:'var(--text-muted)', marginTop:2 }}>
+                        Preenchida por <strong>{resp.filled_by || '—'}</strong> em {fmtDateTime(resp.filled_at)}
+                      </div>
+                    </div>
+                    <button onClick={() => handleDeleteAnamnese(resp)}
+                      style={{ background:'transparent', border:'1px solid #FCA5A5', borderRadius:6, padding:'5px 7px', cursor:'pointer', color:'#DC2626', display:'flex', alignItems:'center' }}>
+                      <Trash2 size={12} />
+                    </button>
+                  </div>
+                  {(resp.questions || []).map(q => {
+                    const ans = (resp.answers || {})[q.id]
+                    if (!ans) return null
+                    return (
+                      <div key={q.id} style={{ borderTop:'1px solid var(--border)', paddingTop:10, marginTop:10 }}>
+                        <div style={{ fontSize:12, fontWeight:600, color:'var(--text-secondary)', marginBottom:6 }}>{q.text}</div>
+                        {q.type === 'yes_no_dontknow' && ans.value && (
+                          <span style={{ fontSize:11, padding:'2px 10px', borderRadius:6, fontWeight:700,
+                            background: ans.value==='sim' ? '#FEF2F2' : ans.value==='nao' ? '#F0FDF4' : '#F9FAFB',
+                            color: ans.value==='sim' ? '#DC2626' : ans.value==='nao' ? '#16A34A' : '#6B7280' }}>
+                            {ans.value==='sim' ? 'Sim' : ans.value==='nao' ? 'Não' : 'Não sei'}
+                          </span>
+                        )}
+                        {ans.detail && <div style={{ fontSize:12, color:'var(--text-secondary)', marginTop:6, whiteSpace:'pre-wrap' }}>{ans.detail}</div>}
+                        {q.type === 'text' && ans.value && <div style={{ fontSize:12, color:'var(--text-secondary)', whiteSpace:'pre-wrap' }}>{ans.value}</div>}
+                      </div>
+                    )
+                  })}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {tab === 'orcamentos' && (
+        <div className="pat-resumo">
+          <div style={{ display:'flex', justifyContent:'flex-end', marginBottom:12 }}>
+            <button
+              onClick={() => setOrcamentoModal({ items:[{ procedimento:'', dente:'', faces:'', valor:'' }], status:'pendente', desconto:'', entrada:'', parcelas:'1', notes:'' })}
+              style={{ display:'inline-flex', alignItems:'center', gap:6, background:'#2563EB', color:'#fff', border:'none', borderRadius:8, padding:'9px 16px', fontSize:13, fontWeight:700, cursor:'pointer' }}>
+              <Plus size={14} /> Criar orçamento
+            </button>
+          </div>
+          {orcamentos.length === 0 ? (
+            <div className="pat-empty-card">
+              <FileText size={28} style={{ opacity:0.2 }} />
+              <span>Nenhum orçamento criado ainda. Clique em "Criar orçamento" para começar.</span>
+            </div>
+          ) : (
+            <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
+              {orcamentos.map(orc => {
+                const items = orc.orcamento_items || []
+                const subtotal = items.reduce((s, it) => s + Number(it.valor || 0), 0)
+                const desconto = Number(orc.desconto || 0)
+                const total = subtotal - desconto
+                const parcelas = Number(orc.parcelas || 1)
+                const entrada = Number(orc.entrada || 0)
+                const parcVal = parcelas > 0 && (total - entrada) > 0 ? (total - entrada) / parcelas : 0
+                const orcStatus = { pendente:{ label:'Pendente', color:'#D97706', bg:'#FFFBEB' }, aprovado:{ label:'Aprovado', color:'#16A34A', bg:'#F0FDF4' }, recusado:{ label:'Recusado', color:'#DC2626', bg:'#FEF2F2' } }[orc.status] || { label:orc.status, color:'#6B7280', bg:'#F9FAFB' }
+                return (
+                  <div key={orc.id} className="pat-section-card">
+                    <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:8, marginBottom:14 }}>
+                      <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                        <span style={{ fontSize:10, padding:'3px 10px', borderRadius:999, fontWeight:700, background:orcStatus.bg, color:orcStatus.color }}>{orcStatus.label}</span>
+                        <span style={{ fontSize:12, color:'var(--text-muted)' }}>por {orc.created_by || '—'} · {fmtDateTime(orc.created_at)}</span>
+                      </div>
+                      <div style={{ display:'flex', gap:6 }}>
+                        {orc.status !== 'aprovado' && (
+                          <button onClick={() => handleUpdateOrcamentoStatus(orc.id, 'aprovado')}
+                            style={{ fontSize:11, padding:'4px 10px', background:'#F0FDF4', color:'#16A34A', border:'1px solid #BBF7D0', borderRadius:6, cursor:'pointer', fontWeight:600 }}>
+                            Aprovar
+                          </button>
+                        )}
+                        {orc.status !== 'recusado' && (
+                          <button onClick={() => handleUpdateOrcamentoStatus(orc.id, 'recusado')}
+                            style={{ fontSize:11, padding:'4px 10px', background:'#FEF2F2', color:'#DC2626', border:'1px solid #FCA5A5', borderRadius:6, cursor:'pointer', fontWeight:600 }}>
+                            Recusar
+                          </button>
+                        )}
+                        <button onClick={() => handleDeleteOrcamento(orc)}
+                          style={{ background:'transparent', border:'1px solid #FCA5A5', borderRadius:6, padding:'4px 7px', cursor:'pointer', color:'#DC2626', display:'flex', alignItems:'center' }}>
+                          <Trash2 size={12} />
+                        </button>
+                      </div>
+                    </div>
+                    {items.length > 0 && (
+                      <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12, marginBottom:12 }}>
+                        <thead>
+                          <tr style={{ borderBottom:'2px solid var(--border)' }}>
+                            <th style={{ textAlign:'left', padding:'4px 6px', color:'var(--text-muted)', fontWeight:600 }}>Procedimento</th>
+                            <th style={{ textAlign:'left', padding:'4px 6px', color:'var(--text-muted)', fontWeight:600, width:60 }}>Dente</th>
+                            <th style={{ textAlign:'left', padding:'4px 6px', color:'var(--text-muted)', fontWeight:600, width:60 }}>Faces</th>
+                            <th style={{ textAlign:'right', padding:'4px 6px', color:'var(--text-muted)', fontWeight:600, width:100 }}>Valor</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {items.sort((a,b) => a.ordem - b.ordem).map(it => (
+                            <tr key={it.id} style={{ borderBottom:'1px solid var(--border)' }}>
+                              <td style={{ padding:'7px 6px', color:'var(--text-primary)' }}>{it.procedimento}</td>
+                              <td style={{ padding:'7px 6px', color:'var(--text-secondary)' }}>{it.dente || '—'}</td>
+                              <td style={{ padding:'7px 6px', color:'var(--text-secondary)' }}>{it.faces || '—'}</td>
+                              <td style={{ padding:'7px 6px', textAlign:'right', fontWeight:600 }}>R$ {Number(it.valor).toLocaleString('pt-BR', { minimumFractionDigits:2 })}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    )}
+                    <div style={{ display:'flex', justifyContent:'flex-end' }}>
+                      <div style={{ minWidth:220, fontSize:12 }}>
+                        <div style={{ display:'flex', justifyContent:'space-between', padding:'3px 0', color:'var(--text-secondary)' }}>
+                          <span>Subtotal</span><span>R$ {subtotal.toLocaleString('pt-BR', { minimumFractionDigits:2 })}</span>
+                        </div>
+                        {desconto > 0 && (
+                          <div style={{ display:'flex', justifyContent:'space-between', padding:'3px 0', color:'#DC2626' }}>
+                            <span>Desconto</span><span>− R$ {desconto.toLocaleString('pt-BR', { minimumFractionDigits:2 })}</span>
+                          </div>
+                        )}
+                        <div style={{ display:'flex', justifyContent:'space-between', padding:'6px 0', borderTop:'2px solid var(--border)', fontWeight:700, fontSize:14 }}>
+                          <span>Total</span><span>R$ {total.toLocaleString('pt-BR', { minimumFractionDigits:2 })}</span>
+                        </div>
+                        {entrada > 0 && (
+                          <div style={{ display:'flex', justifyContent:'space-between', padding:'3px 0', color:'var(--text-secondary)', fontSize:11 }}>
+                            <span>Entrada</span><span>R$ {entrada.toLocaleString('pt-BR', { minimumFractionDigits:2 })}</span>
+                          </div>
+                        )}
+                        {parcelas > 1 && (
+                          <div style={{ display:'flex', justifyContent:'space-between', padding:'3px 0', color:'var(--text-secondary)', fontSize:11 }}>
+                            <span>{parcelas}x</span><span>R$ {parcVal.toLocaleString('pt-BR', { minimumFractionDigits:2 })}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    {orc.notes && <div style={{ marginTop:10, padding:'8px 10px', background:'#F9FAFB', borderRadius:6, fontSize:12, color:'var(--text-secondary)' }}>{orc.notes}</div>}
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Lightbox */}
       {lightbox && (
         <div onClick={() => setLightbox(null)}
@@ -661,6 +921,24 @@ export default function CompanyPatientDetail() {
       />}
 
       <input ref={fileInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handlePhotoUpload} />
+
+      {anamneseModal && (
+        <AnamneseModal
+          modal={anamneseModal}
+          setModal={setAnamneseModal}
+          templates={anamneseTemplates}
+          onSave={handleSaveAnamnese}
+          onCreateTemplate={handleCreateTemplate}
+        />
+      )}
+
+      {orcamentoModal && (
+        <OrcamentoModal
+          form={orcamentoModal}
+          setForm={setOrcamentoModal}
+          onSave={handleSaveOrcamento}
+        />
+      )}
 
       <ConfirmModal
         open={confirmDelete}
@@ -986,6 +1264,316 @@ function ModalField({ label, children }) {
 
 function Row({ children }) {
   return <div className="pat-modal-row">{children}</div>
+}
+
+function AnamneseModal({ modal, setModal, templates, onSave, onCreateTemplate }) {
+  const [step, setStep] = useState(modal.step || 'select')
+  const [selected, setSelected] = useState(null)
+  const [answers, setAnswers] = useState({})
+  const [saving, setSaving] = useState(false)
+  const [newTplNome, setNewTplNome] = useState('')
+  const [newTplQuestions, setNewTplQuestions] = useState([{ id: crypto.randomUUID(), text: '', type: 'yes_no_dontknow' }])
+  const [creatingTpl, setCreatingTpl] = useState(false)
+
+  function addQuestion() {
+    setNewTplQuestions(qs => [...qs, { id: crypto.randomUUID(), text: '', type: 'yes_no_dontknow' }])
+  }
+  function removeQuestion(idx) {
+    setNewTplQuestions(qs => qs.filter((_, i) => i !== idx))
+  }
+  function updateQ(idx, key, val) {
+    setNewTplQuestions(qs => qs.map((q, i) => i === idx ? { ...q, [key]: val } : q))
+  }
+
+  async function handleSaveTemplate() {
+    if (!newTplNome.trim() || newTplQuestions.some(q => !q.text.trim())) return
+    setCreatingTpl(true)
+    const tpl = await onCreateTemplate(newTplNome.trim(), newTplQuestions)
+    setCreatingTpl(false)
+    if (tpl) { setSelected(tpl); setStep('fill') }
+  }
+
+  async function handleSave() {
+    if (!selected) return
+    setSaving(true)
+    await onSave(selected.nome, selected.id, selected.questions, answers)
+    setSaving(false)
+  }
+
+  const OVERLAY = { position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', zIndex:9999, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }
+  const BOX = { background:'var(--bg-card, #fff)', borderRadius:12, width:'100%', maxWidth:560, maxHeight:'88vh', display:'flex', flexDirection:'column', overflow:'hidden', boxShadow:'0 20px 60px rgba(0,0,0,0.18)' }
+  const HEAD = { display:'flex', alignItems:'center', justifyContent:'space-between', padding:'18px 20px', borderBottom:'1px solid var(--border)' }
+  const BODY = { flex:1, overflowY:'auto', padding:'20px' }
+  const FOOT = { padding:'14px 20px', borderTop:'1px solid var(--border)', display:'flex', gap:10 }
+
+  return (
+    <div style={OVERLAY} onClick={e => e.target === e.currentTarget && setModal(null)}>
+      <div style={BOX}>
+        <div style={HEAD}>
+          <div style={{ fontWeight:700, fontSize:15 }}>
+            {step === 'select' && 'Selecionar modelo de anamnese'}
+            {step === 'create' && 'Criar novo modelo'}
+            {step === 'fill' && `Preencher: ${selected?.nome}`}
+          </div>
+          <button onClick={() => setModal(null)} style={{ background:'none', border:'none', cursor:'pointer', color:'var(--text-muted)' }}><X size={18} /></button>
+        </div>
+
+        <div style={BODY}>
+          {step === 'select' && (
+            <div>
+              {templates.length === 0 ? (
+                <div style={{ textAlign:'center', padding:'20px 0', color:'var(--text-muted)' }}>
+                  <Clipboard size={32} style={{ opacity:0.2, marginBottom:8 }} />
+                  <p style={{ margin:0, fontSize:13 }}>Nenhum modelo cadastrado ainda.</p>
+                </div>
+              ) : (
+                <div style={{ display:'flex', flexDirection:'column', gap:8, marginBottom:16 }}>
+                  {templates.map(t => (
+                    <button key={t.id} onClick={() => { setSelected(t); setAnswers({}); setStep('fill') }}
+                      style={{ display:'flex', alignItems:'center', justifyContent:'space-between', background:'var(--bg-input, #F9FAFB)', border:'1px solid var(--border)', borderRadius:8, padding:'12px 14px', cursor:'pointer', textAlign:'left' }}>
+                      <div>
+                        <div style={{ fontWeight:600, fontSize:13, color:'var(--text-primary)' }}>{t.nome}</div>
+                        <div style={{ fontSize:11, color:'var(--text-muted)', marginTop:2 }}>{(t.questions || []).length} pergunta(s)</div>
+                      </div>
+                      <span style={{ fontSize:11, fontWeight:700, color:'#2563EB' }}>Selecionar →</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+              <button onClick={() => setStep('create')}
+                style={{ display:'inline-flex', alignItems:'center', gap:6, background:'transparent', border:'2px dashed var(--border)', borderRadius:8, padding:'10px 16px', fontSize:13, fontWeight:600, color:'var(--text-secondary)', cursor:'pointer', width:'100%', justifyContent:'center' }}>
+                <Plus size={14} /> Criar novo modelo
+              </button>
+            </div>
+          )}
+
+          {step === 'create' && (
+            <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
+              <div>
+                <label style={{ fontSize:12, fontWeight:600, color:'var(--text-secondary)', display:'block', marginBottom:6 }}>Nome do modelo</label>
+                <input className="nx-input" autoFocus placeholder="Ex: Anamnese Padrão" value={newTplNome} onChange={e => setNewTplNome(e.target.value)} />
+              </div>
+              <div>
+                <label style={{ fontSize:12, fontWeight:600, color:'var(--text-secondary)', display:'block', marginBottom:8 }}>Perguntas</label>
+                {newTplQuestions.map((q, i) => (
+                  <div key={q.id} style={{ display:'flex', gap:8, marginBottom:10, alignItems:'flex-start' }}>
+                    <div style={{ flex:1 }}>
+                      <input className="nx-input" placeholder={`Pergunta ${i+1}`} value={q.text} onChange={e => updateQ(i, 'text', e.target.value)} style={{ marginBottom:6 }} />
+                      <select className="nx-select" value={q.type} onChange={e => updateQ(i, 'type', e.target.value)}>
+                        <option value="yes_no_dontknow">Sim / Não / Não sei</option>
+                        <option value="text">Texto livre</option>
+                      </select>
+                    </div>
+                    {newTplQuestions.length > 1 && (
+                      <button onClick={() => removeQuestion(i)}
+                        style={{ background:'transparent', border:'1px solid #FCA5A5', borderRadius:6, padding:'6px 8px', cursor:'pointer', color:'#DC2626', marginTop:2 }}>
+                        <Trash2 size={12} />
+                      </button>
+                    )}
+                  </div>
+                ))}
+                <button onClick={addQuestion}
+                  style={{ display:'inline-flex', alignItems:'center', gap:5, background:'transparent', border:'1px dashed var(--border)', borderRadius:6, padding:'7px 12px', fontSize:12, fontWeight:600, color:'var(--text-secondary)', cursor:'pointer' }}>
+                  <Plus size={12} /> Adicionar pergunta
+                </button>
+              </div>
+            </div>
+          )}
+
+          {step === 'fill' && selected && (
+            <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
+              {(selected.questions || []).map(q => {
+                const ans = answers[q.id] || {}
+                return (
+                  <div key={q.id}>
+                    <div style={{ fontSize:13, fontWeight:600, color:'var(--text-primary)', marginBottom:10 }}>{q.text}</div>
+                    {q.type === 'yes_no_dontknow' ? (
+                      <>
+                        <div style={{ display:'flex', gap:10, marginBottom:8 }}>
+                          {['sim', 'nao', 'nao_sei'].map(v => (
+                            <label key={v} style={{ display:'inline-flex', alignItems:'center', gap:5, fontSize:13, cursor:'pointer', fontWeight: ans.value === v ? 700 : 400, color: ans.value === v ? (v==='sim'?'#DC2626':v==='nao'?'#16A34A':'#6B7280') : 'var(--text-secondary)' }}>
+                              <input type="radio" name={q.id} value={v} checked={ans.value === v} onChange={() => setAnswers(a => ({ ...a, [q.id]: { ...ans, value: v } }))} style={{ accentColor: v==='sim'?'#DC2626':v==='nao'?'#16A34A':'#9CA3AF' }} />
+                              {v === 'sim' ? 'Sim' : v === 'nao' ? 'Não' : 'Não sei'}
+                            </label>
+                          ))}
+                        </div>
+                        {ans.value === 'sim' && (
+                          <textarea className="nx-input" rows={2} placeholder="Informações adicionais..." value={ans.detail || ''} onChange={e => setAnswers(a => ({ ...a, [q.id]: { ...ans, detail: e.target.value } }))} />
+                        )}
+                      </>
+                    ) : (
+                      <textarea className="nx-input" rows={3} placeholder="Digite aqui..." value={ans.value || ''} onChange={e => setAnswers(a => ({ ...a, [q.id]: { value: e.target.value } }))} />
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+
+        <div style={FOOT}>
+          <button onClick={() => step === 'select' ? setModal(null) : setStep('select')}
+            style={{ flex:1, padding:'9px', background:'transparent', border:'1px solid var(--border)', borderRadius:8, cursor:'pointer', fontWeight:600, fontSize:13 }}>
+            {step === 'select' ? 'Cancelar' : '← Voltar'}
+          </button>
+          {step === 'create' && (
+            <button onClick={handleSaveTemplate} disabled={creatingTpl || !newTplNome.trim()}
+              style={{ flex:2, padding:'9px', background:'#2563EB', color:'#fff', border:'none', borderRadius:8, cursor:'pointer', fontWeight:700, fontSize:13, opacity: creatingTpl?0.6:1 }}>
+              {creatingTpl ? 'Salvando...' : 'Salvar modelo e preencher'}
+            </button>
+          )}
+          {step === 'fill' && (
+            <button onClick={handleSave} disabled={saving}
+              style={{ flex:2, padding:'9px', background:'#2563EB', color:'#fff', border:'none', borderRadius:8, cursor:'pointer', fontWeight:700, fontSize:13, opacity: saving?0.6:1 }}>
+              {saving ? 'Salvando...' : 'Salvar anamnese'}
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function OrcamentoModal({ form, setForm, onSave }) {
+  const [saving, setSaving] = useState(false)
+  const upd = (key, val) => setForm(f => ({ ...f, [key]: val }))
+  const updItem = (i, key, val) => setForm(f => ({ ...f, items: f.items.map((it, idx) => idx === i ? { ...it, [key]: val } : it) }))
+  const addItem = () => setForm(f => ({ ...f, items: [...f.items, { procedimento:'', dente:'', faces:'', valor:'' }] }))
+  const removeItem = i => setForm(f => ({ ...f, items: f.items.filter((_, idx) => idx !== i) }))
+
+  const subtotal = form.items.reduce((s, it) => s + (parseFloat(it.valor) || 0), 0)
+  const desconto = parseFloat(form.desconto) || 0
+  const total = subtotal - desconto
+  const entrada = parseFloat(form.entrada) || 0
+  const parcelas = parseInt(form.parcelas) || 1
+  const parcVal = parcelas > 0 && (total - entrada) > 0 ? (total - entrada) / parcelas : 0
+
+  async function handleSave() {
+    setSaving(true)
+    await onSave(form)
+    setSaving(false)
+  }
+
+  const OVERLAY = { position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', zIndex:9999, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }
+  const BOX = { background:'var(--bg-card, #fff)', borderRadius:12, width:'100%', maxWidth:680, maxHeight:'92vh', display:'flex', flexDirection:'column', overflow:'hidden', boxShadow:'0 20px 60px rgba(0,0,0,0.18)' }
+
+  return (
+    <div style={OVERLAY} onClick={e => e.target === e.currentTarget && setForm(null)}>
+      <div style={BOX}>
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'18px 20px', borderBottom:'1px solid var(--border)' }}>
+          <div style={{ fontWeight:700, fontSize:15 }}>Novo orçamento</div>
+          <button onClick={() => setForm(null)} style={{ background:'none', border:'none', cursor:'pointer', color:'var(--text-muted)' }}><X size={18} /></button>
+        </div>
+
+        <div style={{ flex:1, overflowY:'auto', padding:20 }}>
+          {/* Itens */}
+          <div style={{ marginBottom:16 }}>
+            <div style={{ fontSize:12, fontWeight:700, color:'var(--text-secondary)', marginBottom:8, textTransform:'uppercase', letterSpacing:'0.5px' }}>Procedimentos</div>
+            <table style={{ width:'100%', borderCollapse:'collapse' }}>
+              <thead>
+                <tr style={{ fontSize:11, color:'var(--text-muted)' }}>
+                  <th style={{ textAlign:'left', padding:'4px 4px', fontWeight:600 }}>Procedimento</th>
+                  <th style={{ textAlign:'left', padding:'4px 4px', fontWeight:600, width:70 }}>Dente</th>
+                  <th style={{ textAlign:'left', padding:'4px 4px', fontWeight:600, width:70 }}>Faces</th>
+                  <th style={{ textAlign:'right', padding:'4px 4px', fontWeight:600, width:110 }}>Valor (R$)</th>
+                  <th style={{ width:32 }}></th>
+                </tr>
+              </thead>
+              <tbody>
+                {form.items.map((it, i) => (
+                  <tr key={i}>
+                    <td style={{ padding:'3px 4px' }}>
+                      <input className="nx-input" placeholder="Nome do procedimento" value={it.procedimento} onChange={e => updItem(i, 'procedimento', e.target.value)} style={{ fontSize:12 }} />
+                    </td>
+                    <td style={{ padding:'3px 4px' }}>
+                      <input className="nx-input" placeholder="Ex: 16" value={it.dente} onChange={e => updItem(i, 'dente', e.target.value)} style={{ fontSize:12 }} />
+                    </td>
+                    <td style={{ padding:'3px 4px' }}>
+                      <input className="nx-input" placeholder="—" value={it.faces} onChange={e => updItem(i, 'faces', e.target.value)} style={{ fontSize:12 }} />
+                    </td>
+                    <td style={{ padding:'3px 4px' }}>
+                      <input className="nx-input" type="number" step="0.01" placeholder="0,00" value={it.valor} onChange={e => updItem(i, 'valor', e.target.value)} style={{ fontSize:12, textAlign:'right' }} />
+                    </td>
+                    <td style={{ padding:'3px 4px' }}>
+                      {form.items.length > 1 && (
+                        <button onClick={() => removeItem(i)} style={{ background:'transparent', border:'none', cursor:'pointer', color:'#DC2626', padding:2 }}><X size={14} /></button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <button onClick={addItem}
+              style={{ marginTop:8, display:'inline-flex', alignItems:'center', gap:5, background:'transparent', border:'1px dashed var(--border)', borderRadius:6, padding:'6px 12px', fontSize:12, fontWeight:600, color:'var(--text-secondary)', cursor:'pointer' }}>
+              <Plus size={12} /> Adicionar item
+            </button>
+          </div>
+
+          {/* Totais */}
+          <div style={{ display:'flex', gap:16, marginBottom:16, flexWrap:'wrap' }}>
+            <div style={{ flex:1, minWidth:120 }}>
+              <label style={{ fontSize:12, fontWeight:600, color:'var(--text-secondary)', display:'block', marginBottom:4 }}>Desconto (R$)</label>
+              <input className="nx-input" type="number" step="0.01" placeholder="0,00" value={form.desconto} onChange={e => upd('desconto', e.target.value)} />
+            </div>
+            <div style={{ flex:1, minWidth:120 }}>
+              <label style={{ fontSize:12, fontWeight:600, color:'var(--text-secondary)', display:'block', marginBottom:4 }}>Entrada (R$)</label>
+              <input className="nx-input" type="number" step="0.01" placeholder="0,00" value={form.entrada} onChange={e => upd('entrada', e.target.value)} />
+            </div>
+            <div style={{ flex:1, minWidth:120 }}>
+              <label style={{ fontSize:12, fontWeight:600, color:'var(--text-secondary)', display:'block', marginBottom:4 }}>Parcelas</label>
+              <input className="nx-input" type="number" min="1" value={form.parcelas} onChange={e => upd('parcelas', e.target.value)} />
+            </div>
+            <div style={{ flex:1, minWidth:120 }}>
+              <label style={{ fontSize:12, fontWeight:600, color:'var(--text-secondary)', display:'block', marginBottom:4 }}>Status</label>
+              <select className="nx-select" value={form.status} onChange={e => upd('status', e.target.value)}>
+                <option value="pendente">Pendente</option>
+                <option value="aprovado">Aprovado</option>
+                <option value="recusado">Recusado</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Resumo */}
+          <div style={{ background:'var(--bg-input, #F9FAFB)', borderRadius:8, padding:'12px 16px', fontSize:13, marginBottom:12 }}>
+            <div style={{ display:'flex', justifyContent:'space-between', marginBottom:4 }}>
+              <span style={{ color:'var(--text-secondary)' }}>Subtotal</span>
+              <span>R$ {subtotal.toLocaleString('pt-BR', { minimumFractionDigits:2 })}</span>
+            </div>
+            {desconto > 0 && (
+              <div style={{ display:'flex', justifyContent:'space-between', marginBottom:4, color:'#DC2626' }}>
+                <span>Desconto</span><span>− R$ {desconto.toLocaleString('pt-BR', { minimumFractionDigits:2 })}</span>
+              </div>
+            )}
+            <div style={{ display:'flex', justifyContent:'space-between', fontWeight:700, fontSize:15, borderTop:'1px solid var(--border)', paddingTop:8, marginTop:4 }}>
+              <span>Total</span><span>R$ {total.toLocaleString('pt-BR', { minimumFractionDigits:2 })}</span>
+            </div>
+            {parcelas > 1 && (
+              <div style={{ fontSize:11, color:'var(--text-muted)', marginTop:4, textAlign:'right' }}>
+                {entrada > 0 ? `Entrada R$ ${entrada.toLocaleString('pt-BR', { minimumFractionDigits:2 })} + ` : ''}
+                {parcelas}x R$ {parcVal.toLocaleString('pt-BR', { minimumFractionDigits:2 })}
+              </div>
+            )}
+          </div>
+
+          <div>
+            <label style={{ fontSize:12, fontWeight:600, color:'var(--text-secondary)', display:'block', marginBottom:4 }}>Observações (opcional)</label>
+            <textarea className="nx-input" rows={2} placeholder="Condições, validade do orçamento, etc..." value={form.notes} onChange={e => upd('notes', e.target.value)} />
+          </div>
+        </div>
+
+        <div style={{ padding:'14px 20px', borderTop:'1px solid var(--border)', display:'flex', gap:10 }}>
+          <button onClick={() => setForm(null)}
+            style={{ flex:1, padding:'9px', background:'transparent', border:'1px solid var(--border)', borderRadius:8, cursor:'pointer', fontWeight:600, fontSize:13 }}>
+            Cancelar
+          </button>
+          <button onClick={handleSave} disabled={saving}
+            style={{ flex:2, padding:'9px', background:'#2563EB', color:'#fff', border:'none', borderRadius:8, cursor:'pointer', fontWeight:700, fontSize:13, opacity:saving?0.6:1 }}>
+            {saving ? 'Salvando...' : 'Salvar orçamento'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
 }
 
 function PatientTagsRow({ instancia, numero, userEmail }) {
