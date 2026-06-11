@@ -178,6 +178,7 @@ export default function CompanyConversations() {
   const chatBodyRef  = useRef(null)
   const skipScrollRef = useRef(false)
   const selectedRef  = useRef(null)
+  const sentCacheRef = useRef([])
   const autoCloseDone = useRef(false)
 
   useEffect(() => { selectedRef.current = selected }, [selected])
@@ -505,14 +506,21 @@ export default function CompanyConversations() {
 
 
           if (selectedRef.current?.session_id === sid) {
-            setMessages(msgs => [...msgs, {
-              id: row.id,
-              id_mensagem: row.id_mensagem || null,
-              type: getMessageType(row),
-              content: getMessageContent(row),
-              base64: row.base64 || null,
-              ts,
-            }])
+            const sentNome = sentCacheRef.current.find(
+              s => s.content === getMessageContent(row) && (Date.now() - s.at) < 30000
+            )?.nome || null
+            setMessages(msgs => {
+              if (msgs.some(m => m.id === row.id)) return msgs
+              return [...msgs, {
+                id: row.id,
+                id_mensagem: row.id_mensagem || null,
+                type: getMessageType(row),
+                content: getMessageContent(row),
+                base64: row.base64 || null,
+                nome: sentNome || row.nome || null,
+                ts,
+              }]
+            })
           }
         }
       )
@@ -893,6 +901,11 @@ export default function CompanyConversations() {
           ? (text ? `${filePrefix}\n${text}` : filePrefix)
           : text
       const mediaBase64 = audio?.base64 || file?.base64 || null
+      const senderName = session?.user?.name || null
+      sentCacheRef.current = [
+        { content: mensagemPayload, nome: senderName, at: Date.now() },
+        ...sentCacheRef.current.filter(s => Date.now() - s.at < 30000),
+      ]
       const { error: insErr } = await supabase.rpc('send_mensagem_geral', {
         p_instancia: instance,
         p_numero: selected.session_id,
@@ -900,7 +913,7 @@ export default function CompanyConversations() {
         p_type: 'atendente',
         p_hora: new Date().toISOString(),
         p_base64: mediaBase64,
-        p_nome: session?.user?.name || null,
+        p_nome: senderName,
       })
       if (insErr) console.error('send_mensagem_geral:', insErr)
 
