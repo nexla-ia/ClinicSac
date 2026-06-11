@@ -94,10 +94,12 @@ export default function CompanyPatientDetail() {
       if (p) {
         setPatient(p)
         if (p.numero) {
+          // contact_numero nos appointments é salvo só com dígitos (sem @s.whatsapp.net)
+          const numDigits = (p.numero || '').replace(/@.*$/, '').replace(/\D/g, '')
           supabase.from('appointments')
             .select('*, agendas(name, color), professionals(name)')
             .eq('instancia', instance)
-            .eq('contact_numero', p.numero)
+            .eq('contact_numero', numDigits)
             .order('starts_at', { ascending: false })
             .then(({ data: ap }) => { if (ap) setAppointments(ap) })
         }
