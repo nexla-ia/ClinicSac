@@ -145,6 +145,8 @@
   background: #EFF6FF;
   border-right: 2px solid #2563EB;
 }
+.contact-item.unread { background: #F8FAFF; }
+.contact-item.unread:hover { background: #EFF6FF; }
 
 .contact-avatar {
   width: 36px; height: 36px;

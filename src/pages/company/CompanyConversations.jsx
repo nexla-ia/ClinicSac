@@ -183,6 +183,9 @@ export default function CompanyConversations() {
   const [editingMsgId, setEditingMsgId]   = useState(null)
   const [editingText, setEditingText]     = useState('')
   const [savingEdit, setSavingEdit]       = useState(false)
+  const [readsMap, setReadsMap]           = useState({}) // session_id → last_read_at ISO
+  const [readsLoaded, setReadsLoaded]     = useState(false)
+  const [unreadCounts, setUnreadCounts]   = useState({}) // session_id → number
   const mediaRecorderRef = useRef(null)
   const audioChunksRef   = useRef([])
   const recordTimerRef   = useRef(null)
@@ -194,8 +197,52 @@ export default function CompanyConversations() {
   const selectedRef  = useRef(null)
   const sentCacheRef = useRef([])
   const autoCloseDone = useRef(false)
+  const initialCountsDone = useRef(false)
 
   useEffect(() => { selectedRef.current = selected }, [selected])
+
+  // Carrega leituras do usuário atual
+  useEffect(() => {
+    if (!instance || !session?.user?.email) return
+    supabase.from('conversation_reads')
+      .select('session_id, last_read_at')
+      .eq('instancia', instance)
+      .eq('user_email', session.user.email)
+      .then(({ data }) => {
+        if (data) {
+          const map = {}
+          data.forEach(r => { map[r.session_id] = r.last_read_at })
+          setReadsMap(map)
+        }
+        setReadsLoaded(true)
+      })
+  }, [instance, session?.user?.email])
+
+  // Calcula contagem inicial de não lidos (roda uma vez após contatos e leituras carregados)
+  useEffect(() => {
+    if (initialCountsDone.current || !readsLoaded || loadingContacts || !contacts.length || !instance) return
+    initialCountsDone.current = true
+    const unread = contacts.filter(c => {
+      const lr = readsMap[c.session_id]
+      return !lr || (c.lastTs && new Date(c.lastTs) > new Date(lr))
+    })
+    if (!unread.length) return
+    Promise.all(
+      unread.map(c =>
+        supabase.from(CONV_TABLE)
+          .select('id', { count: 'exact', head: true })
+          .eq('numero', c.session_id)
+          .eq('instancia', instance)
+          .ilike('type', 'cliente')
+          .gt('created_at', readsMap[c.session_id] || '1970-01-01T00:00:00Z')
+          .then(({ count }) => [c.session_id, count || 0])
+      )
+    ).then(pairs => {
+      const counts = {}
+      pairs.forEach(([sid, cnt]) => { if (cnt > 0) counts[sid] = cnt })
+      setUnreadCounts(counts)
+    })
+  }, [readsLoaded, loadingContacts, contacts, readsMap, instance])
 
   // Carrega agendamentos futuros (próximo por contato)
   useEffect(() => {
@@ -505,9 +552,14 @@ export default function CompanyConversations() {
             const next = { ...prev }; delete next[sid]; return next
           })
 
+          const incomingType = (row.type || '').toLowerCase()
+          const isClientMsg = incomingType === 'cliente' || incomingType === 'human'
+          if (isClientMsg && selectedRef.current?.session_id !== sid) {
+            setUnreadCounts(prev => ({ ...prev, [sid]: (prev[sid] || 0) + 1 }))
+          }
+
           setContacts(prev => {
             const exists = prev.find(c => c.session_id === sid)
-            const incomingType = (row.type || '').toLowerCase()
             const isOutsideHuman = incomingType === 'atendente' || incomingType === 'humano'
             if (exists) {
               return [
@@ -640,6 +692,22 @@ export default function CompanyConversations() {
       setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 50)
     }
   }, [editingMsgId])
+
+  function handleSelectContact(c) {
+    setSelected(c)
+    if (!unreadCounts[c.session_id]) return
+    setUnreadCounts(prev => { const n = { ...prev }; delete n[c.session_id]; return n })
+    const now = new Date().toISOString()
+    setReadsMap(prev => ({ ...prev, [c.session_id]: now }))
+    if (session?.user?.email) {
+      supabase.from('conversation_reads').upsert({
+        instancia: instance,
+        session_id: c.session_id,
+        user_email: session.user.email,
+        last_read_at: now,
+      }, { onConflict: 'instancia,session_id,user_email' }).then(() => {})
+    }
+  }
 
   async function handleAssume(contact, e) {
     e?.stopPropagation()
@@ -1167,8 +1235,8 @@ export default function CompanyConversations() {
             return (
               <div
                 key={c.session_id}
-                className={`contact-item ${selected?.session_id === c.session_id ? 'selected' : ''}`}
-                onClick={() => setSelected(c)}
+                className={`contact-item ${selected?.session_id === c.session_id ? 'selected' : ''} ${unreadCounts[c.session_id] ? 'unread' : ''}`}
+                onClick={() => handleSelectContact(c)}
                 onContextMenu={(e) => {
                   e.preventDefault()
                   setContextMenu({ x: e.clientX, y: e.clientY, contact: c })
@@ -1188,7 +1256,7 @@ export default function CompanyConversations() {
                 })()}
                 <div className="contact-info" style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap' }}>
-                    <div className="contact-name" style={displayName ? { fontWeight: 600 } : {}}>
+                    <div className="contact-name" style={{ fontWeight: unreadCounts[c.session_id] ? 800 : displayName ? 600 : 400 }}>
                       {displayName || c.phone}
                     </div>
                     {displayName && (
@@ -1247,7 +1315,12 @@ export default function CompanyConversations() {
                   )}
                 </div>
                 <div className="contact-meta">
-                  {c.lastTs && <div className="contact-time">{formatContactTime(c.lastTs)}</div>}
+                  {c.lastTs && <div className="contact-time" style={{ fontWeight: unreadCounts[c.session_id] ? 700 : 400, color: unreadCounts[c.session_id] ? '#2563EB' : undefined }}>{formatContactTime(c.lastTs)}</div>}
+                  {unreadCounts[c.session_id] > 0 && (
+                    <div style={{ minWidth: 20, height: 20, borderRadius: 10, background: '#2563EB', color: '#fff', fontSize: 11, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 5px', marginTop: 3 }}>
+                      {unreadCounts[c.session_id] > 99 ? '99+' : unreadCounts[c.session_id]}
+                    </div>
+                  )}
                 </div>
               </div>
             )
