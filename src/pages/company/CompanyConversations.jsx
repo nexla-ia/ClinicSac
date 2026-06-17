@@ -790,6 +790,56 @@ export default function CompanyConversations() {
     setAssuming(null)
   }
 
+  async function handlePullConversation(contact) {
+    const att = attendancesMap[contact.session_id]
+    if (!att) return
+    const meName = session?.user?.name || 'Atendente'
+    const meEmail = session?.user?.email
+
+    const { data: memberData } = await supabase
+      .from('sector_members')
+      .select('sector_id, sectors(id, name, color)')
+      .eq('user_id', session?.user?.id)
+      .maybeSingle()
+    const mySector = memberData?.sectors || null
+
+    const updated = {
+      attendant_name:  meName,
+      attendant_email: meEmail,
+      sector_id:    mySector?.id ?? att.sector_id ?? null,
+      sector_name:  mySector?.name ?? att.sector_name ?? null,
+      sector_color: mySector?.color ?? att.sector_color ?? '#6B7280',
+    }
+
+    const { error } = await supabase
+      .from('attendances')
+      .update(updated)
+      .eq('numero', contact.session_id)
+      .eq('instancia', instance)
+
+    if (error) {
+      setToast({ message: 'Erro ao puxar conversa: ' + error.message, color: '#DC2626' })
+      setTimeout(() => setToast(null), 3500)
+      return
+    }
+
+    const prevName = att.attendant_name || 'outro atendente'
+    await supabase.rpc('send_mensagem_geral', {
+      p_instancia: instance,
+      p_numero: contact.session_id,
+      p_mensagem: `↩ Atendimento retomado por ${meName} (era de ${prevName})`,
+      p_type: 'atendente',
+      p_hora: new Date().toISOString(),
+    })
+
+    setAttendancesMap(prev => ({
+      ...prev,
+      [contact.session_id]: { ...(prev[contact.session_id] || {}), ...updated },
+    }))
+    setToast({ message: `Conversa puxada para você`, color: '#16A34A' })
+    setTimeout(() => setToast(null), 3500)
+  }
+
   async function handleTransfer() {
     if (!transferModal || !transferringTo || transferring) return
     const target = companyUsers.find(u => u.email === transferringTo)
@@ -1434,17 +1484,35 @@ export default function CompanyConversations() {
                     </button>
                     {(() => {
                       const att = attendancesMap[selected.session_id]
-                      const isOwner = att && att.attendant_email === session?.user?.email
-                      if (!att || (!isOwner && !isAdmin)) return null
+                      const myEmail = session?.user?.email
+                      const isOwner = att?.attendant_email === myEmail
+                      const isElse  = att && !isOwner
+
                       return (
-                        <button
-                          className="nx-btn-ghost"
-                          style={{ fontSize: 12, padding: '7px 14px', display: 'flex', alignItems: 'center', gap: 6, color: '#0891B2' }}
-                          onClick={() => { setTransferModal(selected); setTransferringTo('') }}
-                          title="Passar essa conversa pra outro atendente"
-                        >
-                          <ArrowRightLeft size={14} /> <span className="btn-label">Transferir</span>
-                        </button>
+                        <>
+                          {/* Transferir — só o dono ou admin vê */}
+                          {att && (isOwner || isAdmin) && (
+                            <button
+                              className="nx-btn-ghost"
+                              style={{ fontSize: 12, padding: '7px 14px', display: 'flex', alignItems: 'center', gap: 6, color: '#0891B2' }}
+                              onClick={() => { setTransferModal(selected); setTransferringTo('') }}
+                              title="Passar essa conversa pra outro atendente"
+                            >
+                              <ArrowRightLeft size={14} /> <span className="btn-label">Transferir</span>
+                            </button>
+                          )}
+                          {/* Puxar para mim — quando está com outro atendente */}
+                          {isElse && (
+                            <button
+                              className="nx-btn-ghost"
+                              style={{ fontSize: 12, padding: '7px 14px', display: 'flex', alignItems: 'center', gap: 6, color: '#D97706', borderColor: '#FDE68A', background: '#FFFBEB' }}
+                              onClick={() => handlePullConversation(selected)}
+                              title={`Puxar de volta de ${att.attendant_name || 'outro atendente'}`}
+                            >
+                              <Inbox size={14} /> <span className="btn-label">Puxar para mim</span>
+                            </button>
+                          )}
+                        </>
                       )
                     })()}
                     {(() => {
