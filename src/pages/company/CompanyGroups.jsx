@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
 import { Users, ChevronLeft, Send, Mic, Square, Paperclip, Trash2, Film, FileText, BellOff, Bell } from 'lucide-react'
+import { useContactTags, TagList, TagPicker, TagFilter, buildTagFilter } from '../../components/Tags'
 import './Company.css'
 
 function getMutedGroups(instance) {
@@ -100,6 +101,8 @@ export default function CompanyGroups() {
   const [attachedFile, setAttachedFile] = useState(null)
   const [mutedGroups, setMutedGroupsState] = useState(() => getMutedGroups(instance))
   const [contextMenu, setContextMenu] = useState(null) // { x, y, group }
+  const [tagFilter, setTagFilter] = useState([])
+  const { tagsOf, assignments: tagAssignments } = useContactTags(instance)
   const [hasMoreMsgs, setHasMoreMsgs] = useState(false)
   const [loadingMoreMsgs, setLoadingMoreMsgs] = useState(false)
   const bottomRef = useRef(null)
@@ -448,6 +451,11 @@ export default function CompanyGroups() {
 
   const hasSelected = !!selected
 
+  const tagMatch = buildTagFilter(tagFilter, tagAssignments)
+  const filteredGroups = tagFilter.length > 0
+    ? groups.filter(g => tagMatch(g.idgrupo))
+    : groups
+
   return (
     <>
     <div className={`contacts-root${hasSelected ? ' has-selected' : ''}`}>
@@ -456,6 +464,7 @@ export default function CompanyGroups() {
       <div className="contacts-list">
         <div className="contacts-list-header">
           <div className="contacts-list-title">Grupos</div>
+          <TagFilter instancia={instance} value={tagFilter} onChange={setTagFilter} />
         </div>
         <div className="contacts-list-body">
           {loading && (
@@ -463,12 +472,12 @@ export default function CompanyGroups() {
               Carregando grupos…
             </div>
           )}
-          {!loading && groups.length === 0 && (
+          {!loading && filteredGroups.length === 0 && (
             <div style={{ padding: '24px 16px', color: 'var(--text-muted)', fontSize: 13 }}>
-              Nenhum grupo encontrado
+              {groups.length === 0 ? 'Nenhum grupo encontrado' : 'Nenhum grupo com essa etiqueta'}
             </div>
           )}
-          {groups.map(g => {
+          {filteredGroups.map(g => {
             const isMuted = mutedGroups.includes(g.idgrupo)
             const unread = unreadCounts[g.idgrupo] || 0
             return (
@@ -510,6 +519,7 @@ export default function CompanyGroups() {
                     {g.lastSenderRow && <strong style={{ fontWeight: 600 }}>{senderLabel(g.lastSenderRow)}: </strong>}
                     {g.lastMsg}
                   </div>
+                  {(() => { const gt = tagsOf(g.idgrupo); return gt.length > 0 ? <TagList tags={gt} size="xs" style={{ marginTop: 4 }} /> : null })()}
                 </div>
               </div>
             )
@@ -550,6 +560,12 @@ export default function CompanyGroups() {
                   </div>
                 </div>
               </div>
+              <TagPicker
+                instancia={instance}
+                numero={selected.idgrupo}
+                userEmail={session?.user?.email}
+                anchor="bottom-right"
+              />
             </div>
 
             <div ref={chatBodyRef} style={{ flex: 1, overflowY: 'auto', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 2 }}>
