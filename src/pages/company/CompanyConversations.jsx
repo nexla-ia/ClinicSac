@@ -1297,10 +1297,6 @@ export default function CompanyConversations() {
                     {tab === 'finalizados' && rs && (
                       <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 7px', borderRadius: 20, color: rs.color, background: rs.bg, border: `1px solid ${rs.border}`, lineHeight: '16px' }}>{rs.label}</span>
                     )}
-                    {(() => {
-                      const myTags = tagsOf(c.phone)
-                      return myTags.length > 0 ? <TagList tags={myTags} size="xs" max={3} /> : null
-                    })()}
                   </div>
                   {tab === 'recepcao' && (
                     <button
