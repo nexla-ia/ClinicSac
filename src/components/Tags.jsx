@@ -35,7 +35,8 @@ export function useContactTags(instancia) {
   }, [instancia])
 
   function tagsOf(numero) {
-    const ids = assignments.filter(a => a.numero === numero).map(a => a.tag_id)
+    const phone = stripPhoneSuffix(numero)
+    const ids = assignments.filter(a => a.numero === phone).map(a => a.tag_id)
     return tags.filter(t => ids.includes(t.id))
   }
 
