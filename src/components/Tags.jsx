@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Tag as TagIcon, X, Plus, Check, Filter } from 'lucide-react'
+import { Tag as TagIcon, X, Plus, Check, Filter, Pencil } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import './Tags.css'
 
@@ -94,9 +94,14 @@ export function TagPicker({ instancia, numero, userEmail, anchor = 'bottom-left'
   const [newName, setNewName] = useState('')
   const [newColor, setNewColor] = useState(TAG_PRESET_COLORS[0])
   const [saving, setSaving] = useState(false)
+  const [editingTag, setEditingTag] = useState(null) // { id, name, color }
+  const [editName, setEditName] = useState('')
+  const [editColor, setEditColor] = useState(TAG_PRESET_COLORS[0])
+  const [editSaving, setEditSaving] = useState(false)
   const btnRef = useRef(null)
   const popRef = useRef(null)
   const nameInputRef = useRef(null)
+  const editInputRef = useRef(null)
   const { tags, tagsOf, reload } = useContactTags(instancia)
   const phone = stripPhoneSuffix(numero)
   const mineIds = new Set(tagsOf(phone).map(t => t.id))
@@ -120,6 +125,10 @@ export function TagPicker({ instancia, numero, userEmail, anchor = 'bottom-left'
   useEffect(() => {
     if (creating) setTimeout(() => nameInputRef.current?.focus(), 50)
   }, [creating])
+
+  useEffect(() => {
+    if (editingTag) setTimeout(() => editInputRef.current?.focus(), 50)
+  }, [editingTag])
 
   async function toggle(tag) {
     if (mineIds.has(tag.id)) {
@@ -153,6 +162,33 @@ export function TagPicker({ instancia, numero, userEmail, anchor = 'bottom-left'
     setSaving(false)
   }
 
+  function startEdit(e, tag) {
+    e.stopPropagation()
+    setCreating(false)
+    setEditingTag(tag)
+    setEditName(tag.name)
+    setEditColor(tag.color)
+  }
+
+  function cancelEdit() {
+    setEditingTag(null)
+    setEditName('')
+  }
+
+  async function handleSaveEdit(e) {
+    e.preventDefault()
+    const name = editName.trim()
+    if (!name || editSaving || !editingTag) return
+    setEditSaving(true)
+    await supabase.from('contact_tags')
+      .update({ name, color: editColor })
+      .eq('id', editingTag.id)
+      .eq('instancia', instancia)
+    reload()
+    setEditSaving(false)
+    setEditingTag(null)
+  }
+
   return (
     <div className="tagpicker">
       <button ref={btnRef} className="tagpicker-trigger" onClick={() => setOpen(v => !v)}>
@@ -171,12 +207,58 @@ export function TagPicker({ instancia, numero, userEmail, anchor = 'bottom-left'
           )}
           {tags.map(t => {
             const isOn = mineIds.has(t.id)
+            const isEditing = editingTag?.id === t.id
+            if (isEditing) {
+              return (
+                <form key={t.id} onSubmit={handleSaveEdit} className="tagpicker-create-form">
+                  <div className="tagpicker-create-colors">
+                    {TAG_PRESET_COLORS.map(c => (
+                      <button
+                        key={c}
+                        type="button"
+                        className={`tagpicker-color-dot${editColor === c ? ' active' : ''}`}
+                        style={{ background: c }}
+                        onClick={() => setEditColor(c)}
+                      />
+                    ))}
+                  </div>
+                  <div className="tagpicker-create-row">
+                    <span className="tagpicker-row-dot" style={{ background: editColor, flexShrink: 0 }} />
+                    <input
+                      ref={editInputRef}
+                      className="tagpicker-create-input"
+                      value={editName}
+                      onChange={e => setEditName(e.target.value)}
+                      maxLength={40}
+                    />
+                  </div>
+                  <div className="tagpicker-create-actions">
+                    <button type="button" className="tagpicker-create-cancel" onClick={cancelEdit}>
+                      Cancelar
+                    </button>
+                    <button type="submit" className="tagpicker-create-save" disabled={!editName.trim() || editSaving}>
+                      {editSaving ? 'Salvando…' : 'Salvar'}
+                    </button>
+                  </div>
+                </form>
+              )
+            }
             return (
-              <button key={t.id} className={`tagpicker-row ${isOn ? 'on' : ''}`} onClick={() => toggle(t)}>
-                <span className="tagpicker-row-dot" style={{ background: t.color }} />
-                <span className="tagpicker-row-name">{t.name}</span>
-                {isOn && <Check size={13} style={{ color: t.color }} />}
-              </button>
+              <div key={t.id} className={`tagpicker-row-wrap${isOn ? ' on' : ''}`}>
+                <button className={`tagpicker-row ${isOn ? 'on' : ''}`} onClick={() => toggle(t)}>
+                  <span className="tagpicker-row-dot" style={{ background: t.color }} />
+                  <span className="tagpicker-row-name">{t.name}</span>
+                  {isOn && <Check size={13} style={{ color: t.color }} />}
+                </button>
+                <button
+                  className="tagpicker-edit-btn"
+                  onClick={e => startEdit(e, t)}
+                  title="Editar etiqueta"
+                  type="button"
+                >
+                  <Pencil size={11} />
+                </button>
+              </div>
             )
           })}
 

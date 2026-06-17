@@ -176,6 +176,36 @@
   color: var(--text-primary);
   transition: background 0.1s;
 }
+.tagpicker-row-wrap {
+  display: flex;
+  align-items: center;
+  border-radius: 6px;
+  transition: background 0.1s;
+}
+.tagpicker-row-wrap:hover { background: var(--bg-hover); }
+.tagpicker-row-wrap:hover .tagpicker-edit-btn { opacity: 1; }
+.tagpicker-row-wrap.on { background: #F8FAFC; }
+.tagpicker-row-wrap .tagpicker-row {
+  flex: 1;
+  border-radius: 6px 0 0 6px;
+}
+.tagpicker-row-wrap .tagpicker-row:hover { background: transparent; }
+
+.tagpicker-edit-btn {
+  opacity: 0;
+  background: transparent;
+  border: none;
+  padding: 6px 8px;
+  cursor: pointer;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  border-radius: 0 6px 6px 0;
+  transition: opacity 0.12s, color 0.12s;
+}
+.tagpicker-edit-btn:hover { color: #2563EB; }
+
 .tagpicker-row:hover { background: var(--bg-hover); }
 .tagpicker-row.on {
   background: #F8FAFC;
