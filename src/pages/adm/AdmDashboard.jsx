@@ -83,17 +83,8 @@ export default function AdmDashboard() {
     })
   }
 
-  function notifyDisconnect(company) {
-    if (typeof Notification === 'undefined') return
-    if (Notification.permission === 'granted') {
-      try {
-        new Notification('⚠️ WhatsApp desconectado', {
-          body: `${company.name} (${company.instance}) caiu agora. Verifica e reconecta o quanto antes.`,
-          icon: '/favicon.ico',
-          tag: `wpp-offline-${company.instance}`,
-        })
-      } catch {}
-    }
+  function notifyDisconnect(_company) {
+    // notificação do browser removida
   }
 
   async function loadAll() {
@@ -125,10 +116,6 @@ export default function AdmDashboard() {
 
   useEffect(() => {
     loadDB()
-    // Pede permissão de notificação 1 vez
-    if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
-      Notification.requestPermission().catch(() => {})
-    }
   }, [loadDB])
 
   useEffect(() => {
