@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
+import EmojiPicker from 'emoji-picker-react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
@@ -183,6 +184,8 @@ export default function CompanyConversations() {
   const [editingMsgId, setEditingMsgId]   = useState(null)
   const [editingText, setEditingText]     = useState('')
   const [savingEdit, setSavingEdit]       = useState(false)
+  const [showEmoji, setShowEmoji]         = useState(false)
+  const emojiPickerRef                    = useRef(null)
   const [readsMap, setReadsMap]           = useState({}) // session_id → last_read_at ISO
   const [readsLoaded, setReadsLoaded]     = useState(false)
   const [unreadCounts, setUnreadCounts]   = useState({}) // session_id → number
@@ -200,6 +203,18 @@ export default function CompanyConversations() {
   const initialCountsDone = useRef(false)
 
   useEffect(() => { selectedRef.current = selected }, [selected])
+
+  // Fecha emoji picker ao clicar fora
+  useEffect(() => {
+    if (!showEmoji) return
+    function handleClick(e) {
+      if (emojiPickerRef.current && !emojiPickerRef.current.contains(e.target)) {
+        setShowEmoji(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [showEmoji])
 
   // Carrega leituras do usuário atual
   useEffect(() => {
@@ -1901,7 +1916,23 @@ export default function CompanyConversations() {
                     </button>
                   </div>
                 )}
-                <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+                <div style={{ display: 'flex', gap: 8, marginBottom: 10, position: 'relative' }}>
+                  {/* Emoji picker popup */}
+                  {showEmoji && (
+                    <div ref={emojiPickerRef} style={{ position: 'absolute', bottom: 'calc(100% + 8px)', left: 0, zIndex: 9999 }}>
+                      <EmojiPicker
+                        onEmojiClick={({ emoji }) => {
+                          setMsgText(prev => prev + emoji)
+                          setShowEmoji(false)
+                        }}
+                        searchPlaceholder="Buscar emoji..."
+                        skinTonesDisabled
+                        height={380}
+                        width={320}
+                        previewConfig={{ showPreview: false }}
+                      />
+                    </div>
+                  )}
                   <input
                     className="nx-input chat-composer-input"
                     style={{ flex: 1 }}
@@ -1925,6 +1956,22 @@ export default function CompanyConversations() {
                   />
                   {!recording && !recordedAudio && !attachedFile && (
                     <>
+                      <button
+                        onClick={() => setShowEmoji(v => !v)}
+                        title="Emojis"
+                        disabled={!canRespond(selected)}
+                        style={{
+                          padding: '0 12px', flexShrink: 0,
+                          background: showEmoji ? '#FEF9C3' : '#fff',
+                          border: `1px solid ${showEmoji ? '#FDE047' : 'var(--border)'}`,
+                          borderRadius: 8, fontSize: 17, lineHeight: 1,
+                          cursor: canRespond(selected) ? 'pointer' : 'not-allowed',
+                          opacity: canRespond(selected) ? 1 : 0.45,
+                          display: 'inline-flex', alignItems: 'center',
+                        }}
+                      >
+                        😊
+                      </button>
                       <button
                         onClick={() => fileInputRef.current?.click()}
                         title="Anexar imagem, PDF ou vídeo"
