@@ -82,18 +82,47 @@ export default function CompanyAdmin() {
   const [loggingOut, setLoggingOut] = useState(false)
 
   // Lembretes automáticos de agendamento
-  const [reminderEnabled, setReminderEnabled] = useState(session?.company?.reminder_enabled ?? false)
-  const [reminderOffset,  setReminderOffset]  = useState(session?.company?.reminder_offset_minutes ?? 1440)
-  const [savingReminder,  setSavingReminder]  = useState(false)
-  const [reminderSaved,   setReminderSaved]   = useState(false)
-  const [reminderErr,     setReminderErr]     = useState('')
+  const [reminderEnabled,  setReminderEnabled]  = useState(session?.company?.reminder_enabled ?? false)
+  const [reminderOffset,   setReminderOffset]   = useState(session?.company?.reminder_offset_minutes ?? 1440)
+  const [reminderGroupId,  setReminderGroupId]  = useState(session?.company?.reminder_group_id ?? '')
+  const [savingReminder,   setSavingReminder]   = useState(false)
+  const [reminderSaved,    setReminderSaved]    = useState(false)
+  const [reminderErr,      setReminderErr]      = useState('')
+  const [availableGroups,  setAvailableGroups]  = useState([])
+
+  // Carrega grupos disponíveis
+  useEffect(() => {
+    const inst = session?.company?.instance
+    if (!inst) return
+    supabase.from('mensagens_geral')
+      .select('idgrupo, nomegrupo')
+      .eq('instancia', inst)
+      .not('idgrupo', 'is', null)
+      .order('id', { ascending: false })
+      .limit(20000)
+      .then(({ data }) => {
+        if (!data) return
+        const seen = new Set()
+        const groups = []
+        for (const row of data) {
+          if (!row.idgrupo || seen.has(row.idgrupo)) continue
+          seen.add(row.idgrupo)
+          groups.push({ idgrupo: row.idgrupo, nomegrupo: row.nomegrupo || row.idgrupo })
+        }
+        setAvailableGroups(groups)
+      })
+  }, [session?.company?.instance])
 
   async function saveReminder() {
     if (!companyId) return
     setSavingReminder(true); setReminderErr(''); setReminderSaved(false)
     const { error } = await supabase
       .from('companies')
-      .update({ reminder_enabled: reminderEnabled, reminder_offset_minutes: reminderOffset })
+      .update({
+        reminder_enabled: reminderEnabled,
+        reminder_offset_minutes: reminderOffset,
+        reminder_group_id: reminderGroupId || null,
+      })
       .eq('id', companyId)
     setSavingReminder(false)
     if (error) {
@@ -701,6 +730,42 @@ export default function CompanyAdmin() {
                   </div>
                 </div>
 
+                {/* Grupo para cópia do lembrete */}
+                <div>
+                  <div style={labelStyle}>Enviar cópia do lembrete para um grupo (opcional)</div>
+                  <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 8 }}>
+                    Além do lembrete individual para o paciente, o sistema pode avisar também um grupo do WhatsApp.
+                  </div>
+                  <select
+                    value={reminderGroupId}
+                    onChange={e => setReminderGroupId(e.target.value)}
+                    style={{
+                      padding: '8px 12px',
+                      borderRadius: 8,
+                      border: '1.5px solid var(--border)',
+                      background: '#fff',
+                      color: 'var(--text-primary)',
+                      fontSize: 13,
+                      cursor: 'pointer',
+                      minWidth: 260,
+                      maxWidth: '100%',
+                      outline: 'none',
+                    }}
+                  >
+                    <option value=''>— Não enviar para grupo —</option>
+                    {availableGroups.map(g => (
+                      <option key={g.idgrupo} value={g.idgrupo}>
+                        {g.nomegrupo !== g.idgrupo ? g.nomegrupo : g.idgrupo.replace('@g.us', '')}
+                      </option>
+                    ))}
+                  </select>
+                  {reminderGroupId && (
+                    <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 6 }}>
+                      Grupo selecionado: <code style={{ fontSize: 11 }}>{reminderGroupId}</code>
+                    </div>
+                  )}
+                </div>
+
                 {/* Preview */}
                 <div>
                   <div style={labelStyle}>Como a mensagem chega no paciente</div>
@@ -719,6 +784,23 @@ export default function CompanyAdmin() {
                   <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 6 }}>
                     Os campos em negrito vêm do agendamento (nome, data, hora e profissional).
                   </div>
+                  {reminderGroupId && (
+                    <>
+                      <div style={{ ...labelStyle, marginTop: 12 }}>Como a mensagem chega no grupo</div>
+                      <div style={{
+                        background: '#F5F3FF',
+                        border: '1px solid #DDD6FE',
+                        borderRadius: 12,
+                        padding: '12px 14px',
+                        fontSize: 13.5,
+                        lineHeight: 1.55,
+                        color: '#0F172A',
+                        maxWidth: 520,
+                      }}>
+                        📅 Lembrete: <strong>Maria</strong> tem consulta no dia <strong>15/05</strong> às <strong>14:30</strong> com <strong>Dra. Camila</strong>. 🩺
+                      </div>
+                    </>
+                  )}
                 </div>
               </>
             )}
