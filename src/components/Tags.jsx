@@ -80,11 +80,22 @@ export function TagList({ tags, size = 'sm', max = null }) {
   )
 }
 
+const TAG_PRESET_COLORS = [
+  '#EF4444', '#F97316', '#EAB308', '#22C55E',
+  '#14B8A6', '#3B82F6', '#8B5CF6', '#EC4899',
+  '#6B7280', '#0EA5E9',
+]
+
 // ─── TagPicker: botão "Etiquetas" que abre popover com checkboxes ───────────
 export function TagPicker({ instancia, numero, userEmail, anchor = 'bottom-left' }) {
   const [open, setOpen] = useState(false)
+  const [creating, setCreating] = useState(false)
+  const [newName, setNewName] = useState('')
+  const [newColor, setNewColor] = useState(TAG_PRESET_COLORS[0])
+  const [saving, setSaving] = useState(false)
   const btnRef = useRef(null)
   const popRef = useRef(null)
+  const nameInputRef = useRef(null)
   const { tags, tagsOf, reload } = useContactTags(instancia)
   const phone = stripPhoneSuffix(numero)
   const mineIds = new Set(tagsOf(phone).map(t => t.id))
@@ -105,6 +116,10 @@ export function TagPicker({ instancia, numero, userEmail, anchor = 'bottom-left'
     }
   }, [open])
 
+  useEffect(() => {
+    if (creating) setTimeout(() => nameInputRef.current?.focus(), 50)
+  }, [creating])
+
   async function toggle(tag) {
     if (mineIds.has(tag.id)) {
       await supabase.from('contact_tag_assignments').delete()
@@ -117,6 +132,26 @@ export function TagPicker({ instancia, numero, userEmail, anchor = 'bottom-left'
     reload()
   }
 
+  async function handleCreateTag(e) {
+    e.preventDefault()
+    const name = newName.trim()
+    if (!name || saving) return
+    setSaving(true)
+    const { data, error } = await supabase.from('contact_tags').insert({
+      instancia, name, color: newColor,
+    }).select().single()
+    if (!error && data) {
+      await supabase.from('contact_tag_assignments').insert({
+        instancia, numero: phone, tag_id: data.id, created_by_email: userEmail || null,
+      })
+    }
+    reload()
+    setNewName('')
+    setNewColor(TAG_PRESET_COLORS[0])
+    setCreating(false)
+    setSaving(false)
+  }
+
   return (
     <div className="tagpicker">
       <button ref={btnRef} className="tagpicker-trigger" onClick={() => setOpen(v => !v)}>
@@ -127,10 +162,10 @@ export function TagPicker({ instancia, numero, userEmail, anchor = 'bottom-left'
       {open && (
         <div ref={popRef} className={`tagpicker-pop tagpicker-pop-${anchor}`}>
           <div className="tagpicker-header">Marcar etiquetas</div>
-          {tags.length === 0 && (
+          {tags.length === 0 && !creating && (
             <div className="tagpicker-empty">
-              Nenhuma etiqueta criada ainda.<br />
-              <small>Vá em Administração → Etiquetas pra criar.</small>
+              Nenhuma etiqueta ainda.<br />
+              <small>Crie uma abaixo.</small>
             </div>
           )}
           {tags.map(t => {
@@ -143,6 +178,47 @@ export function TagPicker({ instancia, numero, userEmail, anchor = 'bottom-left'
               </button>
             )
           })}
+
+          {/* Criar nova etiqueta */}
+          {creating ? (
+            <form onSubmit={handleCreateTag} className="tagpicker-create-form">
+              <div className="tagpicker-create-colors">
+                {TAG_PRESET_COLORS.map(c => (
+                  <button
+                    key={c}
+                    type="button"
+                    className={`tagpicker-color-dot${newColor === c ? ' active' : ''}`}
+                    style={{ background: c }}
+                    onClick={() => setNewColor(c)}
+                  />
+                ))}
+              </div>
+              <div className="tagpicker-create-row">
+                <span className="tagpicker-row-dot" style={{ background: newColor, flexShrink: 0 }} />
+                <input
+                  ref={nameInputRef}
+                  className="tagpicker-create-input"
+                  placeholder="Nome da etiqueta"
+                  value={newName}
+                  onChange={e => setNewName(e.target.value)}
+                  maxLength={40}
+                />
+              </div>
+              <div className="tagpicker-create-actions">
+                <button type="button" className="tagpicker-create-cancel" onClick={() => { setCreating(false); setNewName('') }}>
+                  Cancelar
+                </button>
+                <button type="submit" className="tagpicker-create-save" disabled={!newName.trim() || saving}>
+                  {saving ? 'Criando…' : 'Criar'}
+                </button>
+              </div>
+            </form>
+          ) : (
+            <button className="tagpicker-new-btn" onClick={() => setCreating(true)}>
+              <Plus size={12} />
+              Nova etiqueta
+            </button>
+          )}
         </div>
       )}
     </div>

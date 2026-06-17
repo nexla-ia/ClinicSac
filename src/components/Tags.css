@@ -194,6 +194,108 @@
   white-space: nowrap;
 }
 
+/* ─── Criar nova etiqueta inline ─────────────────────────────────────────── */
+.tagpicker-new-btn {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  padding: 7px 9px;
+  border-radius: 6px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #2563EB;
+  margin-top: 4px;
+  border-top: 1px solid var(--border);
+  padding-top: 9px;
+  transition: background 0.1s;
+}
+.tagpicker-new-btn:hover { background: #EFF6FF; }
+
+.tagpicker-create-form {
+  border-top: 1px solid var(--border);
+  margin-top: 4px;
+  padding: 10px 4px 4px;
+}
+.tagpicker-create-colors {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0 5px 10px;
+}
+.tagpicker-color-dot {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  padding: 0;
+  transition: transform 0.1s, border-color 0.1s;
+}
+.tagpicker-color-dot:hover { transform: scale(1.15); }
+.tagpicker-color-dot.active {
+  border-color: #1E3A5F;
+  transform: scale(1.18);
+  box-shadow: 0 0 0 2px #fff, 0 0 0 4px currentColor;
+}
+.tagpicker-create-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 5px;
+  margin-bottom: 8px;
+}
+.tagpicker-create-input {
+  flex: 1;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 9px;
+  font-size: 12.5px;
+  font-family: inherit;
+  color: var(--text-primary);
+  background: var(--bg-base);
+  outline: none;
+  transition: border-color 0.15s;
+}
+.tagpicker-create-input:focus { border-color: #2563EB; }
+.tagpicker-create-input::placeholder { color: var(--text-muted); }
+.tagpicker-create-actions {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+  padding: 0 5px;
+}
+.tagpicker-create-cancel {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 5px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  color: var(--text-secondary);
+}
+.tagpicker-create-cancel:hover { background: var(--bg-hover); }
+.tagpicker-create-save {
+  background: #2563EB;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 5px 14px;
+  font-size: 12px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.tagpicker-create-save:hover:not(:disabled) { background: #1D4ED8; }
+.tagpicker-create-save:disabled { opacity: 0.5; cursor: not-allowed; }
+
 .tagfilter-foot {
   border-top: 1px solid var(--border);
   margin-top: 4px;
