@@ -429,49 +429,50 @@ export default function CompanyGroups() {
         horaLastMessage: hora,
         created_at: hora,
       })
-      fetch('https://n8n.nexladesenvolvimento.com.br/webhook/envioNexla', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message: text,
-          mensagem: mensagemPayload,
-          audio_base64: audio?.base64 || null,
-          audio_mime: audio?.mime || null,
-          audio_duration: audio?.duration || null,
-          file_base64: attachedFile?.base64 || null,
-          file_mime: attachedFile?.mime || null,
-          file_name: attachedFile?.name || null,
-          file_kind: attachedFile?.kind || null,
-          number: selected.idgrupo,
-          session_id: selected.idgrupo,
-          numero: instanceOwner || selected.idgrupo,
-          idgrupo: selected.idgrupo,
-          nomegrupo: selected.nomegrupo || null,
-          instancia: instance,
-          api_instancia: apiInstancia,
-          sender_name: session?.user?.name,
-          sender_email: session?.user?.email,
-          company: session?.company?.name,
-          ai_enabled: false,
-        }),
-      }).catch(e => console.warn('webhook grupo:', e))
-
-      // Disparo separado para menções
       if (/@\d+/.test(text)) {
+        // Mensagem com menção → só para infogrupo
         fetch('https://n8n.nexladesenvolvimento.com.br/webhook/infogrupo', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            evento:    'mencao',
-            instancia: instance,
-            apikey:    apiInstancia,
-            idgrupo:   selected.idgrupo,
-            nomegrupo: selected.nomegrupo || null,
-            mensagem:  text,
+            evento:       'mencao',
+            instancia:    instance,
+            apikey:       apiInstancia,
+            idgrupo:      selected.idgrupo,
+            nomegrupo:    selected.nomegrupo || null,
+            mensagem:     text,
             sender_name:  session?.user?.name,
             sender_email: session?.user?.email,
           }),
         }).catch(e => console.warn('webhook mencao:', e))
+      } else {
+        // Mensagem normal → envioNexla
+        fetch('https://n8n.nexladesenvolvimento.com.br/webhook/envioNexla', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            message: text,
+            mensagem: mensagemPayload,
+            audio_base64: audio?.base64 || null,
+            audio_mime: audio?.mime || null,
+            audio_duration: audio?.duration || null,
+            file_base64: attachedFile?.base64 || null,
+            file_mime: attachedFile?.mime || null,
+            file_name: attachedFile?.name || null,
+            file_kind: attachedFile?.kind || null,
+            number: selected.idgrupo,
+            session_id: selected.idgrupo,
+            numero: instanceOwner || selected.idgrupo,
+            idgrupo: selected.idgrupo,
+            nomegrupo: selected.nomegrupo || null,
+            instancia: instance,
+            api_instancia: apiInstancia,
+            sender_name: session?.user?.name,
+            sender_email: session?.user?.email,
+            company: session?.company?.name,
+            ai_enabled: false,
+          }),
+        }).catch(e => console.warn('webhook grupo:', e))
       }
     } finally {
       setSending(false)
