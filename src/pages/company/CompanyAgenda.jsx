@@ -170,6 +170,8 @@ export default function CompanyAgenda() {
   const [ctxMenu, setCtxMenu] = useState(null) // { x, y, appt }
   const [confirmDeleteApptDirect, setConfirmDeleteApptDirect] = useState(null)
   const [recipSearch, setRecipSearch] = useState('')
+  const [useCustomMsg, setUseCustomMsg] = useState(false)
+  const [customMsg, setCustomMsg] = useState('')
 
   // Carrega agendas + agendamentos + contatos
   useEffect(() => {
@@ -587,7 +589,9 @@ export default function CompanyAgenda() {
 
       // Texto patient-friendly por tipo de evento
       let patientMsg = null
-      if (isNew && payload.status !== 'cancelado') {
+      if (useCustomMsg && customMsg.trim()) {
+        patientMsg = customMsg.trim()
+      } else if (isNew && payload.status !== 'cancelado') {
         const proc = procedures.find(x => x.id === payload.procedure_id)
         patientMsg = proc?.reminder_message?.trim()
           ? proc.reminder_message.replace(/\{nome\}/gi, firstName).replace(/\{data\}/gi, dateStr)
@@ -1159,7 +1163,7 @@ export default function CompanyAgenda() {
           <div className="nx-card" style={{ width: '100%', maxWidth: 480, maxHeight: '90vh', overflow: 'auto' }}>
             <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div style={{ fontWeight: 700, fontSize: 15 }}>{apptModal.id ? 'Editar agendamento' : 'Novo agendamento'}</div>
-              <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }} onClick={() => { setApptModal(null); setRecipSearch('') }}><X size={16} /></button>
+              <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }} onClick={() => { setApptModal(null); setRecipSearch(''); setUseCustomMsg(false); setCustomMsg('') }}><X size={16} /></button>
             </div>
             <div style={{ padding: '1.25rem 1.5rem', display: 'flex', flexDirection: 'column', gap: 12 }}>
               <div>
@@ -1733,6 +1737,71 @@ export default function CompanyAgenda() {
                   )}
                 </div>
               )}
+              {/* ── Mensagem de confirmação ── */}
+              {apptModal.contact_numero && (() => {
+                const tz = session?.company?.timezone || '-03:00'
+                const dateStr = (() => {
+                  try {
+                    const [y, m, d] = apptModal.date.split('-')
+                    const [hh, mm] = apptModal.time.split(':')
+                    return new Date(`${y}-${m}-${d}T${hh}:${mm}:00${tz}`).toLocaleString('pt-BR',
+                      { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+                  } catch { return apptModal.date }
+                })()
+                const firstName = (apptModal.contact_nome || '').split(' ')[0] || 'tudo bem'
+                const proc = procedures.find(x => x.id === apptModal.procedure_id)
+                const defaultMsg = !apptModal.id
+                  ? (proc?.reminder_message?.trim()
+                      ? proc.reminder_message.replace(/\{nome\}/gi, firstName).replace(/\{data\}/gi, dateStr)
+                      : `Olá ${firstName}! 📅 Seu agendamento foi marcado para *${dateStr}*. Qualquer dúvida é só responder aqui!`)
+                  : `Olá ${firstName}! Só passando pra confirmar seu agendamento de *${dateStr}*. Até lá! 👋`
+
+                return (
+                  <div>
+                    <label style={labelStyle}>Mensagem de confirmação</label>
+                    <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+                      {[
+                        { val: false, label: 'Padrão' },
+                        { val: true,  label: 'Personalizar' },
+                      ].map(opt => (
+                        <button key={String(opt.val)} type="button"
+                          onClick={() => {
+                            setUseCustomMsg(opt.val)
+                            if (opt.val && !customMsg) setCustomMsg(defaultMsg)
+                          }}
+                          style={{
+                            padding: '6px 14px', borderRadius: 8, fontSize: 12, fontWeight: 600,
+                            border: `1.5px solid ${useCustomMsg === opt.val ? '#2563EB' : 'var(--border)'}`,
+                            background: useCustomMsg === opt.val ? '#EFF6FF' : '#fff',
+                            color: useCustomMsg === opt.val ? '#1D4ED8' : 'var(--text-secondary)',
+                            cursor: 'pointer',
+                          }}>
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
+                    {useCustomMsg ? (
+                      <textarea
+                        className="nx-input"
+                        rows={4}
+                        value={customMsg}
+                        onChange={e => setCustomMsg(e.target.value)}
+                        placeholder="Digite a mensagem que será enviada ao paciente..."
+                        style={{ resize: 'vertical', fontSize: 13 }}
+                      />
+                    ) : (
+                      <div style={{
+                        background: '#F0FDF4', border: '1px solid #BBF7D0',
+                        borderRadius: 8, padding: '10px 12px',
+                        fontSize: 12.5, color: '#0F172A', lineHeight: 1.55,
+                      }}>
+                        {defaultMsg}
+                      </div>
+                    )}
+                  </div>
+                )
+              })()}
+
             </div>
             <div style={{ padding: '1rem 1.5rem', borderTop: '1px solid var(--border)' }}>
               {apptErr && <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 8, padding: '8px 12px', fontSize: 12, color: '#DC2626', marginBottom: 12 }}>{apptErr}</div>}
