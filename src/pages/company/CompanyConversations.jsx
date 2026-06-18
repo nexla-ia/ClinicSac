@@ -6,6 +6,7 @@ import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
 import { MessageSquare, Bot, User, PhoneCall, CheckCircle2, X, Send, Headset, Sparkles, Inbox, UserCheck, Archive, Mic, Square, Trash2, Paperclip, FileText, Image as ImageIcon, Calendar, UserPlus, BookUser, Lock, ArrowRightLeft, ChevronLeft, Pencil, Film } from 'lucide-react'
 import { useContactTags, TagPicker, TagList, TagFilter, stripPhoneSuffix, buildTagFilter } from '../../components/Tags'
+import QuickMessages from '../../components/QuickMessages'
 import './Company.css'
 
 const CONV_TABLE = 'mensagens_geral'
@@ -2040,6 +2041,10 @@ export default function CompanyConversations() {
                       >
                         😊
                       </button>
+                      <QuickMessages
+                        instancia={instance}
+                        onSelect={text => setMsgText(prev => prev ? prev + ' ' + text : text)}
+                      />
                       <button
                         onClick={() => fileInputRef.current?.click()}
                         title="Anexar imagem, PDF ou vídeo"

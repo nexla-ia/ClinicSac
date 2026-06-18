@@ -6,6 +6,7 @@ import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
 import { Users, ChevronLeft, Send, Mic, Square, Paperclip, Trash2, Film, FileText, BellOff, Bell, ChevronRight, Loader2, Phone, X, MessageCircle, UserPlus, Check } from 'lucide-react'
 import { useContactTags, TagList, TagPicker, TagFilter, buildTagFilter } from '../../components/Tags'
+import QuickMessages from '../../components/QuickMessages'
 import './Company.css'
 
 function getMutedGroups(instance) {
@@ -960,6 +961,10 @@ export default function CompanyGroups() {
                     >
                       😊
                     </button>
+                    <QuickMessages
+                      instancia={instance}
+                      onSelect={text => setMsgText(prev => prev ? prev + ' ' + text : text)}
+                    />
                     <button
                       onClick={() => fileInputRef.current?.click()}
                       title="Anexar imagem, PDF ou vídeo"
