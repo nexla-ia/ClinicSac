@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
-import { Users, ChevronLeft, Send, Mic, Square, Paperclip, Trash2, Film, FileText, BellOff, Bell, ChevronRight, Loader2, Phone, X } from 'lucide-react'
+import { Users, ChevronLeft, Send, Mic, Square, Paperclip, Trash2, Film, FileText, BellOff, Bell, ChevronRight, Loader2, Phone, X, MessageCircle, UserPlus, Check } from 'lucide-react'
 import { useContactTags, TagList, TagPicker, TagFilter, buildTagFilter } from '../../components/Tags'
 import './Company.css'
 
@@ -95,6 +96,7 @@ function detectMedia(b64) {
 
 export default function CompanyGroups() {
   const { session } = useAuth()
+  const navigate = useNavigate()
   const instance = session?.company?.instance
   const apiInstancia = session?.company?.api_instancia
   const instanceOwner = session?.company?.numero_base || null
@@ -117,9 +119,12 @@ export default function CompanyGroups() {
   const [contextMenu, setContextMenu] = useState(null) // { x, y, group }
   const [tagFilter, setTagFilter] = useState([])
   const { tagsOf, assignments: tagAssignments } = useContactTags(instance)
-  const [groupInfo, setGroupInfo] = useState(null)   // { members: [...] } retornado pelo webhook
+  const [groupInfo, setGroupInfo] = useState(null)
   const [groupInfoLoading, setGroupInfoLoading] = useState(false)
   const [groupInfoOpen, setGroupInfoOpen] = useState(false)
+  const [activeMember, setActiveMember] = useState(null)   // numero puro selecionado no painel
+  const [savingContact, setSavingContact] = useState(null) // numero que está sendo salvo
+  const [savedContact, setSavedContact] = useState(null)   // numero recém salvo (feedback)
   const [hasMoreMsgs, setHasMoreMsgs] = useState(false)
   const [loadingMoreMsgs, setLoadingMoreMsgs] = useState(false)
   const bottomRef = useRef(null)
@@ -492,6 +497,29 @@ export default function CompanyGroups() {
     }
   }
 
+  async function handleSaveMember(numero) {
+    if (savingContact === numero) return
+    setSavingContact(numero)
+    try {
+      // Cria uma entrada básica de contato na lista de mensagens para aparecer em Conversas
+      const sessionId = numero + '@s.whatsapp.net'
+      await supabase.from('mensagens_geral').upsert({
+        instancia: instance,
+        numero: sessionId,
+        nome: numero,
+        mensagem: '',
+        type: 'contato_salvo',
+        horaLastMessage: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+        created_at: new Date().toISOString(),
+        aplicativo: 'whatsapp',
+      }, { onConflict: 'instancia,numero,created_at', ignoreDuplicates: true })
+      setSavedContact(numero)
+      setTimeout(() => setSavedContact(null), 2500)
+    } finally {
+      setSavingContact(null)
+    }
+  }
+
   const hasSelected = !!selected
 
   const tagMatch = buildTagFilter(tagFilter, tagAssignments)
@@ -660,39 +688,75 @@ export default function CompanyGroups() {
                       const numero = (m.phoneNumber || '').replace(/@.*$/, '')
                       const isAdmin = !!m.admin
                       const isSuperAdmin = m.admin === 'superadmin'
-                      const initials = numero.slice(-4)
+                      const isActive = activeMember === numero
                       return (
-                        <div key={i} style={{
-                          display: 'flex', alignItems: 'center', gap: 10,
-                          padding: '9px 16px', borderBottom: '1px solid #F8FAFC',
-                        }}>
-                          <div style={{
-                            width: 34, height: 34, borderRadius: '50%', flexShrink: 0,
-                            background: isSuperAdmin ? '#FEF3C7' : isAdmin ? '#EDE9FE' : '#F1F5F9',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            fontSize: 11, fontWeight: 700,
-                            color: isSuperAdmin ? '#92400E' : isAdmin ? '#7C3AED' : '#6B7280',
-                          }}>
-                            <Phone size={13} />
-                          </div>
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--text-primary)', fontVariantNumeric: 'tabular-nums', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                              +{numero}
+                        <div key={i} style={{ borderBottom: '1px solid #F8FAFC' }}>
+                          <div
+                            onClick={() => setActiveMember(isActive ? null : numero)}
+                            style={{
+                              display: 'flex', alignItems: 'center', gap: 10,
+                              padding: '9px 16px', cursor: 'pointer',
+                              background: isActive ? '#F5F3FF' : 'transparent',
+                              transition: 'background .15s',
+                            }}
+                          >
+                            <div style={{
+                              width: 34, height: 34, borderRadius: '50%', flexShrink: 0,
+                              background: isSuperAdmin ? '#FEF3C7' : isAdmin ? '#EDE9FE' : '#F1F5F9',
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              color: isSuperAdmin ? '#92400E' : isAdmin ? '#7C3AED' : '#6B7280',
+                            }}>
+                              <Phone size={13} />
                             </div>
-                          </div>
-                          {isAdmin ? (
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--text-primary)', fontVariantNumeric: 'tabular-nums', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                +{numero}
+                              </div>
+                            </div>
                             <span style={{
                               fontSize: 10, fontWeight: 700, borderRadius: 99, padding: '2px 7px', flexShrink: 0,
-                              color: isSuperAdmin ? '#92400E' : '#7C3AED',
-                              background: isSuperAdmin ? '#FEF3C7' : '#EDE9FE',
-                              border: `1px solid ${isSuperAdmin ? '#FDE68A' : '#DDD6FE'}`,
+                              color: isSuperAdmin ? '#92400E' : isAdmin ? '#7C3AED' : '#6B7280',
+                              background: isSuperAdmin ? '#FEF3C7' : isAdmin ? '#EDE9FE' : '#F1F5F9',
+                              border: `1px solid ${isSuperAdmin ? '#FDE68A' : isAdmin ? '#DDD6FE' : '#E2E8F0'}`,
                             }}>
-                              {isSuperAdmin ? 'Dono' : 'Admin'}
+                              {isSuperAdmin ? 'Dono' : isAdmin ? 'Admin' : 'Membro'}
                             </span>
-                          ) : (
-                            <span style={{ fontSize: 10, fontWeight: 600, color: '#6B7280', background: '#F1F5F9', border: '1px solid #E2E8F0', borderRadius: 99, padding: '2px 7px', flexShrink: 0 }}>
-                              Membro
-                            </span>
+                          </div>
+
+                          {/* Mini-menu de ações */}
+                          {isActive && (
+                            <div style={{
+                              display: 'flex', gap: 8, padding: '8px 16px 10px',
+                              background: '#F5F3FF',
+                            }}>
+                              <button
+                                onClick={() => navigate(`/painel/conversas?numero=${numero}`)}
+                                style={{
+                                  flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                                  padding: '7px 10px', borderRadius: 8, border: '1px solid #C4B5FD',
+                                  background: '#fff', color: '#7C3AED', fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                                }}
+                              >
+                                <MessageCircle size={13} /> Conversar
+                              </button>
+                              <button
+                                onClick={() => handleSaveMember(numero)}
+                                disabled={savingContact === numero}
+                                style={{
+                                  flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                                  padding: '7px 10px', borderRadius: 8, border: '1px solid #BBF7D0',
+                                  background: '#fff', color: '#16A34A', fontSize: 12, fontWeight: 600,
+                                  cursor: savingContact === numero ? 'default' : 'pointer',
+                                }}
+                              >
+                                {savedContact === numero
+                                  ? <><Check size={13} /> Salvo!</>
+                                  : savingContact === numero
+                                    ? <><Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> Salvando…</>
+                                    : <><UserPlus size={13} /> Salvar</>
+                                }
+                              </button>
+                            </div>
                           )}
                         </div>
                       )
