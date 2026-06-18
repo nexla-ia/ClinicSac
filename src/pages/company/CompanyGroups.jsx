@@ -130,6 +130,10 @@ export default function CompanyGroups() {
   const [hasMoreMsgs, setHasMoreMsgs] = useState(false)
   const [loadingMoreMsgs, setLoadingMoreMsgs] = useState(false)
   const [showEmoji, setShowEmoji] = useState(false)
+  const [mentionMembers, setMentionMembers] = useState([])   // lista de membros para mention
+  const [mentionLoading, setMentionLoading] = useState(false)
+  const [mentionOpen, setMentionOpen] = useState(false)
+  const mentionRef = useRef(null)
   const bottomRef = useRef(null)
   const chatBodyRef = useRef(null)
   const skipScrollRef = useRef(false)
@@ -151,6 +155,16 @@ export default function CompanyGroups() {
     document.addEventListener('mousedown', handleOutside)
     return () => document.removeEventListener('mousedown', handleOutside)
   }, [showEmoji])
+
+  // Fecha mention dropdown ao clicar fora
+  useEffect(() => {
+    if (!mentionOpen) return
+    function handleOutside(e) {
+      if (mentionRef.current && !mentionRef.current.contains(e.target)) setMentionOpen(false)
+    }
+    document.addEventListener('mousedown', handleOutside)
+    return () => document.removeEventListener('mousedown', handleOutside)
+  }, [mentionOpen])
 
   // Carrega leituras do usuário atual
   useEffect(() => {
@@ -199,6 +213,8 @@ export default function CompanyGroups() {
     setSelected(g)
     setGroupInfoOpen(false)
     setGroupInfo(null)
+    setMentionMembers([])
+    setMentionOpen(false)
     if (unreadCounts[g.idgrupo]) {
       setUnreadCounts(prev => { const n = { ...prev }; delete n[g.idgrupo]; return n })
       const now = new Date().toISOString()
@@ -508,6 +524,46 @@ export default function CompanyGroups() {
       setGroupInfo({ error: 'Não foi possível carregar os dados do grupo.' })
     } finally {
       setGroupInfoLoading(false)
+    }
+  }
+
+  async function fetchMentionMembers() {
+    if (!selected) return
+    // Reutiliza cache se já buscou antes para esse grupo
+    if (mentionMembers.length > 0) { setMentionOpen(true); return }
+    setMentionLoading(true)
+    setMentionOpen(true)
+    try {
+      const res = await fetch('https://n8n.nexladesenvolvimento.com.br/webhook/infogrupo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ instancia: instance, apikey: apiInstancia, idgrupo: selected.idgrupo }),
+      })
+      const data = await res.json()
+      setMentionMembers(Array.isArray(data) ? data : [])
+    } catch { setMentionMembers([]) }
+    finally { setMentionLoading(false) }
+  }
+
+  function handleMentionSelect(member) {
+    const numero = (member.phoneNumber || '').replace(/@.*$/, '')
+    setMsgText(prev => {
+      // Substitui o @ solto pelo @numero
+      if (prev.endsWith('@')) return prev.slice(0, -1) + '@' + numero + ' '
+      return prev + '@' + numero + ' '
+    })
+    setMentionOpen(false)
+  }
+
+  function handleMsgChange(e) {
+    const val = e.target.value
+    setMsgText(val)
+    // Detecta @ no final (após espaço ou início)
+    const atMatch = val.match(/(^|[\s])@$/)
+    if (atMatch) {
+      fetchMentionMembers()
+    } else if (mentionOpen && !val.includes('@')) {
+      setMentionOpen(false)
     }
   }
 
@@ -936,13 +992,69 @@ export default function CompanyGroups() {
                     />
                   </div>
                 )}
+                {/* Dropdown de @ menção */}
+                {mentionOpen && (
+                  <div ref={mentionRef} style={{
+                    position: 'absolute', bottom: 'calc(100% + 6px)', left: 0, right: 120,
+                    background: '#fff', border: '1px solid var(--border)', borderRadius: 10,
+                    boxShadow: '0 6px 24px rgba(15,23,42,0.12)', zIndex: 9999,
+                    maxHeight: 220, overflowY: 'auto',
+                  }}>
+                    <div style={{ padding: '8px 12px 6px', fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', borderBottom: '1px solid #F1F5F9' }}>
+                      Mencionar integrante
+                    </div>
+                    {mentionLoading && (
+                      <div style={{ padding: '14px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 12 }}>
+                        Buscando integrantes…
+                      </div>
+                    )}
+                    {!mentionLoading && mentionMembers.length === 0 && (
+                      <div style={{ padding: '14px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 12 }}>
+                        Nenhum integrante encontrado
+                      </div>
+                    )}
+                    {mentionMembers.map((m, i) => {
+                      const numero = (m.phoneNumber || '').replace(/@.*$/, '')
+                      const isAdmin = !!m.admin
+                      return (
+                        <div key={i} onClick={() => handleMentionSelect(m)} style={{
+                          padding: '9px 14px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10,
+                          borderBottom: '1px solid #F8FAFC',
+                        }}
+                          onMouseEnter={e => e.currentTarget.style.background = '#F5F3FF'}
+                          onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                        >
+                          <div style={{
+                            width: 28, height: 28, borderRadius: '50%', flexShrink: 0,
+                            background: isAdmin ? '#EDE9FE' : '#F1F5F9',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            color: isAdmin ? '#7C3AED' : '#6B7280', fontSize: 11,
+                          }}>
+                            <Phone size={11} />
+                          </div>
+                          <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--text-primary)', fontVariantNumeric: 'tabular-nums' }}>
+                            +{numero}
+                          </span>
+                          {isAdmin && (
+                            <span style={{ fontSize: 10, fontWeight: 700, color: '#7C3AED', background: '#EDE9FE', borderRadius: 99, padding: '1px 6px' }}>
+                              {m.admin === 'superadmin' ? 'Dono' : 'Admin'}
+                            </span>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
                 <input
                   className="nx-input chat-composer-input"
                   style={{ flex: 1 }}
                   placeholder={attachedFile ? 'Mensagem opcional para acompanhar o arquivo…' : recordedAudio ? 'Mensagem opcional para acompanhar o áudio…' : 'Mensagem para o grupo…'}
                   value={msgText}
-                  onChange={e => setMsgText(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleSend()}
+                  onChange={handleMsgChange}
+                  onKeyDown={e => {
+                    if (e.key === 'Escape') { setMentionOpen(false); return }
+                    if (e.key === 'Enter' && !e.shiftKey) handleSend()
+                  }}
                   disabled={sending || recording}
                 />
                 <input ref={fileInputRef} type="file" accept="image/*,application/pdf,video/*" style={{ display: 'none' }} onChange={handlePickFile} />
