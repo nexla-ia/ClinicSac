@@ -10,9 +10,9 @@ CREATE TABLE IF NOT EXISTS public.quick_messages (
 ALTER TABLE public.quick_messages ENABLE ROW LEVEL SECURITY;
 
 DO $$ BEGIN
-  CREATE POLICY "quick_messages_company_rw" ON public.quick_messages
-    USING  (instancia = (SELECT instance FROM public.companies WHERE id = (auth.jwt()->>'company_id')::uuid LIMIT 1))
-    WITH CHECK (instancia = (SELECT instance FROM public.companies WHERE id = (auth.jwt()->>'company_id')::uuid LIMIT 1));
+  CREATE POLICY "quick_messages_all" ON public.quick_messages
+    FOR ALL TO authenticated, anon
+    USING (true) WITH CHECK (true);
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 CREATE INDEX IF NOT EXISTS quick_messages_instancia_idx ON public.quick_messages (instancia);
