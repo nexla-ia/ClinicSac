@@ -1,30 +1,32 @@
 import { useState, useEffect, useRef } from 'react'
-import { Zap, Plus, Trash2, Check, X } from 'lucide-react'
-
-function storageKey(instancia) {
-  return `quick_messages_${instancia}`
-}
-
-function loadMessages(instancia) {
-  try { return JSON.parse(localStorage.getItem(storageKey(instancia)) || '[]') } catch { return [] }
-}
-
-function saveMessages(instancia, msgs) {
-  localStorage.setItem(storageKey(instancia), JSON.stringify(msgs))
-}
+import { Zap, Plus, Trash2, Check, Loader2 } from 'lucide-react'
+import { supabase } from '../lib/supabase'
 
 export default function QuickMessages({ instancia, onSelect }) {
-  const [open, setOpen]         = useState(false)
-  const [messages, setMessages] = useState([])
-  const [adding, setAdding]     = useState(false)
-  const [titulo, setTitulo]     = useState('')
-  const [mensagem, setMensagem] = useState('')
+  const [open, setOpen]           = useState(false)
+  const [messages, setMessages]   = useState([])
+  const [loading, setLoading]     = useState(false)
+  const [adding, setAdding]       = useState(false)
+  const [titulo, setTitulo]       = useState('')
+  const [mensagem, setMensagem]   = useState('')
+  const [saving, setSaving]       = useState(false)
+  const [deletingId, setDeletingId] = useState(null)
   const popoverRef = useRef(null)
   const tituloRef  = useRef(null)
 
-  useEffect(() => {
-    if (open) setMessages(loadMessages(instancia))
-  }, [open, instancia])
+  async function load() {
+    if (!instancia) return
+    setLoading(true)
+    const { data } = await supabase
+      .from('quick_messages')
+      .select('id, titulo, mensagem')
+      .eq('instancia', instancia)
+      .order('created_at')
+    setMessages(data || [])
+    setLoading(false)
+  }
+
+  useEffect(() => { if (open) load() }, [open, instancia])
 
   useEffect(() => {
     if (!open) return
@@ -39,19 +41,22 @@ export default function QuickMessages({ instancia, onSelect }) {
     if (adding) setTimeout(() => tituloRef.current?.focus(), 50)
   }, [adding])
 
-  function handleSave() {
+  async function handleSave() {
     if (!titulo.trim() || !mensagem.trim()) return
-    const newMsg = { id: Date.now().toString(), titulo: titulo.trim(), mensagem: mensagem.trim() }
-    const updated = [...messages, newMsg]
-    setMessages(updated)
-    saveMessages(instancia, updated)
+    setSaving(true)
+    const { data } = await supabase.from('quick_messages').insert({
+      instancia, titulo: titulo.trim(), mensagem: mensagem.trim(),
+    }).select().single()
+    if (data) setMessages(prev => [...prev, data])
     setTitulo(''); setMensagem(''); setAdding(false)
+    setSaving(false)
   }
 
-  function handleDelete(id) {
-    const updated = messages.filter(m => m.id !== id)
-    setMessages(updated)
-    saveMessages(instancia, updated)
+  async function handleDelete(id) {
+    setDeletingId(id)
+    await supabase.from('quick_messages').delete().eq('id', id)
+    setMessages(prev => prev.filter(m => m.id !== id))
+    setDeletingId(null)
   }
 
   function handleSelect(msg) {
@@ -89,7 +94,6 @@ export default function QuickMessages({ instancia, onSelect }) {
             zIndex: 9999,
           }}
         >
-          {/* Header */}
           <div style={{
             padding: '12px 16px 10px', borderBottom: '1px solid var(--border)',
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -102,7 +106,6 @@ export default function QuickMessages({ instancia, onSelect }) {
             </div>
             <button
               onClick={() => { setAdding(true); setTitulo(''); setMensagem('') }}
-              title="Nova mensagem rápida"
               style={{
                 display: 'flex', alignItems: 'center', gap: 5,
                 background: '#FFF7ED', border: '1px solid #FED7AA',
@@ -114,7 +117,6 @@ export default function QuickMessages({ instancia, onSelect }) {
             </button>
           </div>
 
-          {/* Formulário de criação */}
           {adding && (
             <div style={{ padding: '12px 16px', borderBottom: '1px solid #FEF3C7', background: '#FFFBEB' }}>
               <input
@@ -142,26 +144,28 @@ export default function QuickMessages({ instancia, onSelect }) {
                 }}>
                   Cancelar
                 </button>
-                <button
-                  onClick={handleSave}
-                  disabled={!titulo.trim() || !mensagem.trim()}
-                  style={{
-                    fontSize: 12, padding: '5px 14px', borderRadius: 7,
-                    border: 'none', background: '#EA580C', color: '#fff',
-                    fontWeight: 700, cursor: 'pointer',
-                    display: 'flex', alignItems: 'center', gap: 5,
-                    opacity: (!titulo.trim() || !mensagem.trim()) ? 0.5 : 1,
-                  }}
-                >
-                  <Check size={11} /> Salvar
+                <button onClick={handleSave} disabled={saving || !titulo.trim() || !mensagem.trim()} style={{
+                  fontSize: 12, padding: '5px 14px', borderRadius: 7,
+                  border: 'none', background: '#EA580C', color: '#fff',
+                  fontWeight: 700, cursor: saving ? 'default' : 'pointer',
+                  display: 'flex', alignItems: 'center', gap: 5,
+                  opacity: (!titulo.trim() || !mensagem.trim()) ? 0.5 : 1,
+                }}>
+                  {saving
+                    ? <><Loader2 size={11} style={{ animation: 'spin 1s linear infinite' }} /> Salvando…</>
+                    : <><Check size={11} /> Salvar</>}
                 </button>
               </div>
             </div>
           )}
 
-          {/* Lista */}
           <div style={{ overflowY: 'auto', flex: 1 }}>
-            {messages.length === 0 && !adding && (
+            {loading && (
+              <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} />
+              </div>
+            )}
+            {!loading && messages.length === 0 && !adding && (
               <div style={{ padding: '28px 16px', textAlign: 'center', color: 'var(--text-muted)' }}>
                 <Zap size={28} strokeWidth={1.2} style={{ margin: '0 auto 8px', display: 'block', opacity: .4 }} />
                 <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>Nenhuma mensagem rápida</div>
@@ -192,6 +196,7 @@ export default function QuickMessages({ instancia, onSelect }) {
                 </div>
                 <button
                   onClick={e => { e.stopPropagation(); handleDelete(msg.id) }}
+                  disabled={deletingId === msg.id}
                   title="Remover"
                   style={{
                     flexShrink: 0, background: 'none', border: 'none', cursor: 'pointer',
@@ -201,7 +206,9 @@ export default function QuickMessages({ instancia, onSelect }) {
                   onMouseEnter={e => e.currentTarget.style.opacity = '1'}
                   onMouseLeave={e => e.currentTarget.style.opacity = '0.4'}
                 >
-                  <Trash2 size={13} />
+                  {deletingId === msg.id
+                    ? <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} />
+                    : <Trash2 size={13} />}
                 </button>
               </div>
             ))}
