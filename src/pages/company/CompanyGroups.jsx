@@ -480,7 +480,7 @@ export default function CompanyGroups() {
         body: JSON.stringify({
           instancia: instance,
           apikey:    apiInstancia,
-          jid:       selected.idgrupo,
+          idgrupo:   selected.idgrupo,
         }),
       })
       const data = await res.json()
