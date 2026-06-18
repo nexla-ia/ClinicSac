@@ -730,7 +730,7 @@ export default function CompanyGroups() {
                               background: '#F5F3FF',
                             }}>
                               <button
-                                onClick={() => navigate(`/painel/conversas?numero=${numero}`)}
+                                onClick={() => navigate(`/painel/conversas?contact=${numero}`)}
                                 style={{
                                   flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
                                   padding: '7px 10px', borderRadius: 8, border: '1px solid #C4B5FD',
