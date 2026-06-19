@@ -1,0 +1,742 @@
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
+import { useAuth } from '../../context/AuthContext'
+import { supabase } from '../../lib/supabase'
+import {
+  Plus, X, Search, Clock, AlertTriangle, Phone, Mail,
+  UserPlus, Flag, Edit2, Trash2, Check, Loader2, ChevronDown,
+  MessageSquare, ArrowRight, Tag, Users, MoreHorizontal,
+  Thermometer, GitMerge, StickyNote, Kanban,
+} from 'lucide-react'
+
+// ─── Design tokens ────────────────────────────────────────────────────────────
+const C = {
+  navy:   '#0F172A', blue:  '#2563EB', blueDim: '#EFF6FF',
+  slate:  '#475569', muted: '#94A3B8', border:  '#E2E8F0',
+  bg:     '#F1F5F9', card:  '#FFFFFF',
+  emerald:'#059669', rose:  '#E11D48',
+}
+
+const TEMP = {
+  frio:   { label: 'Frio',   color: '#0891B2', bg: '#ECFEFF',  dot: '#0891B2', icon: '❄️' },
+  morno:  { label: 'Morno',  color: '#D97706', bg: '#FFFBEB',  dot: '#D97706', icon: '🌤️' },
+  quente: { label: 'Quente', color: '#DC2626', bg: '#FFF1F2',  dot: '#DC2626', icon: '🔥' },
+}
+
+const ORIGENS = ['WhatsApp','Instagram','Google','Facebook','Indicação','TikTok','Site','Convênio','Anúncio','Outro']
+
+const ORIGEM_COLORS = {
+  WhatsApp: '#25D366', Instagram: '#E1306C', Google: '#4285F4',
+  Facebook: '#1877F2', Indicação: '#7C3AED', TikTok: '#000000',
+  Site: '#0891B2', Convênio: '#059669', Anúncio: '#D97706', Outro: '#6B7280',
+}
+
+const DEFAULT_STAGES = [
+  { nome: 'Novo Lead',        cor: '#64748B', posicao: 0, alerta_dias: 3  },
+  { nome: 'Primeiro Contato', cor: '#2563EB', posicao: 1, alerta_dias: 5  },
+  { nome: 'Agendou',          cor: '#7C3AED', posicao: 2, alerta_dias: 7  },
+  { nome: 'Compareceu',       cor: '#0891B2', posicao: 3, alerta_dias: 14 },
+  { nome: 'Retorno',          cor: '#D97706', posicao: 4, alerta_dias: 30 },
+  { nome: 'Fidelizado',       cor: '#059669', posicao: 5, alerta_dias: 90 },
+  { nome: 'Perdido',          cor: '#DC2626', posicao: 6, alerta_dias: null },
+]
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+function daysIn(dateStr) {
+  if (!dateStr) return 0
+  return Math.floor((Date.now() - new Date(dateStr).getTime()) / 86400000)
+}
+function initials(nome, phone) {
+  if (nome) return nome.split(' ').map(w => w[0]).join('').slice(0,2).toUpperCase()
+  return (phone || '??').slice(-2)
+}
+function fmtPhone(p) {
+  if (!p) return ''
+  const d = p.replace(/\D/g, '')
+  if (d.length >= 12) return `+${d.slice(0,2)} (${d.slice(2,4)}) ${d.slice(4,9)}-${d.slice(9,13)}`
+  if (d.length === 11) return `(${d.slice(0,2)}) ${d.slice(2,7)}-${d.slice(7)}`
+  return p
+}
+function relTime(dateStr) {
+  if (!dateStr) return null
+  const d = daysIn(dateStr)
+  if (d === 0) return 'hoje'
+  if (d === 1) return 'ontem'
+  return `${d}d atrás`
+}
+
+// ─── Main ─────────────────────────────────────────────────────────────────────
+export default function CompanyCRM() {
+  const { session } = useAuth()
+  const instance = session?.company?.instance
+
+  const [loading, setLoading]         = useState(true)
+  const [funnels, setFunnels]         = useState([])
+  const [stages, setStages]           = useState([])
+  const [contacts, setContacts]       = useState([])
+  const [interactions, setInteractions] = useState([])
+  const [activeFunnel, setActiveFunnel] = useState(null)
+  const [search, setSearch]           = useState('')
+  const [filterTemp, setFilterTemp]   = useState('todos')
+  const [dragging, setDragging]       = useState(null)
+  const [dragOver, setDragOver]       = useState(null)
+  const [panel, setPanel]             = useState(null)
+  const [panelNote, setPanelNote]     = useState('')
+  const [newModal, setNewModal]       = useState(false)
+  const [newForm, setNewForm]         = useState({ nome:'', phone:'', email:'', origem:'', temperatura:'morno', stage_id:'', observacoes:'' })
+  const [saving, setSaving]           = useState(false)
+  const [confirmDel, setConfirmDel]   = useState(null)
+
+  // ── Load ───────────────────────────────────────────────────────────────────
+  async function load() {
+    if (!instance) return
+    setLoading(true)
+    const [{ data: fn }, { data: st }, { data: ct }] = await Promise.all([
+      supabase.from('crm_funnels').select('*').eq('instancia', instance).order('posicao'),
+      supabase.from('crm_stages').select('*').eq('instancia', instance).order('posicao'),
+      supabase.from('crm_contacts').select('*').eq('instancia', instance).order('created_at', { ascending: false }),
+    ])
+
+    let myFunnels = fn || [], myStages = st || []
+
+    if (myFunnels.length === 0) {
+      const { data: nf } = await supabase.from('crm_funnels')
+        .insert({ instancia: instance, nome: 'Funil Principal', posicao: 0 }).select().single()
+      if (nf) {
+        myFunnels = [nf]
+        const { data: ns } = await supabase.from('crm_stages')
+          .insert(DEFAULT_STAGES.map(s => ({ ...s, funil_id: nf.id, instancia: instance }))).select()
+        if (ns) myStages = ns.sort((a,b) => a.posicao - b.posicao)
+      }
+    }
+
+    setFunnels(myFunnels)
+    setStages(myStages)
+    setContacts(ct || [])
+    setActiveFunnel(prev => prev || myFunnels[0]?.id || null)
+    setLoading(false)
+  }
+
+  async function loadInteractions(phone) {
+    if (!instance || !phone) return
+    const { data } = await supabase.from('crm_interactions')
+      .select('*').eq('instancia', instance).eq('phone', phone)
+      .order('created_at', { ascending: false }).limit(30)
+    setInteractions(data || [])
+  }
+
+  useEffect(() => { load() }, [instance])
+  useEffect(() => { if (panel) loadInteractions(panel.phone) }, [panel?.id])
+
+  // ── Computed ────────────────────────────────────────────────────────────────
+  const funStages = useMemo(
+    () => stages.filter(s => s.funil_id === activeFunnel).sort((a,b) => a.posicao - b.posicao),
+    [stages, activeFunnel]
+  )
+
+  const filteredContacts = useMemo(() => {
+    const q = search.toLowerCase().trim()
+    return contacts.filter(c => {
+      const inFunil = !c.funil_id || c.funil_id === activeFunnel
+      if (!inFunil) return false
+      if (filterTemp !== 'todos' && c.temperatura !== filterTemp) return false
+      if (q && !(c.nome||'').toLowerCase().includes(q) && !(c.phone||'').includes(q) && !(c.email||'').toLowerCase().includes(q)) return false
+      return true
+    })
+  }, [contacts, search, filterTemp, activeFunnel])
+
+  const byStage = useMemo(() => {
+    const map = {}
+    funStages.forEach(s => { map[s.id] = [] })
+    filteredContacts.forEach(c => {
+      const key = (c.stage_id && map[c.stage_id] !== undefined) ? c.stage_id : (funStages[0]?.id || '__none__')
+      if (map[key]) map[key].push(c)
+    })
+    return map
+  }, [filteredContacts, funStages])
+
+  // ── Drag & Drop ─────────────────────────────────────────────────────────────
+  function onDragStart(e, contact) {
+    setDragging({ id: contact.id, fromStage: contact.stage_id })
+    e.dataTransfer.effectAllowed = 'move'
+  }
+  function onDragOver(e, stageId) {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+    setDragOver(stageId)
+  }
+  async function onDrop(e, toStageId) {
+    e.preventDefault()
+    setDragOver(null)
+    if (!dragging || dragging.fromStage === toStageId) { setDragging(null); return }
+
+    const now = new Date().toISOString()
+    setContacts(prev => prev.map(c => c.id === dragging.id
+      ? { ...c, stage_id: toStageId, funil_id: activeFunnel, data_entrada_etapa: now }
+      : c
+    ))
+    const fromStage = stages.find(s => s.id === dragging.fromStage)
+    const toStage   = stages.find(s => s.id === toStageId)
+
+    await supabase.from('crm_contacts').update({ stage_id: toStageId, funil_id: activeFunnel, data_entrada_etapa: now }).eq('id', dragging.id)
+    await supabase.from('crm_interactions').insert({
+      instancia: instance, phone: contacts.find(c=>c.id===dragging.id)?.phone || '',
+      tipo: 'etapa',
+      conteudo: `Movido de "${fromStage?.nome||'Sem etapa'}" → "${toStage?.nome||'Sem etapa'}"`,
+      metadata: { from: dragging.fromStage, to: toStageId },
+      autor_nome: session?.user?.name || session?.user?.email,
+    })
+    setDragging(null)
+    if (panel?.id === dragging.id) setPanel(p => ({ ...p, stage_id: toStageId }))
+  }
+
+  // ── Contact CRUD ────────────────────────────────────────────────────────────
+  async function createContact() {
+    if (!newForm.phone.trim()) return
+    setSaving(true)
+    const { data: nc, error } = await supabase.from('crm_contacts').insert({
+      instancia: instance,
+      phone: newForm.phone.replace(/\D/g,''),
+      nome: newForm.nome.trim() || null,
+      email: newForm.email.trim() || null,
+      origem: newForm.origem || null,
+      temperatura: newForm.temperatura,
+      stage_id: newForm.stage_id || funStages[0]?.id || null,
+      funil_id: activeFunnel,
+      observacoes: newForm.observacoes || null,
+      data_entrada_etapa: new Date().toISOString(),
+    }).select().single()
+    setSaving(false)
+    if (error) { alert('Erro: '+error.message); return }
+    setContacts(p => [nc, ...p])
+    setNewModal(false)
+    setNewForm({ nome:'', phone:'', email:'', origem:'', temperatura:'morno', stage_id:'', observacoes:'' })
+  }
+
+  async function patchContact(id, changes) {
+    await supabase.from('crm_contacts').update(changes).eq('id', id)
+    setContacts(p => p.map(c => c.id===id ? {...c,...changes} : c))
+    if (panel?.id === id) setPanel(p => ({...p,...changes}))
+  }
+
+  async function deleteContact(id) {
+    await supabase.from('crm_contacts').delete().eq('id', id)
+    setContacts(p => p.filter(c => c.id!==id))
+    setConfirmDel(null)
+    if (panel?.id === id) setPanel(null)
+  }
+
+  async function addNote() {
+    if (!panelNote.trim() || !panel) return
+    const row = {
+      instancia: instance, phone: panel.phone, tipo: 'nota',
+      conteudo: panelNote.trim(),
+      autor_nome: session?.user?.name || session?.user?.email,
+    }
+    const { data } = await supabase.from('crm_interactions').insert(row).select().single()
+    if (data) setInteractions(p => [data,...p])
+    setPanelNote('')
+  }
+
+  // ── Render ───────────────────────────────────────────────────────────────────
+  if (loading) return (
+    <div style={{ display:'flex',alignItems:'center',justifyContent:'center',height:'60vh',gap:10,color:C.muted }}>
+      <Loader2 size={20} style={{ animation:'spin 1s linear infinite' }} />
+      <span style={{ fontSize:14 }}>Carregando CRM...</span>
+      <style>{`@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}`}</style>
+    </div>
+  )
+
+  const totalLeads = filteredContacts.length
+  const quentes    = filteredContacts.filter(c => c.temperatura === 'quente').length
+  const staleCount = filteredContacts.filter(c => {
+    const st = stages.find(s => s.id === c.stage_id)
+    if (!st?.alerta_dias) return false
+    return daysIn(c.data_entrada_etapa) > st.alerta_dias
+  }).length
+
+  return (
+    <div style={{ height:'calc(100vh - 64px)', display:'flex', flexDirection:'column', overflow:'hidden', background: C.bg, fontFamily:'"Inter",system-ui,sans-serif' }}>
+      <style>{`
+        @keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+        @keyframes slideIn{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
+        .crm-card{cursor:grab;transition:box-shadow 0.15s,transform 0.15s}
+        .crm-card:hover{box-shadow:0 4px 16px rgba(0,0,0,0.1);transform:translateY(-1px)}
+        .crm-card:active{cursor:grabbing}
+        .crm-col-drop{background:rgba(37,99,235,0.06)!important;border-color:#93C5FD!important}
+        .crm-btn{transition:all 0.15s}
+        .crm-btn:hover{opacity:0.85}
+      `}</style>
+
+      {/* ── Top Bar ── */}
+      <div style={{ background: C.card, borderBottom:`1px solid ${C.border}`, padding:'12px 20px', display:'flex', alignItems:'center', gap:12, flexShrink:0 }}>
+        <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+          <div style={{ width:32,height:32,borderRadius:9,background:C.navy,display:'flex',alignItems:'center',justifyContent:'center' }}>
+            <GitMerge size={15} color="#fff"/>
+          </div>
+          <div>
+            <div style={{ fontWeight:800, fontSize:15, color:C.navy, lineHeight:1 }}>CRM</div>
+            <div style={{ fontSize:10, color:C.muted, marginTop:1 }}>Pipeline de pacientes</div>
+          </div>
+        </div>
+
+        {/* Funil selector */}
+        {funnels.length > 1 && (
+          <div style={{ display:'flex', gap:4, marginLeft:8 }}>
+            {funnels.map(f => (
+              <button key={f.id} onClick={() => setActiveFunnel(f.id)} className="crm-btn" style={{
+                padding:'5px 12px', borderRadius:20, fontSize:11, fontWeight:600, cursor:'pointer',
+                background: activeFunnel===f.id ? C.navy : 'transparent',
+                color: activeFunnel===f.id ? '#fff' : C.slate,
+                border: `1px solid ${activeFunnel===f.id ? C.navy : C.border}`,
+              }}>{f.nome}</button>
+            ))}
+          </div>
+        )}
+
+        {/* Stats strip */}
+        <div style={{ display:'flex', gap:16, marginLeft:8 }}>
+          {[
+            { v: totalLeads, l: 'leads',   c: C.blue },
+            { v: quentes,    l: '🔥 quentes', c: '#DC2626' },
+            { v: staleCount, l: '⚠️ parados', c: '#D97706' },
+          ].map(s => (
+            <div key={s.l} style={{ textAlign:'center' }}>
+              <div style={{ fontSize:16, fontWeight:800, color:s.c, lineHeight:1 }}>{s.v}</div>
+              <div style={{ fontSize:9, color:C.muted, fontWeight:600 }}>{s.l}</div>
+            </div>
+          ))}
+        </div>
+
+        <div style={{ flex:1 }} />
+
+        {/* Search */}
+        <div style={{ position:'relative' }}>
+          <Search size={12} style={{ position:'absolute', left:9, top:'50%', transform:'translateY(-50%)', color:C.muted, pointerEvents:'none' }}/>
+          <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Buscar lead..."
+            style={{ paddingLeft:28, paddingRight:10, height:32, border:`1px solid ${C.border}`, borderRadius:8, fontSize:12, outline:'none', width:180, background:C.card, color:C.navy }}/>
+        </div>
+
+        {/* Temp filter */}
+        <select value={filterTemp} onChange={e=>setFilterTemp(e.target.value)}
+          style={{ height:32, border:`1px solid ${C.border}`, borderRadius:8, fontSize:12, padding:'0 10px', background:C.card, color:C.navy, outline:'none', cursor:'pointer' }}>
+          <option value="todos">Todos</option>
+          {Object.entries(TEMP).map(([k,v]) => <option key={k} value={k}>{v.icon} {v.label}</option>)}
+        </select>
+
+        <button onClick={() => { setNewForm({ nome:'', phone:'', email:'', origem:'', temperatura:'morno', stage_id: funStages[0]?.id||'', observacoes:'' }); setNewModal(true) }}
+          className="crm-btn" style={{ display:'flex', alignItems:'center', gap:6, padding:'0 14px', height:32, borderRadius:8, background:C.navy, color:'#fff', border:'none', cursor:'pointer', fontSize:12, fontWeight:700 }}>
+          <UserPlus size={13}/> Novo Lead
+        </button>
+      </div>
+
+      {/* ── Pipeline Board ── */}
+      <div style={{ flex:1, overflowX:'auto', overflowY:'hidden', display:'flex', gap:12, padding:'16px 20px', alignItems:'flex-start' }}>
+        {funStages.map(stage => {
+          const cards = byStage[stage.id] || []
+          const isOver = dragOver === stage.id
+          const stageTotal = cards.length
+
+          return (
+            <div key={stage.id}
+              onDragOver={e => onDragOver(e, stage.id)}
+              onDragLeave={() => setDragOver(null)}
+              onDrop={e => onDrop(e, stage.id)}
+              className={isOver ? 'crm-col-drop' : ''}
+              style={{
+                width: 272, flexShrink:0, display:'flex', flexDirection:'column',
+                background: isOver ? 'rgba(37,99,235,0.05)' : C.card,
+                border: `1.5px solid ${isOver ? '#93C5FD' : C.border}`,
+                borderRadius:14, overflow:'hidden', maxHeight:'100%', transition:'all 0.15s',
+              }}>
+
+              {/* Column header */}
+              <div style={{ padding:'12px 14px 10px', borderBottom:`1px solid ${C.border}`, background:C.card, flexShrink:0 }}>
+                <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                  <div style={{ width:10,height:10,borderRadius:'50%',background:stage.cor,flexShrink:0 }}/>
+                  <span style={{ fontWeight:700, fontSize:12.5, color:C.navy, flex:1 }}>{stage.nome}</span>
+                  <span style={{ fontSize:11, fontWeight:700, color:'#fff', background:stage.cor, borderRadius:20, padding:'1px 8px', minWidth:20, textAlign:'center' }}>{stageTotal}</span>
+                </div>
+                {stage.alerta_dias && (
+                  <div style={{ fontSize:9.5, color:C.muted, marginTop:4, paddingLeft:18 }}>alerta após {stage.alerta_dias}d</div>
+                )}
+              </div>
+
+              {/* Cards */}
+              <div style={{ flex:1, overflowY:'auto', padding:'8px', display:'flex', flexDirection:'column', gap:7 }}>
+                {cards.map(contact => {
+                  const days = daysIn(contact.data_entrada_etapa)
+                  const stale = stage.alerta_dias && days > stage.alerta_dias
+                  const temp = TEMP[contact.temperatura] || TEMP.frio
+                  const initStr = initials(contact.nome, contact.phone)
+                  const origemColor = ORIGEM_COLORS[contact.origem] || '#6B7280'
+
+                  return (
+                    <div key={contact.id}
+                      draggable
+                      onDragStart={e => onDragStart(e, contact)}
+                      onDragEnd={() => setDragging(null)}
+                      onClick={() => setPanel(contact)}
+                      className="crm-card"
+                      style={{
+                        background: stale ? '#FFFBEB' : C.card,
+                        border: `1px solid ${stale ? '#FDE68A' : C.border}`,
+                        borderRadius:10, padding:'10px 12px',
+                        opacity: dragging?.id === contact.id ? 0.4 : 1,
+                      }}>
+
+                      <div style={{ display:'flex', alignItems:'flex-start', gap:9 }}>
+                        {/* Avatar */}
+                        <div style={{
+                          width:34,height:34,borderRadius:'50%',flexShrink:0,
+                          background:`linear-gradient(135deg, ${stage.cor}22, ${stage.cor}44)`,
+                          border:`1.5px solid ${stage.cor}66`,
+                          display:'flex',alignItems:'center',justifyContent:'center',
+                          fontSize:11,fontWeight:800,color:stage.cor,
+                        }}>{initStr}</div>
+
+                        <div style={{ flex:1, minWidth:0 }}>
+                          <div style={{ fontWeight:700, fontSize:12.5, color:C.navy, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                            {contact.nome || fmtPhone(contact.phone) || 'Sem nome'}
+                          </div>
+                          {contact.nome && (
+                            <div style={{ fontSize:10.5, color:C.muted, marginTop:1 }}>{fmtPhone(contact.phone)}</div>
+                          )}
+                        </div>
+
+                        {/* Temperature dot */}
+                        <div title={temp.label} style={{ width:8,height:8,borderRadius:'50%',background:temp.dot,flexShrink:0,marginTop:3 }}/>
+                      </div>
+
+                      {/* Tags row */}
+                      <div style={{ display:'flex', gap:5, marginTop:8, flexWrap:'wrap', alignItems:'center' }}>
+                        {contact.origem && (
+                          <span style={{ fontSize:9.5, fontWeight:700, padding:'2px 7px', borderRadius:20, background:origemColor+'18', color:origemColor }}>
+                            {contact.origem}
+                          </span>
+                        )}
+                        {(contact.tags||[]).slice(0,2).map(t => (
+                          <span key={t} style={{ fontSize:9.5, padding:'2px 6px', borderRadius:20, background:'#F1F5F9', color:C.slate }}>{t}</span>
+                        ))}
+                      </div>
+
+                      {/* Footer */}
+                      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginTop:8 }}>
+                        <div style={{ display:'flex', alignItems:'center', gap:4, fontSize:10, color: stale ? '#D97706' : C.muted }}>
+                          {stale ? <AlertTriangle size={10} color="#D97706"/> : <Clock size={10}/>}
+                          {days === 0 ? 'hoje' : `${days}d nesta etapa`}
+                        </div>
+                        {contact.data_ult_contato && (
+                          <div style={{ fontSize:9.5, color:C.muted }}>
+                            último: {relTime(contact.data_ult_contato)}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })}
+
+                {/* Add card button */}
+                <button onClick={() => { setNewForm(p => ({...p, stage_id: stage.id})); setNewModal(true) }}
+                  style={{ display:'flex', alignItems:'center', gap:6, padding:'7px 10px', border:`1.5px dashed ${C.border}`, borderRadius:9, background:'transparent', color:C.muted, cursor:'pointer', fontSize:11, width:'100%', transition:'all 0.15s' }}
+                  onMouseEnter={e=>{e.currentTarget.style.borderColor=stage.cor;e.currentTarget.style.color=stage.cor}}
+                  onMouseLeave={e=>{e.currentTarget.style.borderColor=C.border;e.currentTarget.style.color=C.muted}}>
+                  <Plus size={12}/> Adicionar lead
+                </button>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+
+      {/* ── Side Panel ── */}
+      {panel && (() => {
+        const c = contacts.find(x => x.id === panel.id) || panel
+        const stage = stages.find(s => s.id === c.stage_id)
+        const temp = TEMP[c.temperatura] || TEMP.frio
+        const [tagInput, setTagInput] = [useRef(''), null]
+
+        return (
+          <div style={{
+            position:'fixed', top:0, right:0, bottom:0, width:400,
+            background:C.card, borderLeft:`1px solid ${C.border}`,
+            display:'flex', flexDirection:'column', zIndex:50,
+            animation:'slideIn 0.2s ease',
+            boxShadow:'-8px 0 32px rgba(0,0,0,0.08)',
+          }}>
+
+            {/* Panel header */}
+            <div style={{ padding:'16px 20px', borderBottom:`1px solid ${C.border}`, display:'flex', alignItems:'center', gap:12, flexShrink:0 }}>
+              <div style={{
+                width:44,height:44,borderRadius:'50%',
+                background:`linear-gradient(135deg,${stage?.cor||'#6B7280'}22,${stage?.cor||'#6B7280'}55)`,
+                border:`2px solid ${stage?.cor||'#6B7280'}66`,
+                display:'flex',alignItems:'center',justifyContent:'center',
+                fontSize:15,fontWeight:800,color:stage?.cor||C.slate,flexShrink:0,
+              }}>{initials(c.nome, c.phone)}</div>
+
+              <div style={{ flex:1, minWidth:0 }}>
+                <div style={{ fontWeight:800, fontSize:15, color:C.navy, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                  {c.nome || fmtPhone(c.phone) || 'Sem nome'}
+                </div>
+                {c.nome && <div style={{ fontSize:11.5, color:C.muted }}>{fmtPhone(c.phone)}</div>}
+              </div>
+
+              <button onClick={() => setPanel(null)} style={{ width:28,height:28,borderRadius:8,border:`1px solid ${C.border}`,background:'none',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',color:C.muted }}>
+                <X size={14}/>
+              </button>
+            </div>
+
+            {/* Panel body */}
+            <div style={{ flex:1, overflowY:'auto', padding:'16px 20px', display:'flex', flexDirection:'column', gap:16 }}>
+
+              {/* Quick info */}
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
+                <div style={{ background:C.bg, borderRadius:10, padding:'10px 12px' }}>
+                  <div style={{ fontSize:9.5,fontWeight:700,color:C.muted,textTransform:'uppercase',letterSpacing:'0.06em',marginBottom:4 }}>Temperatura</div>
+                  <div style={{ display:'flex', gap:4 }}>
+                    {Object.entries(TEMP).map(([k,v]) => (
+                      <button key={k} onClick={() => patchContact(c.id, { temperatura:k })}
+                        style={{ flex:1, padding:'4px 2px', borderRadius:6, border:`1.5px solid ${c.temperatura===k ? v.color : C.border}`, background:c.temperatura===k ? v.bg : 'transparent', cursor:'pointer', fontSize:11, fontWeight:700, color:c.temperatura===k ? v.color : C.muted, transition:'all 0.15s' }}>
+                        {v.icon}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div style={{ background:C.bg, borderRadius:10, padding:'10px 12px' }}>
+                  <div style={{ fontSize:9.5,fontWeight:700,color:C.muted,textTransform:'uppercase',letterSpacing:'0.06em',marginBottom:4 }}>Etapa</div>
+                  <select value={c.stage_id||''} onChange={e => patchContact(c.id, { stage_id:e.target.value, data_entrada_etapa: new Date().toISOString() })}
+                    style={{ width:'100%', border:'none', background:'transparent', fontSize:12, fontWeight:700, color:stage?.cor||C.navy, cursor:'pointer', outline:'none' }}>
+                    {funStages.map(s => <option key={s.id} value={s.id}>{s.nome}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              {/* Editable fields */}
+              <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+                <PanelField label="Nome" value={c.nome||''} onSave={v => patchContact(c.id,{nome:v})} placeholder="Nome do paciente"/>
+                <PanelField label="Telefone" value={c.phone||''} onSave={v => patchContact(c.id,{phone:v.replace(/\D/g,'')})} placeholder="55119..."/>
+                <PanelField label="E-mail" value={c.email||''} onSave={v => patchContact(c.id,{email:v})} placeholder="email@exemplo.com"/>
+
+                <div>
+                  <div style={{ fontSize:10,fontWeight:700,color:C.muted,textTransform:'uppercase',letterSpacing:'0.06em',marginBottom:5 }}>Origem</div>
+                  <select value={c.origem||''} onChange={e => patchContact(c.id,{origem:e.target.value})}
+                    style={{ width:'100%',border:`1px solid ${C.border}`,borderRadius:7,padding:'6px 10px',fontSize:12,color:C.navy,background:C.card,outline:'none',cursor:'pointer' }}>
+                    <option value="">— selecionar —</option>
+                    {ORIGENS.map(o => <option key={o} value={o}>{o}</option>)}
+                  </select>
+                </div>
+
+                <div>
+                  <div style={{ fontSize:10,fontWeight:700,color:C.muted,textTransform:'uppercase',letterSpacing:'0.06em',marginBottom:5 }}>Tags</div>
+                  <div style={{ display:'flex', flexWrap:'wrap', gap:5, marginBottom:5 }}>
+                    {(c.tags||[]).map(t => (
+                      <span key={t} style={{ display:'flex',alignItems:'center',gap:4,fontSize:10,padding:'3px 8px',borderRadius:20,background:'#F1F5F9',color:C.slate,border:`1px solid ${C.border}` }}>
+                        {t}
+                        <button onClick={() => patchContact(c.id,{tags:(c.tags||[]).filter(x=>x!==t)})} style={{ border:'none',background:'none',cursor:'pointer',color:C.muted,padding:0,lineHeight:1 }}>×</button>
+                      </span>
+                    ))}
+                  </div>
+                  <form onSubmit={e=>{e.preventDefault();const v=e.target.tag.value.trim();if(v&&!(c.tags||[]).includes(v)){patchContact(c.id,{tags:[...(c.tags||[]),v]});e.target.tag.value=''}}}>
+                    <input name="tag" placeholder="+ adicionar tag" style={{ width:'100%',border:`1px solid ${C.border}`,borderRadius:7,padding:'6px 10px',fontSize:11,color:C.navy,background:C.card,outline:'none' }}/>
+                  </form>
+                </div>
+
+                <div>
+                  <div style={{ fontSize:10,fontWeight:700,color:C.muted,textTransform:'uppercase',letterSpacing:'0.06em',marginBottom:5 }}>Observações</div>
+                  <textarea value={c.observacoes||''} onChange={e => patchContact(c.id,{observacoes:e.target.value})}
+                    placeholder="Anotações sobre este lead..." rows={3}
+                    style={{ width:'100%',border:`1px solid ${C.border}`,borderRadius:7,padding:'7px 10px',fontSize:12,color:C.navy,background:C.card,outline:'none',resize:'vertical',boxSizing:'border-box' }}/>
+                </div>
+
+                {/* Motivo de perda (só se estiver na etapa "Perdido") */}
+                {stage?.nome?.toLowerCase().includes('perdido') && (
+                  <div>
+                    <div style={{ fontSize:10,fontWeight:700,color:'#DC2626',textTransform:'uppercase',letterSpacing:'0.06em',marginBottom:5 }}>Motivo de perda</div>
+                    <select value={c.motivo_perda||''} onChange={e=>patchContact(c.id,{motivo_perda:e.target.value})}
+                      style={{ width:'100%',border:`1px solid #FECACA`,borderRadius:7,padding:'6px 10px',fontSize:12,color:'#DC2626',background:'#FFF1F2',outline:'none',cursor:'pointer' }}>
+                      <option value="">— selecionar —</option>
+                      {['Preço','Não respondeu','Concorrência','Sem interesse','Sem encaixe na agenda','Outro'].map(m=><option key={m} value={m}>{m}</option>)}
+                    </select>
+                  </div>
+                )}
+              </div>
+
+              {/* Add note */}
+              <div>
+                <div style={{ fontSize:10,fontWeight:700,color:C.muted,textTransform:'uppercase',letterSpacing:'0.06em',marginBottom:8 }}>Adicionar nota</div>
+                <div style={{ display:'flex', gap:7 }}>
+                  <textarea value={panelNote} onChange={e=>setPanelNote(e.target.value)} placeholder="Nota rápida..." rows={2}
+                    style={{ flex:1,border:`1px solid ${C.border}`,borderRadius:8,padding:'7px 10px',fontSize:12,color:C.navy,background:C.card,outline:'none',resize:'none' }}/>
+                  <button onClick={addNote} disabled={!panelNote.trim()}
+                    style={{ width:36,height:36,borderRadius:8,background:C.navy,color:'#fff',border:'none',cursor:panelNote.trim()?'pointer':'not-allowed',display:'flex',alignItems:'center',justifyContent:'center',alignSelf:'flex-end',opacity:panelNote.trim()?1:0.4 }}>
+                    <Check size={14}/>
+                  </button>
+                </div>
+              </div>
+
+              {/* Timeline */}
+              {interactions.length > 0 && (
+                <div>
+                  <div style={{ fontSize:10,fontWeight:700,color:C.muted,textTransform:'uppercase',letterSpacing:'0.06em',marginBottom:10 }}>Histórico</div>
+                  <div style={{ display:'flex',flexDirection:'column',gap:0,position:'relative' }}>
+                    <div style={{ position:'absolute',left:11,top:0,bottom:0,width:1,background:C.border }}/>
+                    {interactions.map((ix,i) => {
+                      const TIPO_META = {
+                        nota:       { icon: StickyNote,   color: '#7C3AED', bg: '#F5F3FF' },
+                        etapa:      { icon: ArrowRight,   color: '#2563EB', bg: '#EFF6FF' },
+                        mensagem:   { icon: MessageSquare, color: '#059669', bg: '#ECFDF5' },
+                        agendamento:{ icon: Flag,          color: '#D97706', bg: '#FFFBEB' },
+                        tarefa:     { icon: Check,         color: '#0891B2', bg: '#ECFEFF' },
+                      }
+                      const meta = TIPO_META[ix.tipo] || TIPO_META.nota
+                      const Icon = meta.icon
+                      return (
+                        <div key={ix.id} style={{ display:'flex',gap:12,marginBottom:12,position:'relative' }}>
+                          <div style={{ width:22,height:22,borderRadius:'50%',background:meta.bg,border:`1.5px solid ${meta.color}33`,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,zIndex:1 }}>
+                            <Icon size={10} color={meta.color}/>
+                          </div>
+                          <div style={{ flex:1,paddingTop:2 }}>
+                            <div style={{ fontSize:12,color:C.navy,lineHeight:1.4 }}>{ix.conteudo}</div>
+                            <div style={{ fontSize:10,color:C.muted,marginTop:3 }}>
+                              {ix.autor_nome && <span>{ix.autor_nome} · </span>}
+                              {new Date(ix.created_at).toLocaleDateString('pt-BR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Panel footer */}
+            <div style={{ padding:'12px 20px', borderTop:`1px solid ${C.border}`, display:'flex', gap:8, flexShrink:0 }}>
+              <button onClick={() => setConfirmDel(c)} style={{ display:'flex',alignItems:'center',gap:5,padding:'7px 12px',borderRadius:8,border:`1px solid #FECACA`,background:'#FFF1F2',color:'#DC2626',cursor:'pointer',fontSize:12,fontWeight:600 }}>
+                <Trash2 size={12}/> Remover
+              </button>
+              <div style={{ flex:1 }}/>
+              <a href={`https://wa.me/${c.phone}`} target="_blank" rel="noopener noreferrer"
+                style={{ display:'flex',alignItems:'center',gap:5,padding:'7px 14px',borderRadius:8,border:`1px solid #BBF7D0`,background:'#ECFDF5',color:'#059669',fontSize:12,fontWeight:700,textDecoration:'none' }}>
+                <Phone size={12}/> WhatsApp
+              </a>
+            </div>
+          </div>
+        )
+      })()}
+
+      {/* ── New Lead Modal ── */}
+      {newModal && (
+        <div style={{ position:'fixed',inset:0,background:'rgba(0,0,0,0.35)',zIndex:100,display:'flex',alignItems:'center',justifyContent:'center' }}
+          onClick={e=>{if(e.target===e.currentTarget)setNewModal(false)}}>
+          <div style={{ background:C.card,borderRadius:16,padding:'24px',width:440,boxShadow:'0 20px 60px rgba(0,0,0,0.2)' }}>
+            <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:20 }}>
+              <div style={{ fontWeight:800,fontSize:16,color:C.navy }}>Novo Lead</div>
+              <button onClick={()=>setNewModal(false)} style={{ width:28,height:28,borderRadius:7,border:`1px solid ${C.border}`,background:'none',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',color:C.muted }}><X size={14}/></button>
+            </div>
+
+            <div style={{ display:'flex',flexDirection:'column',gap:12 }}>
+              {[
+                { label:'Nome',     key:'nome',     placeholder:'Nome do paciente', required:false },
+                { label:'Telefone', key:'phone',    placeholder:'55 11 9...',       required:true  },
+                { label:'E-mail',   key:'email',    placeholder:'email@...',        required:false },
+              ].map(f => (
+                <div key={f.key}>
+                  <label style={{ fontSize:10,fontWeight:700,color:C.muted,textTransform:'uppercase',letterSpacing:'0.06em',display:'block',marginBottom:4 }}>
+                    {f.label}{f.required&&<span style={{color:'#DC2626'}}>*</span>}
+                  </label>
+                  <input value={newForm[f.key]} onChange={e=>setNewForm(p=>({...p,[f.key]:e.target.value}))}
+                    placeholder={f.placeholder}
+                    style={{ width:'100%',border:`1px solid ${C.border}`,borderRadius:8,padding:'8px 10px',fontSize:13,color:C.navy,background:C.card,outline:'none',boxSizing:'border-box' }}/>
+                </div>
+              ))}
+
+              <div style={{ display:'grid',gridTemplateColumns:'1fr 1fr',gap:10 }}>
+                <div>
+                  <label style={{ fontSize:10,fontWeight:700,color:C.muted,textTransform:'uppercase',letterSpacing:'0.06em',display:'block',marginBottom:4 }}>Origem</label>
+                  <select value={newForm.origem} onChange={e=>setNewForm(p=>({...p,origem:e.target.value}))}
+                    style={{ width:'100%',border:`1px solid ${C.border}`,borderRadius:8,padding:'8px 10px',fontSize:13,color:C.navy,background:C.card,outline:'none',cursor:'pointer',boxSizing:'border-box' }}>
+                    <option value="">— selecionar —</option>
+                    {ORIGENS.map(o=><option key={o} value={o}>{o}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label style={{ fontSize:10,fontWeight:700,color:C.muted,textTransform:'uppercase',letterSpacing:'0.06em',display:'block',marginBottom:4 }}>Temperatura</label>
+                  <select value={newForm.temperatura} onChange={e=>setNewForm(p=>({...p,temperatura:e.target.value}))}
+                    style={{ width:'100%',border:`1px solid ${C.border}`,borderRadius:8,padding:'8px 10px',fontSize:13,color:C.navy,background:C.card,outline:'none',cursor:'pointer',boxSizing:'border-box' }}>
+                    {Object.entries(TEMP).map(([k,v])=><option key={k} value={k}>{v.icon} {v.label}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label style={{ fontSize:10,fontWeight:700,color:C.muted,textTransform:'uppercase',letterSpacing:'0.06em',display:'block',marginBottom:4 }}>Etapa inicial</label>
+                <select value={newForm.stage_id} onChange={e=>setNewForm(p=>({...p,stage_id:e.target.value}))}
+                  style={{ width:'100%',border:`1px solid ${C.border}`,borderRadius:8,padding:'8px 10px',fontSize:13,color:C.navy,background:C.card,outline:'none',cursor:'pointer',boxSizing:'border-box' }}>
+                  {funStages.map(s=><option key={s.id} value={s.id}>{s.nome}</option>)}
+                </select>
+              </div>
+            </div>
+
+            <div style={{ display:'flex',gap:8,marginTop:20,justifyContent:'flex-end' }}>
+              <button onClick={()=>setNewModal(false)} style={{ padding:'8px 16px',borderRadius:8,border:`1px solid ${C.border}`,background:'none',cursor:'pointer',fontSize:13,color:C.slate }}>Cancelar</button>
+              <button onClick={createContact} disabled={!newForm.phone.trim()||saving}
+                style={{ display:'flex',alignItems:'center',gap:6,padding:'8px 20px',borderRadius:8,background:C.navy,color:'#fff',border:'none',cursor:newForm.phone.trim()?'pointer':'not-allowed',fontSize:13,fontWeight:700,opacity:newForm.phone.trim()?1:0.5 }}>
+                {saving ? <Loader2 size={13} style={{animation:'spin 1s linear infinite'}}/> : <UserPlus size={13}/>}
+                Adicionar Lead
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Confirm Delete ── */}
+      {confirmDel && (
+        <div style={{ position:'fixed',inset:0,background:'rgba(0,0,0,0.35)',zIndex:200,display:'flex',alignItems:'center',justifyContent:'center' }}>
+          <div style={{ background:C.card,borderRadius:14,padding:'24px',width:360,boxShadow:'0 20px 60px rgba(0,0,0,0.2)' }}>
+            <div style={{ fontWeight:800,fontSize:15,color:C.navy,marginBottom:8 }}>Remover lead?</div>
+            <div style={{ fontSize:13,color:C.muted,marginBottom:20 }}>
+              Isso remove <strong>{confirmDel.nome||fmtPhone(confirmDel.phone)}</strong> do CRM. Não pode ser desfeito.
+            </div>
+            <div style={{ display:'flex',gap:8,justifyContent:'flex-end' }}>
+              <button onClick={()=>setConfirmDel(null)} style={{ padding:'8px 16px',borderRadius:8,border:`1px solid ${C.border}`,background:'none',cursor:'pointer',fontSize:13 }}>Cancelar</button>
+              <button onClick={()=>deleteContact(confirmDel.id)} style={{ padding:'8px 16px',borderRadius:8,background:'#DC2626',color:'#fff',border:'none',cursor:'pointer',fontSize:13,fontWeight:700 }}>Remover</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── PanelField — editable inline ──────────────────────────────────────────────
+function PanelField({ label, value, onSave, placeholder }) {
+  const [editing, setEditing] = useState(false)
+  const [val, setVal]         = useState(value)
+  const inputRef              = useRef(null)
+
+  useEffect(() => { setVal(value) }, [value])
+  useEffect(() => { if (editing) inputRef.current?.focus() }, [editing])
+
+  function commit() {
+    setEditing(false)
+    if (val.trim() !== value) onSave(val.trim())
+  }
+
+  return (
+    <div>
+      <div style={{ fontSize:10,fontWeight:700,color:'#94A3B8',textTransform:'uppercase',letterSpacing:'0.06em',marginBottom:4 }}>{label}</div>
+      {editing
+        ? <input ref={inputRef} value={val} onChange={e=>setVal(e.target.value)}
+            onBlur={commit} onKeyDown={e=>{if(e.key==='Enter')commit();if(e.key==='Escape'){setVal(value);setEditing(false)}}}
+            style={{ width:'100%',border:`1px solid #93C5FD`,borderRadius:7,padding:'6px 10px',fontSize:12,color:'#0F172A',background:'#EFF6FF',outline:'none',boxSizing:'border-box' }}/>
+        : <div onClick={()=>setEditing(true)} style={{ padding:'6px 10px',borderRadius:7,border:`1px solid transparent`,fontSize:12,color:val?'#0F172A':'#94A3B8',cursor:'text',transition:'all 0.1s' }}
+            onMouseEnter={e=>{e.currentTarget.style.border=`1px solid #E2E8F0`;e.currentTarget.style.background='#F8FAFC'}}
+            onMouseLeave={e=>{e.currentTarget.style.border='1px solid transparent';e.currentTarget.style.background='transparent'}}>
+            {val || <span style={{color:'#94A3B8',fontStyle:'italic'}}>{placeholder}</span>}
+          </div>
+      }
+    </div>
+  )
+}
