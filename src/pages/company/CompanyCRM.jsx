@@ -76,6 +76,9 @@ export default function CompanyCRM() {
   const [panelTimeline, setPanelTimeline] = useState([])
   const [panelLoading, setPanelLoading]  = useState(false)
   const [users, setUsers]               = useState([])
+  const [kanbanCols, setKanbanCols]     = useState([])
+  const [kanbanModal, setKanbanModal]   = useState(null)
+  const [savingKanban, setSavingKanban] = useState(false)
   const [activeFunnel, setActiveFunnel] = useState(null)
   const [search, setSearch]           = useState('')
   const [filterTemp, setFilterTemp]   = useState('todos')
@@ -92,11 +95,13 @@ export default function CompanyCRM() {
   async function load() {
     if (!instance) return
     setLoading(true)
-    const [{ data: fn }, { data: st }, { data: ct }] = await Promise.all([
+    const [{ data: fn }, { data: st }, { data: ct }, { data: kc }] = await Promise.all([
       supabase.from('crm_funnels').select('*').eq('instancia', instance).order('posicao'),
       supabase.from('crm_stages').select('*').eq('instancia', instance).order('posicao'),
       supabase.from('crm_contacts').select('*').eq('instancia', instance).order('created_at', { ascending: false }),
+      supabase.from('kanban_columns').select('id,name,color').eq('instancia', instance).order('position'),
     ])
+    if (kc) setKanbanCols(kc)
 
     let myFunnels = fn || [], myStages = st || []
 
@@ -131,6 +136,7 @@ export default function CompanyCRM() {
       { data: appts },
       { data: finTx },
       { data: usrs  },
+      { data: kCards },
     ] = await Promise.all([
       supabase.from('crm_interactions').select('*')
         .eq('instancia', instance).eq('phone', phone)
@@ -148,6 +154,10 @@ export default function CompanyCRM() {
         .eq('instancia', instance)
         .order('vencimento', { ascending: false }).limit(50),
       supabase.from('users').select('id,name,email').eq('company_id', session?.company?.id),
+      supabase.from('kanban_cards')
+        .select('id,title,description,priority,due_date,column_id,assigned_user_name,created_at')
+        .eq('crm_contact_id', contact.id)
+        .order('created_at', { ascending: false }),
     ])
 
     if (usrs) setUsers(usrs)
@@ -165,6 +175,7 @@ export default function CompanyCRM() {
       agendamento:  { label:'Agendamento',   color:'#D97706', bg:'#FFFBEB' },
       financeiro:   { label:'Financeiro',    color:'#0891B2', bg:'#ECFEFF' },
       tarefa:       { label:'Tarefa',        color:'#6B7280', bg:'#F1F5F9' },
+      kanban:       { label:'Kanban',        color:'#7C3AED', bg:'#F3E8FF' },
     }
 
     const APPT_STATUS = { agendado:'Agendado', confirmado:'Confirmado', concluido:'Concluído', faltou:'Faltou', cancelado:'Cancelado' }
@@ -193,10 +204,69 @@ export default function CompanyCRM() {
         fintipo: t.tipo,
         meta: TYPE_META.financeiro,
       })),
+      ...(kCards||[]).map(k => {
+        const col = kanbanCols.find(c => c.id === k.column_id)
+        const PRIO = { baixa:'#6B7280', normal:'#2563EB', alta:'#D97706', urgente:'#DC2626' }
+        return {
+          id:`kb-${k.id}`, date: k.created_at, source:'kanban', tipo:'kanban',
+          conteudo: k.title,
+          kbPrio: k.priority,
+          kbPrioColor: PRIO[k.priority]||PRIO.normal,
+          kbCol: col?.name || 'Kanban',
+          kbColColor: col?.color || '#6B7280',
+          kbDue: k.due_date,
+          kbAssigned: k.assigned_user_name,
+          kbDesc: k.description,
+          kbId: k.id,
+          meta: TYPE_META.kanban,
+        }
+      }),
     ].sort((a,b) => new Date(b.date) - new Date(a.date))
 
     setPanelTimeline(timeline)
     setPanelLoading(false)
+  }
+
+  async function createKanbanCard() {
+    if (!kanbanModal || !panel) return
+    if (!kanbanModal.title?.trim()) return
+    setSavingKanban(true)
+    const col = kanbanCols.find(c => c.id === kanbanModal.column_id) || kanbanCols[0]
+    const { data, error } = await supabase.from('kanban_cards').insert({
+      instancia: instance,
+      column_id: col?.id,
+      crm_contact_id: panel.id,
+      contact_nome: panel.nome || panel.phone,
+      title: kanbanModal.title.trim(),
+      description: kanbanModal.description?.trim() || null,
+      due_date: kanbanModal.due_date || null,
+      priority: kanbanModal.priority || 'normal',
+      assigned_user_id: kanbanModal.assigned_user_id || null,
+      assigned_user_name: kanbanModal.assigned_user_name || null,
+      position: 9999,
+      created_by_email: session?.user?.email,
+    }).select().single()
+    setSavingKanban(false)
+    if (error) { alert('Erro ao criar tarefa: ' + error.message); return }
+    // Adiciona à timeline otimisticamente
+    const PRIO = { baixa:'#6B7280', normal:'#2563EB', alta:'#D97706', urgente:'#DC2626' }
+    const entry = {
+      id:`kb-${data.id}`, date: data.created_at, source:'kanban', tipo:'kanban',
+      conteudo: data.title,
+      kbPrio: data.priority, kbPrioColor: PRIO[data.priority]||PRIO.normal,
+      kbCol: col?.name||'Kanban', kbColColor: col?.color||'#6B7280',
+      kbDue: data.due_date, kbAssigned: data.assigned_user_name,
+      kbDesc: data.description, kbId: data.id,
+      meta: { label:'Kanban', color:'#7C3AED', bg:'#F3E8FF' },
+    }
+    setPanelTimeline(p => [entry, ...p])
+    // Loga no histórico CRM
+    await supabase.from('crm_interactions').insert({
+      instancia: instance, phone: cleanNum(panel.phone), tipo:'tarefa',
+      conteudo: `Tarefa criada no Kanban: ${data.title}`,
+      autor_nome: session?.user?.name || session?.user?.email,
+    })
+    setKanbanModal(null)
   }
 
   useEffect(() => { load() }, [instance])
@@ -687,6 +757,7 @@ export default function CompanyCRM() {
                     { src:'whatsapp',   label:'WhatsApp',     color:'#059669' },
                     { src:'agenda',     label:'Agenda',       color:'#D97706' },
                     { src:'financeiro', label:'Financeiro',   color:'#0891B2' },
+                    { src:'kanban',     label:'Kanban',       color:'#7C3AED' },
                   ].map(p => {
                     const cnt = panelTimeline.filter(t => t.source === p.src).length
                     if (!cnt) return null
@@ -710,6 +781,7 @@ export default function CompanyCRM() {
                       whatsapp:   MessageSquare,
                       agenda:     Flag,
                       financeiro: ev.fintipo === 'receita' ? ArrowRight : ArrowRight,
+                      kanban:     Kanban,
                     }
                     const Icon = SOURCE_ICON[ev.source] || StickyNote
                     const m = ev.meta
@@ -719,6 +791,7 @@ export default function CompanyCRM() {
                     }
                     const isMsg = ev.source === 'whatsapp'
                     const msgBubble = isMsg && ev.subtype === 'cliente'
+                    const isKb = ev.source === 'kanban'
 
                     return (
                       <div key={ev.id} style={{ display:'flex',gap:10,marginBottom:10,position:'relative' }}>
@@ -726,7 +799,23 @@ export default function CompanyCRM() {
                           <Icon size={10} color={m.color}/>
                         </div>
                         <div style={{ flex:1,minWidth:0,paddingTop:0 }}>
-                          {isMsg ? (
+                          {isKb ? (
+                            <div style={{ background:'#FAF5FF',border:'1px solid #E9D5FF',borderRadius:8,padding:'8px 10px' }}>
+                              <div style={{ display:'flex',alignItems:'center',gap:6,marginBottom:4,flexWrap:'wrap' }}>
+                                <span style={{ fontSize:11,fontWeight:700,color:C.navy }}>{ev.conteudo}</span>
+                                <span style={{ fontSize:9.5,padding:'1px 6px',borderRadius:10,background:ev.kbColColor+'20',color:ev.kbColColor,fontWeight:700,border:`1px solid ${ev.kbColColor}40` }}>{ev.kbCol}</span>
+                                <span style={{ fontSize:9.5,padding:'1px 6px',borderRadius:10,background:ev.kbPrioColor+'15',color:ev.kbPrioColor,fontWeight:700 }}>
+                                  {ev.kbPrio==='urgente'?'🔴':ev.kbPrio==='alta'?'🟡':ev.kbPrio==='normal'?'🔵':'⚪'} {ev.kbPrio}
+                                </span>
+                              </div>
+                              {ev.kbDesc && <div style={{ fontSize:11,color:C.slate,marginBottom:4 }}>{ev.kbDesc}</div>}
+                              <div style={{ fontSize:9.5,color:C.muted,display:'flex',gap:10,flexWrap:'wrap' }}>
+                                {ev.kbDue && <span>Prazo: {new Date(ev.kbDue+'T12:00:00').toLocaleDateString('pt-BR')}</span>}
+                                {ev.kbAssigned && <span>Responsável: {ev.kbAssigned}</span>}
+                                <span>{fmtDate(ev.date)}</span>
+                              </div>
+                            </div>
+                          ) : isMsg ? (
                             <div style={{
                               background: msgBubble ? '#ECFDF5' : '#EFF6FF',
                               border:`1px solid ${msgBubble ? '#A7F3D0' : '#BFDBFE'}`,
@@ -759,9 +848,13 @@ export default function CompanyCRM() {
             </div>
 
             {/* Panel footer */}
-            <div style={{ padding:'12px 20px', borderTop:`1px solid ${C.border}`, display:'flex', gap:8, flexShrink:0 }}>
+            <div style={{ padding:'12px 20px', borderTop:`1px solid ${C.border}`, display:'flex', gap:8, flexShrink:0, flexWrap:'wrap' }}>
               <button onClick={() => setConfirmDel(c)} style={{ display:'flex',alignItems:'center',gap:5,padding:'7px 12px',borderRadius:8,border:`1px solid #FECACA`,background:'#FFF1F2',color:'#DC2626',cursor:'pointer',fontSize:12,fontWeight:600 }}>
                 <Trash2 size={12}/> Remover
+              </button>
+              <button onClick={() => setKanbanModal({ title:`Follow-up: ${c.nome||c.phone}`, description:'', column_id: kanbanCols[0]?.id||'', due_date:'', priority:'normal', assigned_user_id:'', assigned_user_name:'' })}
+                style={{ display:'flex',alignItems:'center',gap:5,padding:'7px 12px',borderRadius:8,border:`1px solid #E9D5FF`,background:'#FAF5FF',color:'#7C3AED',cursor:'pointer',fontSize:12,fontWeight:600 }}>
+                <Kanban size={12}/> Criar tarefa
               </button>
               <div style={{ flex:1 }}/>
               <a href={`https://wa.me/${c.phone}`} target="_blank" rel="noopener noreferrer"
@@ -839,6 +932,69 @@ export default function CompanyCRM() {
       )}
 
       {/* ── Confirm Delete ── */}
+      {/* Modal: criar tarefa no Kanban */}
+      {kanbanModal && (
+        <div style={{ position:'fixed',inset:0,background:'rgba(0,0,0,0.35)',zIndex:250,display:'flex',alignItems:'center',justifyContent:'center',padding:16 }}>
+          <div style={{ background:C.card,borderRadius:14,padding:24,width:'100%',maxWidth:440,boxShadow:'0 20px 60px rgba(0,0,0,0.25)' }}>
+            <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:16 }}>
+              <div style={{ fontWeight:800,fontSize:15,color:C.navy,display:'flex',alignItems:'center',gap:8 }}>
+                <Kanban size={16} color="#7C3AED"/> Criar tarefa no Kanban
+              </div>
+              <button onClick={()=>setKanbanModal(null)} style={{ background:'none',border:'none',cursor:'pointer',color:C.muted }}><X size={16}/></button>
+            </div>
+            <div style={{ display:'flex',flexDirection:'column',gap:12 }}>
+              <div>
+                <label style={{ fontSize:11,fontWeight:700,color:C.muted,textTransform:'uppercase',letterSpacing:'0.05em',display:'block',marginBottom:4 }}>Título *</label>
+                <input className="nx-input" value={kanbanModal.title} onChange={e=>setKanbanModal(p=>({...p,title:e.target.value}))} placeholder="O que precisa ser feito?" style={{ width:'100%',boxSizing:'border-box' }}/>
+              </div>
+              <div>
+                <label style={{ fontSize:11,fontWeight:700,color:C.muted,textTransform:'uppercase',letterSpacing:'0.05em',display:'block',marginBottom:4 }}>Coluna</label>
+                <select className="nx-select" value={kanbanModal.column_id} onChange={e=>setKanbanModal(p=>({...p,column_id:e.target.value}))} style={{ width:'100%',boxSizing:'border-box' }}>
+                  {kanbanCols.length === 0 && <option value="">— sem colunas —</option>}
+                  {kanbanCols.map(col => <option key={col.id} value={col.id}>{col.name}</option>)}
+                </select>
+              </div>
+              <div style={{ display:'grid',gridTemplateColumns:'1fr 1fr',gap:10 }}>
+                <div>
+                  <label style={{ fontSize:11,fontWeight:700,color:C.muted,textTransform:'uppercase',letterSpacing:'0.05em',display:'block',marginBottom:4 }}>Prioridade</label>
+                  <select className="nx-select" value={kanbanModal.priority} onChange={e=>setKanbanModal(p=>({...p,priority:e.target.value}))} style={{ width:'100%',boxSizing:'border-box' }}>
+                    <option value="baixa">Baixa</option>
+                    <option value="normal">Normal</option>
+                    <option value="alta">Alta</option>
+                    <option value="urgente">Urgente</option>
+                  </select>
+                </div>
+                <div>
+                  <label style={{ fontSize:11,fontWeight:700,color:C.muted,textTransform:'uppercase',letterSpacing:'0.05em',display:'block',marginBottom:4 }}>Prazo</label>
+                  <input type="date" className="nx-input" value={kanbanModal.due_date} onChange={e=>setKanbanModal(p=>({...p,due_date:e.target.value}))} style={{ width:'100%',boxSizing:'border-box' }}/>
+                </div>
+              </div>
+              <div>
+                <label style={{ fontSize:11,fontWeight:700,color:C.muted,textTransform:'uppercase',letterSpacing:'0.05em',display:'block',marginBottom:4 }}>Responsável</label>
+                <select className="nx-select" value={kanbanModal.assigned_user_id||''} onChange={e=>{
+                  const u = users.find(x=>x.id===e.target.value)
+                  setKanbanModal(p=>({...p,assigned_user_id:e.target.value||null,assigned_user_name:u?.name||u?.email||null}))
+                }} style={{ width:'100%',boxSizing:'border-box' }}>
+                  <option value="">— sem responsável —</option>
+                  {users.map(u=><option key={u.id} value={u.id}>{u.name||u.email}</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={{ fontSize:11,fontWeight:700,color:C.muted,textTransform:'uppercase',letterSpacing:'0.05em',display:'block',marginBottom:4 }}>Descrição</label>
+                <textarea className="nx-input" value={kanbanModal.description||''} onChange={e=>setKanbanModal(p=>({...p,description:e.target.value}))} placeholder="Detalhes da tarefa..." rows={2} style={{ width:'100%',boxSizing:'border-box',resize:'vertical' }}/>
+              </div>
+            </div>
+            <div style={{ display:'flex',gap:8,justifyContent:'flex-end',marginTop:20 }}>
+              <button onClick={()=>setKanbanModal(null)} style={{ padding:'8px 16px',borderRadius:8,border:`1px solid ${C.border}`,background:'none',cursor:'pointer',fontSize:13 }}>Cancelar</button>
+              <button onClick={createKanbanCard} disabled={savingKanban||!kanbanModal.title?.trim()||!kanbanModal.column_id}
+                style={{ padding:'8px 18px',borderRadius:8,background:savingKanban||!kanbanModal.title?.trim()||!kanbanModal.column_id?C.muted:'#7C3AED',color:'#fff',border:'none',cursor:savingKanban?'wait':'pointer',fontSize:13,fontWeight:700 }}>
+                {savingKanban ? 'Criando…' : 'Criar tarefa'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {confirmDel && (
         <div style={{ position:'fixed',inset:0,background:'rgba(0,0,0,0.35)',zIndex:200,display:'flex',alignItems:'center',justifyContent:'center' }}>
           <div style={{ background:C.card,borderRadius:14,padding:'24px',width:360,boxShadow:'0 20px 60px rgba(0,0,0,0.2)' }}>
