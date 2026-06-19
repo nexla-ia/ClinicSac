@@ -209,7 +209,7 @@ export default function CompanyFinanceiro() {
   const instance = session?.company?.instance
   const isAdmin = session?.user?.role === 'admin'
 
-  const [tab, setTab] = useState('receber')
+  const [tab, setTab] = useState('visaogeral')
   const [transactions, setTransactions] = useState([])
   const [categories, setCategories] = useState([])
   const [loading, setLoading] = useState(true)
@@ -364,6 +364,58 @@ export default function CompanyFinanceiro() {
     return { total, items, pieData, txCount: tx.length }
   }, [transactions, catPeriod, catTipo, catMap])
 
+  // ── Visão Geral data ──────────────────────────────────────────────────────
+  const visaoData = useMemo(() => {
+    const thisYear = new Date().getFullYear()
+    // Last 6 months bars
+    const months6 = Array.from({ length: 6 }, (_, i) => {
+      const m = addMonths(cm, i - 5)
+      const tx = transactions.filter(t => t.vencimento?.startsWith(m))
+      let recPrev = 0, despPrev = 0, recReal = 0, despReal = 0
+      tx.forEach(t => {
+        if (t.status === 'cancelado') return
+        const v = parseFloat(t.valor) || 0
+        if (t.tipo === 'receita') { recPrev += v; if (t.status === 'pago') recReal += v }
+        else { despPrev += v; if (t.status === 'pago') despReal += v }
+      })
+      return { month: monthLabel(m), recPrev, despPrev, recReal, despReal, saldo: recReal - despReal, isCurrent: m === cm }
+    })
+    // YTD
+    const ytdTx = transactions.filter(t => t.vencimento?.startsWith(String(thisYear)))
+    let ytdRec = 0, ytdDesp = 0
+    ytdTx.forEach(t => {
+      if (t.status === 'cancelado') return
+      const v = parseFloat(t.valor) || 0
+      if (t.tipo === 'receita') ytdRec += v; else ytdDesp += v
+    })
+    // Top contatos this month
+    const cmTx = transactions.filter(t => t.vencimento?.startsWith(cm) && t.tipo === 'receita' && t.status !== 'cancelado' && t.contact_nome)
+    const topContatos = {}
+    cmTx.forEach(t => {
+      const k = t.contact_nome.trim()
+      if (!topContatos[k]) topContatos[k] = 0
+      topContatos[k] += parseFloat(t.valor) || 0
+    })
+    const topContatosList = Object.entries(topContatos).sort((a,b) => b[1]-a[1]).slice(0, 5)
+    // Inadimplência total
+    const inadTotal = transactions.filter(t => t.tipo === 'receita' && t.status === 'pendente' && t.vencimento < todayStr())
+      .reduce((s,t) => s + (parseFloat(t.valor)||0), 0)
+    // Categorias this month pie
+    const cmRec = transactions.filter(t => t.vencimento?.startsWith(cm) && t.tipo === 'receita' && t.status !== 'cancelado')
+    const byCat = {}
+    cmRec.forEach(t => {
+      const key = t.categoria_id || '__sem__'
+      if (!byCat[key]) byCat[key] = 0
+      byCat[key] += parseFloat(t.valor) || 0
+    })
+    const catPie = Object.entries(byCat).map(([k, v]) => ({
+      name: catMap[k]?.nome || 'Sem categoria',
+      value: v,
+      color: catMap[k]?.cor || C.emerald,
+    })).sort((a,b) => b.value - a.value).slice(0, 6)
+    return { months6, ytdRec, ytdDesp, ytdSaldo: ytdRec - ytdDesp, topContatosList, inadTotal, catPie }
+  }, [transactions, cm, catMap])
+
   function catsForTipo(t) { return categories.filter(c => c.tipo === t || c.tipo === 'ambos') }
 
   // ── Handlers ──────────────────────────────────────────────────────────────
@@ -429,6 +481,7 @@ export default function CompanyFinanceiro() {
 
   const md = modal?.data || {}
   const TABS = [
+    { key: 'visaogeral', label: '⬡ Visão Geral' },
     { key: 'receber', label: 'A Receber' },
     { key: 'pagar', label: 'A Pagar' },
     { key: 'fluxo', label: 'Fluxo de Caixa' },
@@ -475,6 +528,177 @@ export default function CompanyFinanceiro() {
           </button>
         ))}
       </div>
+
+      {/* ── Visão Geral ── */}
+      {tab === 'visaogeral' && (() => {
+        const { months6, ytdRec, ytdDesp, ytdSaldo, topContatosList, inadTotal, catPie } = visaoData
+        const maxBar = Math.max(1, ...months6.map(m => Math.max(m.recPrev, m.despPrev)))
+
+        const VTooltip = ({ active, payload, label }) => {
+          if (!active || !payload?.length) return null
+          return (
+            <div style={{ background: C.navy, borderRadius: 10, padding: '10px 14px', boxShadow: '0 8px 30px rgba(0,0,0,0.25)', ...sora }}>
+              <div style={{ fontSize: 10, color: C.muted, marginBottom: 6 }}>{label}</div>
+              {payload.map((p, i) => (
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: '#fff', marginBottom: 2 }}>
+                  <div style={{ width: 8, height: 8, borderRadius: 2, background: p.color || p.fill }} />
+                  <span style={{ color: '#CBD5E1', minWidth: 60 }}>{p.name}</span>
+                  <span style={{ ...mono, fontWeight: 600, color: p.color || p.fill }}>{fmtBRL(p.value)}</span>
+                </div>
+              ))}
+            </div>
+          )
+        }
+
+        return (
+          <div>
+            {/* Hero KPI strip */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(175px, 1fr))', gap: 12, marginBottom: 20 }}>
+              {[
+                { label: 'Receita YTD',   value: ytdRec,             color: C.emerald, bg: C.emeraldDim, icon: TrendingUp },
+                { label: 'Despesa YTD',   value: ytdDesp,            color: C.rose,    bg: C.roseDim,    icon: TrendingDown },
+                { label: 'Resultado YTD', value: ytdSaldo,           color: ytdSaldo >= 0 ? C.blue : C.rose, bg: ytdSaldo >= 0 ? C.blueDim : C.roseDim, icon: DollarSign },
+                { label: 'Inadimplência', value: inadTotal,          color: '#D97706', bg: '#FEF3C7', icon: AlertTriangle },
+                { label: 'A receber mês', value: summary.aReceber,   color: C.emerald, bg: C.emeraldDim, icon: ArrowUpCircle },
+                { label: 'A pagar mês',   value: summary.aPagar,     color: C.rose,    bg: C.roseDim,    icon: ArrowDownCircle },
+              ].map(k => (
+                <div key={k.label} style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, padding: '1.1rem 1.2rem', display: 'flex', alignItems: 'flex-start', gap: 12, overflow: 'hidden', position: 'relative' }}>
+                  <div style={{ position: 'absolute', top: 0, right: 0, width: 60, height: 60, borderRadius: '0 0 0 60px', background: k.bg, opacity: 0.6 }} />
+                  <div style={{ width: 36, height: 36, borderRadius: 9, background: k.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <k.icon size={16} color={k.color} />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 9.5, fontWeight: 700, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4, ...sora }}>{k.label}</div>
+                    {loading
+                      ? <div style={{ height: 22, width: 80, background: '#F1F5F9', borderRadius: 6 }} />
+                      : <div style={{ fontSize: 17, fontWeight: 800, color: k.color, lineHeight: 1, ...mono }}>{fmtBRL(k.value)}</div>
+                    }
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Receita vs Despesa — últimos 6 meses */}
+            <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 16, padding: '1.4rem', marginBottom: 16 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+                <div>
+                  <div style={{ fontWeight: 800, fontSize: 14, color: C.navy, ...sora }}>Receita × Despesa</div>
+                  <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>Últimos 6 meses · previsto e realizado</div>
+                </div>
+                <div style={{ display: 'flex', gap: 14, fontSize: 11 }}>
+                  {[{ c: C.emerald, l: 'Receita' }, { c: C.rose, l: 'Despesa' }, { c: C.blue, l: 'Saldo real' }].map(x => (
+                    <span key={x.l} style={{ display: 'flex', alignItems: 'center', gap: 5, color: C.slate }}>
+                      <span style={{ width: 10, height: 10, borderRadius: 2, background: x.c, display: 'inline-block' }} />{x.l}
+                    </span>
+                  ))}
+                </div>
+              </div>
+              <ResponsiveContainer width="100%" height={220}>
+                <ComposedChart data={months6} margin={{ top: 4, right: 12, left: 0, bottom: 0 }} barGap={2} barCategoryGap="30%">
+                  <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" vertical={false} />
+                  <XAxis dataKey="month" tick={{ fontSize: 11, fill: C.muted, fontFamily: '"Sora",sans-serif' }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 10, fill: C.muted, fontFamily: '"DM Mono",monospace' }} axisLine={false} tickLine={false} tickFormatter={v => fmtBRL(v, true)} width={68} />
+                  <Tooltip content={<VTooltip />} />
+                  <Bar dataKey="recPrev"  name="Receita prev."  fill={C.emerald} fillOpacity={0.25} radius={[4,4,0,0]} />
+                  <Bar dataKey="despPrev" name="Despesa prev."  fill={C.rose}    fillOpacity={0.25} radius={[4,4,0,0]} />
+                  <Bar dataKey="recReal"  name="Receita real"   fill={C.emerald} radius={[4,4,0,0]} />
+                  <Bar dataKey="despReal" name="Despesa real"   fill={C.rose}    radius={[4,4,0,0]} />
+                  <Line type="monotone" dataKey="saldo" name="Saldo real" stroke={C.blue} strokeWidth={2.5} dot={{ fill: C.blue, r: 3, strokeWidth: 0 }} />
+                </ComposedChart>
+              </ResponsiveContainer>
+            </div>
+
+            {/* Categorias pie + Top contatos */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+              {/* Pie categorias */}
+              <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 16, padding: '1.4rem' }}>
+                <div style={{ fontWeight: 800, fontSize: 13, color: C.navy, marginBottom: 4, ...sora }}>Receitas por categoria</div>
+                <div style={{ fontSize: 11, color: C.muted, marginBottom: 14 }}>{monthLabelFull(cm)}</div>
+                {catPie.length === 0
+                  ? <div style={{ textAlign: 'center', padding: '2rem', color: C.muted, fontSize: 13 }}>Sem dados</div>
+                  : (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                      <ResponsiveContainer width={130} height={130}>
+                        <PieChart>
+                          <Pie data={catPie} cx="50%" cy="50%" innerRadius={32} outerRadius={58}
+                            dataKey="value" strokeWidth={0} paddingAngle={2}>
+                            {catPie.map((_, i) => <Cell key={i} fill={_.color} />)}
+                          </Pie>
+                          <Tooltip formatter={(v) => fmtBRL(v)} />
+                        </PieChart>
+                      </ResponsiveContainer>
+                      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        {catPie.map((c, i) => {
+                          const total = catPie.reduce((s,x) => s+x.value,0) || 1
+                          return (
+                            <div key={i}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, marginBottom: 3 }}>
+                                <div style={{ width: 8, height: 8, borderRadius: 2, background: c.color, flexShrink: 0 }} />
+                                <span style={{ flex: 1, color: C.slate, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</span>
+                                <span style={{ fontWeight: 700, color: C.navy, ...mono, fontSize: 11 }}>{fmtBRL(c.value)}</span>
+                                <span style={{ color: C.muted, fontSize: 10, minWidth: 28, textAlign: 'right' }}>{Math.round(c.value/total*100)}%</span>
+                              </div>
+                              <div style={{ height: 3, background: '#F1F5F9', borderRadius: 4, overflow: 'hidden' }}>
+                                <div style={{ height: '100%', width: `${(c.value/total)*100}%`, background: c.color }} />
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )
+                }
+              </div>
+
+              {/* Top contatos */}
+              <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 16, padding: '1.4rem' }}>
+                <div style={{ fontWeight: 800, fontSize: 13, color: C.navy, marginBottom: 4, ...sora }}>Top pacientes · receita</div>
+                <div style={{ fontSize: 11, color: C.muted, marginBottom: 14 }}>{monthLabelFull(cm)}</div>
+                {topContatosList.length === 0
+                  ? <div style={{ textAlign: 'center', padding: '2rem', color: C.muted, fontSize: 13 }}>Sem dados</div>
+                  : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                      {topContatosList.map(([nome, val], i) => {
+                        const max = topContatosList[0][1] || 1
+                        const pal = [C.emerald, C.blue, '#7C3AED', '#D97706', '#DC2626']
+                        return (
+                          <div key={nome}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12, marginBottom: 4 }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                <div style={{ width: 24, height: 24, borderRadius: '50%', background: pal[i] + '20', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 800, color: pal[i] }}>{i+1}</div>
+                                <span style={{ fontWeight: 600, color: C.navy }}>{nome}</span>
+                              </div>
+                              <span style={{ fontWeight: 700, color: pal[i], ...mono, fontSize: 12 }}>{fmtBRL(val)}</span>
+                            </div>
+                            <div style={{ height: 5, background: '#F1F5F9', borderRadius: 6, overflow: 'hidden' }}>
+                              <div style={{ height: '100%', width: `${(val/max)*100}%`, background: pal[i], borderRadius: 6, transition: 'width 0.4s' }} />
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )
+                }
+              </div>
+            </div>
+
+            {/* Atalhos rápidos */}
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+              {[
+                { label: '+ Nova receita', tab: 'receber', color: C.emerald, bg: C.emeraldDim },
+                { label: '+ Nova despesa', tab: 'pagar',   color: C.rose,    bg: C.roseDim },
+                { label: 'Fluxo de caixa', tab: 'fluxo',  color: C.blue,    bg: C.blueDim },
+                { label: 'DRE',            tab: 'dre',     color: C.slate,   bg: '#F1F5F9' },
+                { label: 'Inadimplência',  tab: 'inadimplencia', color: '#D97706', bg: '#FEF3C7' },
+              ].map(x => (
+                <button key={x.tab} onClick={() => setTab(x.tab)} style={{ padding: '9px 16px', borderRadius: 10, border: `1px solid ${x.bg}`, background: x.bg, color: x.color, fontWeight: 700, fontSize: 12, cursor: 'pointer', ...sora }}>
+                  {x.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )
+      })()}
 
       {/* ── A Receber / A Pagar ── */}
       {(tab === 'receber' || tab === 'pagar') && (

@@ -8,6 +8,10 @@ import {
   Calendar, BellRing, Kanban, Headset, CheckCircle2, XCircle, AlertCircle,
   Phone, Bot, ListChecks, Flag, ChevronRight, Layers, DollarSign, Stethoscope, Lock,
 } from 'lucide-react'
+import {
+  AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
+  XAxis, YAxis, Tooltip as ReTooltip, ResponsiveContainer, CartesianGrid,
+} from 'recharts'
 import './Company.css'
 
 // ─── Inferência de origem do lead ─────────────────────────────────────────
@@ -958,18 +962,52 @@ function AgendaTab({ appts, range, period, loading }) {
 }
 
 // ─── Tab: Financeiro ────────────────────────────────────────────────────────
+const FIN_COLORS = ['#059669','#2563EB','#7C3AED','#D97706','#DC2626','#0891B2','#DB2777','#6B7280']
+
+function FinTooltip({ active, payload, label }) {
+  if (!active || !payload?.length) return null
+  return (
+    <div style={{ background: '#0F172A', borderRadius: 10, padding: '10px 14px', boxShadow: '0 8px 30px rgba(0,0,0,0.25)', fontSize: 12 }}>
+      <div style={{ fontSize: 10, color: '#94A3B8', marginBottom: 6 }}>{label}</div>
+      {payload.map((p, i) => (
+        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#fff', marginBottom: i < payload.length - 1 ? 3 : 0 }}>
+          <div style={{ width: 8, height: 8, borderRadius: 2, background: p.color || p.fill }} />
+          <span style={{ color: '#CBD5E1' }}>{p.name}</span>
+          <span style={{ fontWeight: 700, color: p.color || p.fill, marginLeft: 'auto' }}>{fmtMoney(typeof p.value === 'number' ? p.value : 0)}</span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 function FinanceiroTab({ appts, professionals, procedures, insurancePlans, range, period, loading }) {
   const { from, to } = range
   const inRange = appts.filter(a => inPeriod(a.starts_at, from, to))
 
-  // KPIs
-  const faturado = inRange.filter(a => a.payment_status === 'pago').reduce((s, a) => s + Number(a.price || 0), 0)
-  const aReceber = inRange.filter(a => a.payment_status === 'pendente' && a.status !== 'cancelado' && a.status !== 'faltou').reduce((s, a) => s + Number(a.price || 0), 0)
+  const faturado      = inRange.filter(a => a.payment_status === 'pago').reduce((s, a) => s + Number(a.price || 0), 0)
+  const aReceber      = inRange.filter(a => a.payment_status === 'pendente' && a.status !== 'cancelado' && a.status !== 'faltou').reduce((s, a) => s + Number(a.price || 0), 0)
   const perdidoFaltas = inRange.filter(a => a.status === 'faltou').reduce((s, a) => s + Number(a.price || 0), 0)
-  const concluidos = inRange.filter(a => a.payment_status === 'pago').length
-  const ticketMedio = concluidos ? faturado / concluidos : 0
+  const concluidos    = inRange.filter(a => a.payment_status === 'pago').length
+  const ticketMedio   = concluidos ? faturado / concluidos : 0
+  const taxaConv      = inRange.length ? (concluidos / inRange.length * 100) : 0
 
-  // Faturamento por profissional
+  // Tendência diária de faturamento
+  const dailyRevenue = useMemo(() => {
+    const endD   = to   ? new Date(to.getFullYear(),   to.getMonth(),   to.getDate())   : new Date()
+    const startD = from ? new Date(from.getFullYear(), from.getMonth(), from.getDate()) : new Date(endD.getTime() - 29 * 86400000)
+    const days = []
+    for (let d = new Date(startD); d <= endD; d = new Date(d.getTime() + 86400000)) {
+      const ds = d.toISOString().slice(0, 10)
+      const val = inRange.filter(a => (a.starts_at || '').slice(0, 10) === ds && a.payment_status === 'pago')
+        .reduce((s, a) => s + Number(a.price || 0), 0)
+      const rec = inRange.filter(a => (a.starts_at || '').slice(0, 10) === ds && a.payment_status === 'pendente' && a.status !== 'cancelado').length
+      days.push({ label: `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}`, faturado: val, pendentes: rec })
+      if (days.length >= 60) break
+    }
+    return days
+  }, [inRange, from, to])
+
+  // Por profissional
   const byProfessional = useMemo(() => {
     const map = {}
     inRange.filter(a => a.payment_status === 'pago').forEach(a => {
@@ -981,10 +1019,10 @@ function FinanceiroTab({ appts, professionals, procedures, insurancePlans, range
       map[id].value += Number(a.price || 0)
       map[id].count++
     })
-    return Object.values(map).sort((a, b) => b.value - a.value)
+    return Object.values(map).sort((a, b) => b.value - a.value).slice(0, 8)
   }, [inRange, professionals])
 
-  // Faturamento por procedimento
+  // Por procedimento
   const byProcedure = useMemo(() => {
     const map = {}
     inRange.filter(a => a.payment_status === 'pago').forEach(a => {
@@ -995,10 +1033,10 @@ function FinanceiroTab({ appts, professionals, procedures, insurancePlans, range
       map[id].value += Number(a.price || 0)
       map[id].count++
     })
-    return Object.values(map).sort((a, b) => b.value - a.value).slice(0, 10)
+    return Object.values(map).sort((a, b) => b.value - a.value).slice(0, 8)
   }, [inRange, procedures])
 
-  // Faturamento por convênio (Particular = null)
+  // Por convênio
   const byInsurance = useMemo(() => {
     const map = {}
     inRange.filter(a => a.payment_status === 'pago').forEach(a => {
@@ -1013,80 +1051,120 @@ function FinanceiroTab({ appts, professionals, procedures, insurancePlans, range
   }, [inRange, insurancePlans])
 
   const totalIns = byInsurance.reduce((s, x) => s + x.value, 0) || 1
-  const maxPro   = Math.max(1, ...byProfessional.map(x => x.value))
   const maxProc  = Math.max(1, ...byProcedure.map(x => x.value))
+
+  const hasDailyData = dailyRevenue.some(d => d.faturado > 0)
 
   return (
     <div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 14, marginBottom: 18 }}>
-        <KpiCard icon={<DollarSign size={18} color="#16A34A" />} bg="#F0FDF4" value={fmtMoney(faturado)} label="Faturado" sub={periodLabel(period)} loading={loading} />
-        <KpiCard icon={<Clock size={18} color="#D97706" />} bg="#FFFBEB" value={fmtMoney(aReceber)} label="A receber" sub="agendamentos pendentes" loading={loading} alert={aReceber > 0} />
-        <KpiCard icon={<TrendingUp size={18} color="#2563EB" />} bg="#EFF6FF" value={fmtMoney(ticketMedio)} label="Ticket médio" sub={`${concluidos} pagamentos`} loading={loading} />
-        <KpiCard icon={<XCircle size={18} color="#DC2626" />} bg="#FEF2F2" value={fmtMoney(perdidoFaltas)} label="Perdido em faltas" sub="pacientes que faltaram" loading={loading} alert={perdidoFaltas > 0} />
+      {/* KPI strip */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))', gap: 14, marginBottom: 18 }}>
+        <KpiCard icon={<DollarSign size={18} color="#059669" />} bg="#ECFDF5"  value={fmtMoney(faturado)}      label="Faturado"          sub={periodLabel(period)} loading={loading} />
+        <KpiCard icon={<Clock      size={18} color="#D97706" />} bg="#FFFBEB"  value={fmtMoney(aReceber)}      label="A receber"         sub="agend. pendentes"    loading={loading} alert={aReceber > 0} />
+        <KpiCard icon={<TrendingUp size={18} color="#2563EB" />} bg="#EFF6FF"  value={fmtMoney(ticketMedio)}   label="Ticket médio"      sub={`${concluidos} pagamentos`} loading={loading} />
+        <KpiCard icon={<XCircle   size={18} color="#DC2626" />} bg="#FEF2F2"  value={fmtMoney(perdidoFaltas)} label="Perdido em faltas" sub="pacientes que faltaram" loading={loading} alert={perdidoFaltas > 0} />
+        <KpiCard icon={<CheckCircle2 size={18} color="#0891B2" />} bg="#ECFEFF" value={`${taxaConv.toFixed(0)}%`} label="Taxa de pagamento" sub="consultas pagas"   loading={loading} />
+        <KpiCard icon={<BarChart2 size={18} color="#7C3AED" />} bg="#F5F3FF"  value={inRange.length}          label="Total consultas"   sub={periodLabel(period)} loading={loading} />
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
+      {/* Tendência diária */}
+      <div className="nx-card" style={{ padding: '1.25rem', marginBottom: 14 }}>
+        <SectionTitle icon={TrendingUp} text="Faturamento diário" right={`${dailyRevenue.length} dias`} />
+        {!hasDailyData ? <Empty /> : (
+          <ResponsiveContainer width="100%" height={160}>
+            <AreaChart data={dailyRevenue} margin={{ top: 8, right: 12, left: -10, bottom: 0 }}>
+              <defs>
+                <linearGradient id="mGradF" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%"  stopColor="#059669" stopOpacity={0.22} />
+                  <stop offset="95%" stopColor="#059669" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" vertical={false} />
+              <XAxis dataKey="label" tick={{ fontSize: 9, fill: '#94A3B8' }} axisLine={false} tickLine={false} interval="preserveStartEnd" />
+              <YAxis tick={{ fontSize: 9, fill: '#94A3B8' }} axisLine={false} tickLine={false}
+                tickFormatter={v => v >= 1000 ? `${(v/1000).toFixed(0)}k` : v} width={44} />
+              <ReTooltip content={<FinTooltip />} />
+              <Area type="monotone" dataKey="faturado" stroke="#059669" fill="url(#mGradF)" strokeWidth={2} dot={false} name="Faturado" />
+            </AreaChart>
+          </ResponsiveContainer>
+        )}
+      </div>
+
+      {/* Por profissional (BarChart) + Por convênio (Pie) */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1.1fr 0.9fr', gap: 14, marginBottom: 14 }}>
         <div className="nx-card" style={{ padding: '1.25rem' }}>
-          <SectionTitle icon={Stethoscope} text="Faturamento por profissional" right={periodLabel(period)} />
+          <SectionTitle icon={Stethoscope} text="Por profissional" right={periodLabel(period)} />
           {byProfessional.length === 0 ? <Empty /> : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {byProfessional.map((p, i) => (
-                <div key={i}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 4 }}>
-                    <span style={{ fontWeight: 500 }}>{p.name}</span>
-                    <span style={{ fontWeight: 700, color: p.color }}>{fmtMoney(p.value)} <span style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 400 }}>· {p.count}x</span></span>
-                  </div>
-                  <div style={{ height: 7, background: '#F1F5F9', borderRadius: 10, overflow: 'hidden' }}>
-                    <div style={{ height: '100%', width: `${(p.value / maxPro) * 100}%`, background: p.color }} />
-                  </div>
-                </div>
-              ))}
-            </div>
+            <ResponsiveContainer width="100%" height={Math.max(byProfessional.length * 36, 120)}>
+              <BarChart data={byProfessional} layout="vertical" margin={{ top: 0, right: 8, left: 0, bottom: 0 }} barSize={14}>
+                <XAxis type="number" hide />
+                <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: '#475569' }} axisLine={false} tickLine={false} width={110} />
+                <ReTooltip content={<FinTooltip />} cursor={{ fill: '#F8FAFC' }} />
+                <Bar dataKey="value" name="Faturado" radius={[0, 6, 6, 0]}>
+                  {byProfessional.map((p, i) => (
+                    <Cell key={i} fill={p.color || FIN_COLORS[i % FIN_COLORS.length]} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
           )}
         </div>
 
         <div className="nx-card" style={{ padding: '1.25rem' }}>
-          <SectionTitle icon={ListChecks} text="Top procedimentos" right={periodLabel(period)} />
-          {byProcedure.length === 0 ? <Empty /> : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {byProcedure.map((p, i) => (
-                <div key={i}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 4 }}>
-                    <span style={{ fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, marginRight: 8 }}>{p.name}</span>
-                    <span style={{ fontWeight: 700, color: '#16A34A', flexShrink: 0 }}>{fmtMoney(p.value)} <span style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 400 }}>· {p.count}x</span></span>
-                  </div>
-                  <div style={{ height: 7, background: '#F1F5F9', borderRadius: 10, overflow: 'hidden' }}>
-                    <div style={{ height: '100%', width: `${(p.value / maxProc) * 100}%`, background: '#16A34A' }} />
-                  </div>
-                </div>
-              ))}
+          <SectionTitle icon={Layers} text="Por convênio / tipo" right={`${byInsurance.length} tipos`} />
+          {byInsurance.length === 0 ? <Empty /> : (
+            <div>
+              <ResponsiveContainer width="100%" height={130}>
+                <PieChart>
+                  <Pie data={byInsurance} cx="50%" cy="50%" innerRadius={36} outerRadius={58}
+                    dataKey="value" nameKey="name" strokeWidth={0} paddingAngle={2}>
+                    {byInsurance.map((_, i) => (
+                      <Cell key={i} fill={_ .name === 'Particular' ? '#059669' : FIN_COLORS[(i + 1) % FIN_COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <ReTooltip content={<FinTooltip />} />
+                </PieChart>
+              </ResponsiveContainer>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 5, marginTop: 6 }}>
+                {byInsurance.map((p, i) => {
+                  const color = p.name === 'Particular' ? '#059669' : FIN_COLORS[(i + 1) % FIN_COLORS.length]
+                  return (
+                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 11.5 }}>
+                      <div style={{ width: 8, height: 8, borderRadius: 2, background: color, flexShrink: 0 }} />
+                      <span style={{ flex: 1, color: '#475569', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
+                      <span style={{ fontWeight: 700, color: '#0F172A' }}>{fmtMoney(p.value)}</span>
+                      <span style={{ fontSize: 10, color: '#94A3B8', minWidth: 32, textAlign: 'right' }}>{Math.round(p.value / totalIns * 100)}%</span>
+                    </div>
+                  )
+                })}
+              </div>
             </div>
           )}
         </div>
       </div>
 
+      {/* Top procedimentos */}
       <div className="nx-card" style={{ padding: '1.25rem' }}>
-        <SectionTitle icon={Layers} text="Faturamento por forma de pagamento" right={periodLabel(period)} />
-        {byInsurance.length === 0 ? <Empty /> : (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
-            <DonutChart data={byInsurance.map((p, i) => ({
-              value: p.value,
-              color: p.name === 'Particular' ? '#16A34A' : ORIGEM_COLORS[(i + 1) % ORIGEM_COLORS.length],
-              label: p.name,
-            }))} />
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
-              {byInsurance.map((p, i) => {
-                const color = p.name === 'Particular' ? '#16A34A' : ORIGEM_COLORS[(i + 1) % ORIGEM_COLORS.length]
-                return (
-                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12 }}>
-                    <div style={{ width: 8, height: 8, borderRadius: '50%', background: color }} />
-                    <span style={{ flex: 1, color: 'var(--text-secondary)' }}>{p.name}</span>
-                    <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{fmtMoney(p.value)}</span>
-                    <span style={{ fontSize: 10, color: 'var(--text-muted)', minWidth: 40, textAlign: 'right' }}>{Math.round(p.value / totalIns * 100)}%</span>
+        <SectionTitle icon={ListChecks} text="Top procedimentos" right={`${byProcedure.length} tipos`} />
+        {byProcedure.length === 0 ? <Empty /> : (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 10 }}>
+            {byProcedure.map((p, i) => (
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{ width: 28, height: 28, borderRadius: 8, background: FIN_COLORS[i % FIN_COLORS.length] + '18', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <span style={{ fontSize: 10, fontWeight: 800, color: FIN_COLORS[i % FIN_COLORS.length] }}>#{i+1}</span>
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 3 }}>
+                    <span style={{ fontWeight: 600, color: '#0F172A', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 160 }}>{p.name}</span>
+                    <span style={{ fontWeight: 700, color: FIN_COLORS[i % FIN_COLORS.length], flexShrink: 0, marginLeft: 8 }}>{fmtMoney(p.value)}</span>
                   </div>
-                )
-              })}
-            </div>
+                  <div style={{ height: 5, background: '#F1F5F9', borderRadius: 10, overflow: 'hidden' }}>
+                    <div style={{ height: '100%', width: `${(p.value / maxProc) * 100}%`, background: FIN_COLORS[i % FIN_COLORS.length], borderRadius: 10, transition: 'width 0.4s' }} />
+                  </div>
+                  <div style={{ fontSize: 10, color: '#94A3B8', marginTop: 2 }}>{p.count}x · ticket {fmtMoney(p.value / p.count)}</div>
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </div>
