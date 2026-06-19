@@ -5,7 +5,8 @@ import {
   Plus, X, Search, Clock, AlertTriangle, Phone, Mail,
   UserPlus, Flag, Edit2, Trash2, Check, Loader2, ChevronDown,
   MessageSquare, ArrowRight, Tag, Users, MoreHorizontal,
-  Thermometer, GitMerge, StickyNote, Kanban,
+  Thermometer, GitMerge, StickyNote, Kanban, Filter, List,
+  ChevronRight, BookMarked, Zap,
 } from 'lucide-react'
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
@@ -79,6 +80,11 @@ export default function CompanyCRM() {
   const [kanbanCols, setKanbanCols]     = useState([])
   const [kanbanModal, setKanbanModal]   = useState(null)
   const [savingKanban, setSavingKanban] = useState(false)
+  const [activeView, setActiveView]     = useState('board')
+  const [lists, setLists]               = useState([])
+  const [listModal, setListModal]       = useState(null)
+  const [activeList, setActiveList]     = useState(null)
+  const [savingList, setSavingList]     = useState(false)
   const [activeFunnel, setActiveFunnel] = useState(null)
   const [search, setSearch]           = useState('')
   const [filterTemp, setFilterTemp]   = useState('todos')
@@ -95,13 +101,15 @@ export default function CompanyCRM() {
   async function load() {
     if (!instance) return
     setLoading(true)
-    const [{ data: fn }, { data: st }, { data: ct }, { data: kc }] = await Promise.all([
+    const [{ data: fn }, { data: st }, { data: ct }, { data: kc }, { data: ls }] = await Promise.all([
       supabase.from('crm_funnels').select('*').eq('instancia', instance).order('posicao'),
       supabase.from('crm_stages').select('*').eq('instancia', instance).order('posicao'),
       supabase.from('crm_contacts').select('*').eq('instancia', instance).order('created_at', { ascending: false }),
       supabase.from('kanban_columns').select('id,name,color').eq('instancia', instance).order('position'),
+      supabase.from('crm_lists').select('*').eq('instancia', instance).order('created_at'),
     ])
     if (kc) setKanbanCols(kc)
+    if (ls) setLists(ls)
 
     let myFunnels = fn || [], myStages = st || []
 
@@ -398,13 +406,59 @@ export default function CompanyCRM() {
     </div>
   )
 
+  async function saveList() {
+    if (!listModal?.nome?.trim()) return
+    setSavingList(true)
+    if (listModal.id) {
+      const { data } = await supabase.from('crm_lists')
+        .update({ nome: listModal.nome, filtros: listModal.filtros })
+        .eq('id', listModal.id).select().single()
+      if (data) { setLists(p => p.map(l => l.id === data.id ? data : l)); setActiveList(data) }
+    } else {
+      const { data } = await supabase.from('crm_lists')
+        .insert({ instancia: instance, nome: listModal.nome, filtros: listModal.filtros })
+        .select().single()
+      if (data) { setLists(p => [...p, data]); setActiveList(data) }
+    }
+    setSavingList(false)
+    setListModal(null)
+  }
+
+  async function deleteList(id) {
+    await supabase.from('crm_lists').delete().eq('id', id)
+    setLists(p => p.filter(l => l.id !== id))
+    if (activeList?.id === id) setActiveList(null)
+  }
+
+  function applyListFilter(c, filtros) {
+    const f = filtros || {}
+    if (f.temperatura && f.temperatura !== 'todos' && c.temperatura !== f.temperatura) return false
+    if (f.stage_id && c.stage_id !== f.stage_id) return false
+    const dias = daysIn(c.data_entrada_etapa)
+    if (f.dias_min && dias < Number(f.dias_min)) return false
+    if (f.dias_max && dias > Number(f.dias_max)) return false
+    if (f.origem && !(c.origem||'').toLowerCase().includes(f.origem.toLowerCase())) return false
+    if (f.tag && !(c.tags||[]).includes(f.tag)) return false
+    if (f.responsavel_nome && !(c.responsavel_nome||'').toLowerCase().includes(f.responsavel_nome.toLowerCase())) return false
+    if (f.sem_responsavel === true && c.responsavel_id) return false
+    return true
+  }
+
+  const staleLeads = useMemo(() =>
+    contacts.filter(c => {
+      const st = stages.find(s => s.id === c.stage_id)
+      return st?.alerta_dias && daysIn(c.data_entrada_etapa) > st.alerta_dias
+    }).sort((a,b) => daysIn(b.data_entrada_etapa) - daysIn(a.data_entrada_etapa))
+  , [contacts, stages])
+
+  const activeListContacts = useMemo(() => {
+    if (!activeList) return []
+    return contacts.filter(c => applyListFilter(c, activeList.filtros))
+  }, [contacts, stages, activeList])
+
   const totalLeads = filteredContacts.length
   const quentes    = filteredContacts.filter(c => c.temperatura === 'quente').length
-  const staleCount = filteredContacts.filter(c => {
-    const st = stages.find(s => s.id === c.stage_id)
-    if (!st?.alerta_dias) return false
-    return daysIn(c.data_entrada_etapa) > st.alerta_dias
-  }).length
+  const staleCount = staleLeads.length
 
   return (
     <div style={{ height:'calc(100vh - 64px)', display:'flex', flexDirection:'column', overflow:'hidden', background: C.bg, fontFamily:'"Inter",system-ui,sans-serif' }}>
@@ -461,19 +515,41 @@ export default function CompanyCRM() {
 
         <div style={{ flex:1 }} />
 
-        {/* Search */}
-        <div style={{ position:'relative' }}>
-          <Search size={12} style={{ position:'absolute', left:9, top:'50%', transform:'translateY(-50%)', color:C.muted, pointerEvents:'none' }}/>
-          <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Buscar lead..."
-            style={{ paddingLeft:28, paddingRight:10, height:32, border:`1px solid ${C.border}`, borderRadius:8, fontSize:12, outline:'none', width:180, background:C.card, color:C.navy }}/>
+        {/* View switcher */}
+        <div style={{ display:'flex', gap:2, background:C.bg, borderRadius:10, padding:3 }}>
+          {[
+            { id:'board',   label:'Board',   Icon:Kanban },
+            { id:'alertas', label:`Alertas${staleLeads.length ? ` (${staleLeads.length})` : ''}`, Icon:AlertTriangle, warn: staleLeads.length > 0 },
+            { id:'listas',  label:'Listas',  Icon:BookMarked },
+          ].map(v => (
+            <button key={v.id} onClick={() => setActiveView(v.id)} style={{
+              display:'flex', alignItems:'center', gap:5, padding:'5px 11px',
+              borderRadius:8, border:'none', cursor:'pointer', fontSize:11, fontWeight:700,
+              background: activeView === v.id ? C.card : 'transparent',
+              color: activeView === v.id ? C.navy : v.warn ? '#D97706' : C.muted,
+              boxShadow: activeView === v.id ? '0 1px 4px rgba(0,0,0,0.08)' : 'none',
+              transition:'all 0.15s',
+            }}>
+              <v.Icon size={11}/> {v.label}
+            </button>
+          ))}
         </div>
 
-        {/* Temp filter */}
-        <select value={filterTemp} onChange={e=>setFilterTemp(e.target.value)}
-          style={{ height:32, border:`1px solid ${C.border}`, borderRadius:8, fontSize:12, padding:'0 10px', background:C.card, color:C.navy, outline:'none', cursor:'pointer' }}>
-          <option value="todos">Todos</option>
-          {Object.entries(TEMP).map(([k,v]) => <option key={k} value={k}>{v.icon} {v.label}</option>)}
-        </select>
+        {activeView === 'board' && <>
+          {/* Search */}
+          <div style={{ position:'relative' }}>
+            <Search size={12} style={{ position:'absolute', left:9, top:'50%', transform:'translateY(-50%)', color:C.muted, pointerEvents:'none' }}/>
+            <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Buscar lead..."
+              style={{ paddingLeft:28, paddingRight:10, height:32, border:`1px solid ${C.border}`, borderRadius:8, fontSize:12, outline:'none', width:160, background:C.card, color:C.navy }}/>
+          </div>
+
+          {/* Temp filter */}
+          <select value={filterTemp} onChange={e=>setFilterTemp(e.target.value)}
+            style={{ height:32, border:`1px solid ${C.border}`, borderRadius:8, fontSize:12, padding:'0 10px', background:C.card, color:C.navy, outline:'none', cursor:'pointer' }}>
+            <option value="todos">Todos</option>
+            {Object.entries(TEMP).map(([k,v]) => <option key={k} value={k}>{v.icon} {v.label}</option>)}
+          </select>
+        </>}
 
         <button onClick={() => { setNewForm({ nome:'', phone:'', email:'', origem:'', temperatura:'morno', stage_id: funStages[0]?.id||'', observacoes:'' }); setNewModal(true) }}
           className="crm-btn" style={{ display:'flex', alignItems:'center', gap:6, padding:'0 14px', height:32, borderRadius:8, background:C.navy, color:'#fff', border:'none', cursor:'pointer', fontSize:12, fontWeight:700 }}>
@@ -481,8 +557,198 @@ export default function CompanyCRM() {
         </button>
       </div>
 
+      {/* ── Alertas View ── */}
+      {activeView === 'alertas' && (
+        <div style={{ flex:1, overflowY:'auto', padding:'20px' }}>
+          <div style={{ maxWidth:900, margin:'0 auto' }}>
+            {staleLeads.length === 0 ? (
+              <div style={{ textAlign:'center', padding:'4rem', color:C.muted }}>
+                <Check size={40} style={{ marginBottom:12, color:'#059669', opacity:.5 }}/>
+                <div style={{ fontSize:15, fontWeight:700, color:C.navy }}>Nenhum lead parado</div>
+                <div style={{ fontSize:12, marginTop:4 }}>Todos os leads estão dentro do prazo de cada etapa.</div>
+              </div>
+            ) : (
+              <>
+                <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:16 }}>
+                  <AlertTriangle size={16} color="#D97706"/>
+                  <span style={{ fontWeight:800, fontSize:14, color:C.navy }}>Leads parados além do limite</span>
+                  <span style={{ fontSize:11, padding:'2px 8px', borderRadius:20, background:'#FFFBEB', color:'#D97706', fontWeight:700, border:'1px solid #FDE68A' }}>{staleLeads.length}</span>
+                </div>
+                <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+                  {staleLeads.map(c => {
+                    const stage = stages.find(s => s.id === c.stage_id)
+                    const days = daysIn(c.data_entrada_etapa)
+                    const over = stage?.alerta_dias ? days - stage.alerta_dias : 0
+                    const temp = TEMP[c.temperatura] || TEMP.frio
+                    return (
+                      <div key={c.id} onClick={() => setPanel(c)}
+                        style={{ background:C.card, border:'1.5px solid #FDE68A', borderLeft:'4px solid #D97706', borderRadius:10, padding:'12px 16px', cursor:'pointer', display:'flex', alignItems:'center', gap:14, transition:'box-shadow 0.15s' }}
+                        onMouseEnter={e=>e.currentTarget.style.boxShadow='0 4px 16px rgba(0,0,0,0.08)'}
+                        onMouseLeave={e=>e.currentTarget.style.boxShadow='none'}>
+                        <div style={{ width:38,height:38,borderRadius:'50%',background:stage?.cor||C.slate,display:'flex',alignItems:'center',justifyContent:'center',color:'#fff',fontWeight:800,fontSize:14,flexShrink:0 }}>
+                          {(c.nome||c.phone||'?')[0].toUpperCase()}
+                        </div>
+                        <div style={{ flex:1, minWidth:0 }}>
+                          <div style={{ fontWeight:700, fontSize:13, color:C.navy }}>{c.nome||fmtPhone(c.phone)}</div>
+                          <div style={{ fontSize:11, color:C.muted, marginTop:2 }}>
+                            {stage?.nome} · {temp.icon} {temp.label}
+                            {c.responsavel_nome && <span> · {c.responsavel_nome}</span>}
+                          </div>
+                        </div>
+                        <div style={{ textAlign:'right', flexShrink:0 }}>
+                          <div style={{ fontWeight:800, fontSize:18, color:'#DC2626', lineHeight:1 }}>{days}d</div>
+                          <div style={{ fontSize:9.5, color:'#D97706', fontWeight:700 }}>+{over}d acima do limite</div>
+                        </div>
+                        <div style={{ display:'flex', gap:6, flexShrink:0 }}>
+                          <a href={`https://wa.me/${c.phone}`} target="_blank" rel="noopener noreferrer" onClick={e=>e.stopPropagation()}
+                            style={{ display:'flex',alignItems:'center',justifyContent:'center',width:30,height:30,borderRadius:8,background:'#ECFDF5',border:'1px solid #BBF7D0',color:'#059669',cursor:'pointer',textDecoration:'none' }}>
+                            <Phone size={12}/>
+                          </a>
+                          <button onClick={e=>{e.stopPropagation();setPanel(c)}}
+                            style={{ display:'flex',alignItems:'center',justifyContent:'center',width:30,height:30,borderRadius:8,background:C.bg,border:`1px solid ${C.border}`,color:C.slate,cursor:'pointer' }}>
+                            <ChevronRight size={12}/>
+                          </button>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Listas View ── */}
+      {activeView === 'listas' && (
+        <div style={{ flex:1, overflow:'hidden', display:'flex' }}>
+          {/* Sidebar: saved lists */}
+          <div style={{ width:220, flexShrink:0, borderRight:`1px solid ${C.border}`, background:C.card, display:'flex', flexDirection:'column' }}>
+            <div style={{ padding:'14px 14px 10px', borderBottom:`1px solid ${C.border}` }}>
+              <div style={{ fontWeight:800, fontSize:12, color:C.navy, marginBottom:10 }}>Listas salvas</div>
+              <button onClick={() => setListModal({ nome:'', filtros:{ temperatura:'todos', stage_id:'', dias_min:'', dias_max:'', origem:'', tag:'', sem_responsavel:false } })}
+                style={{ display:'flex',alignItems:'center',gap:6,width:'100%',padding:'7px 10px',borderRadius:8,border:`1.5px dashed ${C.border}`,background:'transparent',color:C.muted,cursor:'pointer',fontSize:11,fontWeight:600 }}>
+                <Plus size={11}/> Nova lista
+              </button>
+            </div>
+            <div style={{ flex:1, overflowY:'auto', padding:'8px' }}>
+              {lists.length === 0 && (
+                <div style={{ fontSize:11, color:C.muted, textAlign:'center', padding:'2rem 1rem', lineHeight:1.6 }}>
+                  Crie listas com filtros para segmentar seus leads.
+                </div>
+              )}
+              {lists.map(l => {
+                const cnt = contacts.filter(c => applyListFilter(c, l.filtros)).length
+                return (
+                  <div key={l.id}
+                    style={{ padding:'8px 10px', borderRadius:8, cursor:'pointer', marginBottom:2, display:'flex', alignItems:'center', gap:8,
+                      background: activeList?.id === l.id ? '#EFF6FF' : 'transparent',
+                      border: `1px solid ${activeList?.id === l.id ? '#BFDBFE' : 'transparent'}`,
+                    }}
+                    onClick={() => setActiveList(l)}>
+                    <Filter size={11} color={activeList?.id === l.id ? C.blue : C.muted}/>
+                    <span style={{ flex:1, fontSize:12, fontWeight:600, color: activeList?.id === l.id ? C.blue : C.navy, minWidth:0, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{l.nome}</span>
+                    <span style={{ fontSize:10, fontWeight:700, color: activeList?.id === l.id ? C.blue : C.muted, background: activeList?.id === l.id ? '#DBEAFE' : C.bg, padding:'1px 6px', borderRadius:10 }}>{cnt}</span>
+                  </div>
+                )
+              })}
+            </div>
+
+            {/* Automações rápidas */}
+            <div style={{ padding:'10px 14px', borderTop:`1px solid ${C.border}` }}>
+              <div style={{ fontSize:10, fontWeight:700, color:C.muted, textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:6 }}>Automações</div>
+              <div style={{ fontSize:11, color:C.slate, display:'flex', alignItems:'center', gap:6, padding:'5px 0' }}>
+                <Zap size={11} color="#D97706"/>
+                <span>Agenda → "Agendou"</span>
+                <span style={{ marginLeft:'auto', fontSize:9.5, padding:'2px 6px', borderRadius:10, background:'#ECFDF5', color:'#059669', fontWeight:700 }}>Ativo</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Main: filter builder + results */}
+          <div style={{ flex:1, overflowY:'auto', padding:'20px' }}>
+            {!activeList ? (
+              <div style={{ textAlign:'center', padding:'4rem', color:C.muted }}>
+                <Filter size={40} style={{ marginBottom:12, opacity:.3 }}/>
+                <div style={{ fontSize:14, fontWeight:700, color:C.navy }}>Selecione ou crie uma lista</div>
+                <div style={{ fontSize:12, marginTop:4 }}>Listas filtram seus leads por critérios salvos.</div>
+              </div>
+            ) : (
+              <div style={{ maxWidth:860, margin:'0 auto' }}>
+                {/* List header */}
+                <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:18 }}>
+                  <Filter size={15} color={C.blue}/>
+                  <span style={{ fontWeight:800, fontSize:16, color:C.navy }}>{activeList.nome}</span>
+                  <span style={{ fontSize:11, padding:'2px 8px', borderRadius:20, background:C.blueDim, color:C.blue, fontWeight:700 }}>{activeListContacts.length} leads</span>
+                  <div style={{ flex:1 }}/>
+                  <button onClick={() => setListModal({ ...activeList })} style={{ padding:'5px 12px', borderRadius:8, border:`1px solid ${C.border}`, background:C.card, color:C.slate, cursor:'pointer', fontSize:11, fontWeight:600, display:'flex', alignItems:'center', gap:5 }}>
+                    <Edit2 size={11}/> Editar filtros
+                  </button>
+                  <button onClick={() => { if(confirm('Apagar lista?')) deleteList(activeList.id) }} style={{ padding:'5px 10px', borderRadius:8, border:'1px solid #FECACA', background:'#FFF1F2', color:'#DC2626', cursor:'pointer', fontSize:11 }}>
+                    <Trash2 size={11}/>
+                  </button>
+                </div>
+
+                {/* Filter pills */}
+                <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginBottom:16 }}>
+                  {Object.entries(activeList.filtros||{}).map(([k,v]) => {
+                    if (!v || v === 'todos' || v === '') return null
+                    const labels = { temperatura:'Temp', stage_id:'Etapa', dias_min:'Mín dias', dias_max:'Máx dias', origem:'Origem', tag:'Tag', responsavel_nome:'Responsável', sem_responsavel:'Sem responsável' }
+                    const stage = k === 'stage_id' ? stages.find(s=>s.id===v) : null
+                    const display = stage?.nome || (k==='sem_responsavel'?'Sem responsável':String(v))
+                    return (
+                      <span key={k} style={{ fontSize:10.5, padding:'3px 10px', borderRadius:20, background:C.blueDim, color:C.blue, fontWeight:700, border:'1px solid #BFDBFE' }}>
+                        {labels[k]||k}: {display}
+                      </span>
+                    )
+                  })}
+                </div>
+
+                {/* Results */}
+                {activeListContacts.length === 0 ? (
+                  <div style={{ textAlign:'center', padding:'3rem', color:C.muted, fontSize:12 }}>Nenhum lead corresponde a esses filtros.</div>
+                ) : (
+                  <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+                    {activeListContacts.map(c => {
+                      const stage = stages.find(s => s.id === c.stage_id)
+                      const temp = TEMP[c.temperatura] || TEMP.frio
+                      const days = daysIn(c.data_entrada_etapa)
+                      return (
+                        <div key={c.id} onClick={() => setPanel(c)}
+                          style={{ background:C.card, border:`1px solid ${C.border}`, borderRadius:10, padding:'12px 16px', cursor:'pointer', display:'flex', alignItems:'center', gap:12, transition:'all 0.15s' }}
+                          onMouseEnter={e=>{e.currentTarget.style.boxShadow='0 4px 14px rgba(0,0,0,0.07)';e.currentTarget.style.borderColor='#BFDBFE'}}
+                          onMouseLeave={e=>{e.currentTarget.style.boxShadow='none';e.currentTarget.style.borderColor=C.border}}>
+                          <div style={{ width:36,height:36,borderRadius:'50%',background:stage?.cor||C.slate,display:'flex',alignItems:'center',justifyContent:'center',color:'#fff',fontWeight:800,fontSize:13,flexShrink:0 }}>
+                            {(c.nome||c.phone||'?')[0].toUpperCase()}
+                          </div>
+                          <div style={{ flex:1, minWidth:0 }}>
+                            <div style={{ fontWeight:700, fontSize:13, color:C.navy, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{c.nome||fmtPhone(c.phone)}</div>
+                            <div style={{ fontSize:11, color:C.muted, marginTop:2 }}>
+                              {stage?.nome||'—'} · {temp.icon} {temp.label} · {days}d
+                              {c.responsavel_nome && <> · {c.responsavel_nome}</>}
+                            </div>
+                          </div>
+                          {(c.tags||[]).slice(0,2).map(t => (
+                            <span key={t} style={{ fontSize:10, padding:'2px 7px', borderRadius:20, background:C.bg, color:C.slate }}>{t}</span>
+                          ))}
+                          <a href={`https://wa.me/${c.phone}`} target="_blank" rel="noopener noreferrer" onClick={e=>e.stopPropagation()}
+                            style={{ display:'flex',alignItems:'center',justifyContent:'center',width:28,height:28,borderRadius:8,background:'#ECFDF5',border:'1px solid #BBF7D0',color:'#059669',textDecoration:'none' }}>
+                            <Phone size={11}/>
+                          </a>
+                          <ChevronRight size={13} color={C.muted}/>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* ── Pipeline Board ── */}
-      <div style={{ flex:1, overflowX:'auto', overflowY:'hidden', display:'flex', gap:12, padding:'16px 20px', alignItems:'flex-start' }}>
+      {activeView === 'board' && <div style={{ flex:1, overflowX:'auto', overflowY:'hidden', display:'flex', gap:12, padding:'16px 20px', alignItems:'flex-start' }}>
         {funStages.map(stage => {
           const cards = byStage[stage.id] || []
           const isOver = dragOver === stage.id
@@ -598,7 +864,7 @@ export default function CompanyCRM() {
             </div>
           )
         })}
-      </div>
+      </div>}
 
       {/* ── Side Panel ── */}
       {panel && (() => {
@@ -932,6 +1198,80 @@ export default function CompanyCRM() {
       )}
 
       {/* ── Confirm Delete ── */}
+      {/* Modal: lista dinâmica */}
+      {listModal && (
+        <div style={{ position:'fixed',inset:0,background:'rgba(0,0,0,0.35)',zIndex:250,display:'flex',alignItems:'center',justifyContent:'center',padding:16 }}>
+          <div style={{ background:C.card,borderRadius:14,padding:24,width:'100%',maxWidth:480,boxShadow:'0 20px 60px rgba(0,0,0,0.25)',maxHeight:'90vh',overflowY:'auto' }}>
+            <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:16 }}>
+              <div style={{ fontWeight:800,fontSize:15,color:C.navy,display:'flex',alignItems:'center',gap:8 }}>
+                <Filter size={15} color={C.blue}/> {listModal.id ? 'Editar lista' : 'Nova lista'}
+              </div>
+              <button onClick={()=>setListModal(null)} style={{ background:'none',border:'none',cursor:'pointer',color:C.muted }}><X size={16}/></button>
+            </div>
+            <div style={{ display:'flex',flexDirection:'column',gap:12 }}>
+              <div>
+                <label style={{ fontSize:11,fontWeight:700,color:C.muted,textTransform:'uppercase',letterSpacing:'0.05em',display:'block',marginBottom:4 }}>Nome da lista *</label>
+                <input className="nx-input" value={listModal.nome} onChange={e=>setListModal(p=>({...p,nome:e.target.value}))} placeholder="Ex: Leads quentes sem resposta" style={{ width:'100%',boxSizing:'border-box' }}/>
+              </div>
+              <div style={{ borderTop:`1px solid ${C.border}`,paddingTop:12,marginTop:2 }}>
+                <div style={{ fontSize:11,fontWeight:700,color:C.muted,textTransform:'uppercase',letterSpacing:'0.05em',marginBottom:10 }}>Filtros</div>
+                <div style={{ display:'grid',gridTemplateColumns:'1fr 1fr',gap:10 }}>
+                  <div>
+                    <label style={{ fontSize:11,color:C.muted,display:'block',marginBottom:3 }}>Temperatura</label>
+                    <select className="nx-select" value={listModal.filtros?.temperatura||'todos'} onChange={e=>setListModal(p=>({...p,filtros:{...p.filtros,temperatura:e.target.value}}))} style={{ width:'100%',boxSizing:'border-box' }}>
+                      <option value="todos">Todas</option>
+                      {Object.entries(TEMP).map(([k,v])=><option key={k} value={k}>{v.icon} {v.label}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label style={{ fontSize:11,color:C.muted,display:'block',marginBottom:3 }}>Etapa</label>
+                    <select className="nx-select" value={listModal.filtros?.stage_id||''} onChange={e=>setListModal(p=>({...p,filtros:{...p.filtros,stage_id:e.target.value}}))} style={{ width:'100%',boxSizing:'border-box' }}>
+                      <option value="">Todas</option>
+                      {stages.map(s=><option key={s.id} value={s.id}>{s.nome}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label style={{ fontSize:11,color:C.muted,display:'block',marginBottom:3 }}>Mín. dias parado</label>
+                    <input type="number" className="nx-input" value={listModal.filtros?.dias_min||''} onChange={e=>setListModal(p=>({...p,filtros:{...p.filtros,dias_min:e.target.value}}))} placeholder="Ex: 3" style={{ width:'100%',boxSizing:'border-box' }}/>
+                  </div>
+                  <div>
+                    <label style={{ fontSize:11,color:C.muted,display:'block',marginBottom:3 }}>Máx. dias parado</label>
+                    <input type="number" className="nx-input" value={listModal.filtros?.dias_max||''} onChange={e=>setListModal(p=>({...p,filtros:{...p.filtros,dias_max:e.target.value}}))} placeholder="Ex: 30" style={{ width:'100%',boxSizing:'border-box' }}/>
+                  </div>
+                  <div>
+                    <label style={{ fontSize:11,color:C.muted,display:'block',marginBottom:3 }}>Origem</label>
+                    <input className="nx-input" value={listModal.filtros?.origem||''} onChange={e=>setListModal(p=>({...p,filtros:{...p.filtros,origem:e.target.value}}))} placeholder="Ex: Instagram" style={{ width:'100%',boxSizing:'border-box' }}/>
+                  </div>
+                  <div>
+                    <label style={{ fontSize:11,color:C.muted,display:'block',marginBottom:3 }}>Tag</label>
+                    <input className="nx-input" value={listModal.filtros?.tag||''} onChange={e=>setListModal(p=>({...p,filtros:{...p.filtros,tag:e.target.value}}))} placeholder="Ex: VIP" style={{ width:'100%',boxSizing:'border-box' }}/>
+                  </div>
+                  <div>
+                    <label style={{ fontSize:11,color:C.muted,display:'block',marginBottom:3 }}>Responsável</label>
+                    <input className="nx-input" value={listModal.filtros?.responsavel_nome||''} onChange={e=>setListModal(p=>({...p,filtros:{...p.filtros,responsavel_nome:e.target.value}}))} placeholder="Nome" style={{ width:'100%',boxSizing:'border-box' }}/>
+                  </div>
+                  <div style={{ display:'flex',alignItems:'center',gap:8,paddingTop:18 }}>
+                    <input type="checkbox" id="sem_resp" checked={!!listModal.filtros?.sem_responsavel} onChange={e=>setListModal(p=>({...p,filtros:{...p.filtros,sem_responsavel:e.target.checked}}))}/>
+                    <label htmlFor="sem_resp" style={{ fontSize:11,color:C.slate,cursor:'pointer' }}>Sem responsável</label>
+                  </div>
+                </div>
+                {/* Preview count */}
+                <div style={{ marginTop:12,padding:'8px 12px',background:C.bg,borderRadius:8,fontSize:12,color:C.slate }}>
+                  <span style={{ fontWeight:700,color:C.navy }}>{contacts.filter(c=>applyListFilter(c,listModal.filtros)).length}</span> leads correspondem a esses filtros
+                </div>
+              </div>
+            </div>
+            <div style={{ display:'flex',gap:8,justifyContent:'flex-end',marginTop:20 }}>
+              <button onClick={()=>setListModal(null)} style={{ padding:'8px 16px',borderRadius:8,border:`1px solid ${C.border}`,background:'none',cursor:'pointer',fontSize:13 }}>Cancelar</button>
+              <button onClick={saveList} disabled={savingList||!listModal.nome?.trim()}
+                style={{ padding:'8px 18px',borderRadius:8,background:savingList||!listModal.nome?.trim()?C.muted:C.blue,color:'#fff',border:'none',cursor:savingList?'wait':'pointer',fontSize:13,fontWeight:700 }}>
+                {savingList ? 'Salvando…' : 'Salvar lista'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Modal: criar tarefa no Kanban */}
       {kanbanModal && (
         <div style={{ position:'fixed',inset:0,background:'rgba(0,0,0,0.35)',zIndex:250,display:'flex',alignItems:'center',justifyContent:'center',padding:16 }}>
