@@ -73,7 +73,9 @@ export default function CompanyCRM() {
   const [funnels, setFunnels]         = useState([])
   const [stages, setStages]           = useState([])
   const [contacts, setContacts]       = useState([])
-  const [interactions, setInteractions] = useState([])
+  const [panelTimeline, setPanelTimeline] = useState([])
+  const [panelLoading, setPanelLoading]  = useState(false)
+  const [users, setUsers]               = useState([])
   const [activeFunnel, setActiveFunnel] = useState(null)
   const [search, setSearch]           = useState('')
   const [filterTemp, setFilterTemp]   = useState('todos')
@@ -116,16 +118,89 @@ export default function CompanyCRM() {
     setLoading(false)
   }
 
-  async function loadInteractions(phone) {
-    if (!instance || !phone) return
-    const { data } = await supabase.from('crm_interactions')
-      .select('*').eq('instancia', instance).eq('phone', phone)
-      .order('created_at', { ascending: false }).limit(30)
-    setInteractions(data || [])
+  const cleanNum = p => (p||'').replace(/@.*$/,'').replace(/\D/g,'')
+
+  async function loadPanelData(contact) {
+    if (!instance || !contact?.phone) return
+    setPanelLoading(true)
+    const phone = cleanNum(contact.phone)
+
+    const [
+      { data: crmIx },
+      { data: msgs  },
+      { data: appts },
+      { data: finTx },
+      { data: usrs  },
+    ] = await Promise.all([
+      supabase.from('crm_interactions').select('*')
+        .eq('instancia', instance).eq('phone', phone)
+        .order('created_at', { ascending: false }).limit(50),
+      supabase.from('mensagens_geral')
+        .select('id,numero,type,mensagem,created_at')
+        .eq('instancia', instance).eq('numero', phone)
+        .order('created_at', { ascending: false }).limit(40),
+      supabase.from('appointments')
+        .select('id,patient_name,patient_phone,starts_at,status,price,procedure_name:procedures(name)')
+        .eq('instancia', instance)
+        .order('starts_at', { ascending: false }).limit(30),
+      supabase.from('financial_transactions')
+        .select('id,tipo,valor,status,descricao,vencimento,contact_nome,forma_pagamento')
+        .eq('instancia', instance)
+        .order('vencimento', { ascending: false }).limit(50),
+      supabase.from('users').select('id,name,email').eq('company_id', session?.company?.id),
+    ])
+
+    if (usrs) setUsers(usrs)
+
+    const myAppts = (appts||[]).filter(a => cleanNum(a.patient_phone) === phone)
+    const nome0 = (contact.nome||'').toLowerCase().split(' ')[0]
+    const myFin = (finTx||[]).filter(t =>
+      nome0 && t.contact_nome && t.contact_nome.toLowerCase().includes(nome0)
+    )
+
+    const TYPE_META = {
+      nota:         { label:'Nota',          color:'#7C3AED', bg:'#F5F3FF' },
+      etapa:        { label:'Etapa',         color:'#2563EB', bg:'#EFF6FF' },
+      mensagem:     { label:'Mensagem',      color:'#059669', bg:'#ECFDF5' },
+      agendamento:  { label:'Agendamento',   color:'#D97706', bg:'#FFFBEB' },
+      financeiro:   { label:'Financeiro',    color:'#0891B2', bg:'#ECFEFF' },
+      tarefa:       { label:'Tarefa',        color:'#6B7280', bg:'#F1F5F9' },
+    }
+
+    const APPT_STATUS = { agendado:'Agendado', confirmado:'Confirmado', concluido:'Concluído', faltou:'Faltou', cancelado:'Cancelado' }
+    const fmtBRL = v => Number(v||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'})
+
+    const timeline = [
+      ...(crmIx||[]).map(ix => ({
+        id:`crm-${ix.id}`, date: ix.created_at, source:'crm', tipo: ix.tipo,
+        conteudo: ix.conteudo, autor: ix.autor_nome, meta: TYPE_META[ix.tipo]||TYPE_META.nota,
+      })),
+      ...(msgs||[]).map(m => ({
+        id:`msg-${m.id}`, date: m.created_at, source:'whatsapp', tipo:'mensagem',
+        conteudo: (m.mensagem||'').slice(0,200),
+        subtype: (m.type||'').toLowerCase(),
+        meta: TYPE_META.mensagem,
+      })),
+      ...myAppts.map(a => ({
+        id:`appt-${a.id}`, date: a.starts_at, source:'agenda', tipo:'agendamento',
+        conteudo: `${APPT_STATUS[a.status]||a.status}${a.procedure_name?.name ? ` · ${a.procedure_name.name}` : ''}${a.price ? ` · ${fmtBRL(a.price)}` : ''}`,
+        status: a.status,
+        meta: TYPE_META.agendamento,
+      })),
+      ...myFin.map(t => ({
+        id:`fin-${t.id}`, date: t.vencimento+'T12:00:00', source:'financeiro', tipo:'financeiro',
+        conteudo: `${t.tipo==='receita'?'↑':'↓'} ${t.descricao} · ${fmtBRL(t.valor)} · ${t.status}${t.forma_pagamento?' · '+t.forma_pagamento:''}`,
+        fintipo: t.tipo,
+        meta: TYPE_META.financeiro,
+      })),
+    ].sort((a,b) => new Date(b.date) - new Date(a.date))
+
+    setPanelTimeline(timeline)
+    setPanelLoading(false)
   }
 
   useEffect(() => { load() }, [instance])
-  useEffect(() => { if (panel) loadInteractions(panel.phone) }, [panel?.id])
+  useEffect(() => { if (panel) { setPanelTimeline([]); loadPanelData(panel) } }, [panel?.id])
 
   // ── Computed ────────────────────────────────────────────────────────────────
   const funStages = useMemo(
@@ -228,12 +303,19 @@ export default function CompanyCRM() {
   async function addNote() {
     if (!panelNote.trim() || !panel) return
     const row = {
-      instancia: instance, phone: panel.phone, tipo: 'nota',
+      instancia: instance, phone: cleanNum(panel.phone), tipo: 'nota',
       conteudo: panelNote.trim(),
       autor_nome: session?.user?.name || session?.user?.email,
     }
     const { data } = await supabase.from('crm_interactions').insert(row).select().single()
-    if (data) setInteractions(p => [data,...p])
+    if (data) {
+      const entry = {
+        id:`crm-${data.id}`, date: data.created_at, source:'crm', tipo:'nota',
+        conteudo: data.conteudo, autor: data.autor_nome,
+        meta: { label:'Nota', color:'#7C3AED', bg:'#F5F3FF' },
+      }
+      setPanelTimeline(p => [entry, ...p])
+    }
     setPanelNote('')
   }
 
@@ -542,6 +624,19 @@ export default function CompanyCRM() {
                   </form>
                 </div>
 
+                {/* Responsável */}
+                <div>
+                  <div style={{ fontSize:10,fontWeight:700,color:C.muted,textTransform:'uppercase',letterSpacing:'0.06em',marginBottom:5 }}>Responsável</div>
+                  <select value={c.responsavel_id||''} onChange={e => {
+                    const u = users.find(x => x.id === e.target.value)
+                    patchContact(c.id,{responsavel_id: e.target.value||null, responsavel_nome: u?.name||u?.email||null})
+                  }}
+                    style={{ width:'100%',border:`1px solid ${C.border}`,borderRadius:7,padding:'6px 10px',fontSize:12,color:C.navy,background:C.card,outline:'none',cursor:'pointer' }}>
+                    <option value="">— sem responsável —</option>
+                    {users.map(u => <option key={u.id} value={u.id}>{u.name||u.email}</option>)}
+                  </select>
+                </div>
+
                 <div>
                   <div style={{ fontSize:10,fontWeight:700,color:C.muted,textTransform:'uppercase',letterSpacing:'0.06em',marginBottom:5 }}>Observações</div>
                   <textarea value={c.observacoes||''} onChange={e => patchContact(c.id,{observacoes:e.target.value})}
@@ -575,40 +670,92 @@ export default function CompanyCRM() {
                 </div>
               </div>
 
-              {/* Timeline */}
-              {interactions.length > 0 && (
-                <div>
-                  <div style={{ fontSize:10,fontWeight:700,color:C.muted,textTransform:'uppercase',letterSpacing:'0.06em',marginBottom:10 }}>Histórico</div>
-                  <div style={{ display:'flex',flexDirection:'column',gap:0,position:'relative' }}>
-                    <div style={{ position:'absolute',left:11,top:0,bottom:0,width:1,background:C.border }}/>
-                    {interactions.map((ix,i) => {
-                      const TIPO_META = {
-                        nota:       { icon: StickyNote,   color: '#7C3AED', bg: '#F5F3FF' },
-                        etapa:      { icon: ArrowRight,   color: '#2563EB', bg: '#EFF6FF' },
-                        mensagem:   { icon: MessageSquare, color: '#059669', bg: '#ECFDF5' },
-                        agendamento:{ icon: Flag,          color: '#D97706', bg: '#FFFBEB' },
-                        tarefa:     { icon: Check,         color: '#0891B2', bg: '#ECFEFF' },
-                      }
-                      const meta = TIPO_META[ix.tipo] || TIPO_META.nota
-                      const Icon = meta.icon
-                      return (
-                        <div key={ix.id} style={{ display:'flex',gap:12,marginBottom:12,position:'relative' }}>
-                          <div style={{ width:22,height:22,borderRadius:'50%',background:meta.bg,border:`1.5px solid ${meta.color}33`,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,zIndex:1 }}>
-                            <Icon size={10} color={meta.color}/>
-                          </div>
-                          <div style={{ flex:1,paddingTop:2 }}>
-                            <div style={{ fontSize:12,color:C.navy,lineHeight:1.4 }}>{ix.conteudo}</div>
-                            <div style={{ fontSize:10,color:C.muted,marginTop:3 }}>
-                              {ix.autor_nome && <span>{ix.autor_nome} · </span>}
-                              {new Date(ix.created_at).toLocaleDateString('pt-BR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}
-                            </div>
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
+              {/* Timeline unificada */}
+              <div>
+                <div style={{ display:'flex',alignItems:'center',gap:8,marginBottom:10 }}>
+                  <div style={{ fontSize:10,fontWeight:700,color:C.muted,textTransform:'uppercase',letterSpacing:'0.06em' }}>Histórico completo</div>
+                  {panelLoading && <Loader2 size={11} color={C.muted} style={{animation:'spin 1s linear infinite'}}/>}
+                  {!panelLoading && panelTimeline.length > 0 && (
+                    <span style={{ fontSize:10,color:C.muted }}>· {panelTimeline.length} eventos</span>
+                  )}
                 </div>
-              )}
+
+                {/* Legend pills */}
+                <div style={{ display:'flex',gap:5,flexWrap:'wrap',marginBottom:12 }}>
+                  {[
+                    { src:'crm',        label:'Notas/Etapas', color:'#7C3AED' },
+                    { src:'whatsapp',   label:'WhatsApp',     color:'#059669' },
+                    { src:'agenda',     label:'Agenda',       color:'#D97706' },
+                    { src:'financeiro', label:'Financeiro',   color:'#0891B2' },
+                  ].map(p => {
+                    const cnt = panelTimeline.filter(t => t.source === p.src).length
+                    if (!cnt) return null
+                    return (
+                      <span key={p.src} style={{ fontSize:9.5,padding:'2px 8px',borderRadius:20,background:p.color+'15',color:p.color,fontWeight:700,border:`1px solid ${p.color}30` }}>
+                        {p.label} ({cnt})
+                      </span>
+                    )
+                  })}
+                </div>
+
+                {panelTimeline.length === 0 && !panelLoading && (
+                  <div style={{ textAlign:'center',padding:'1.5rem',color:C.muted,fontSize:12 }}>Nenhum histórico encontrado</div>
+                )}
+
+                <div style={{ display:'flex',flexDirection:'column',gap:0,position:'relative' }}>
+                  {panelTimeline.length > 0 && <div style={{ position:'absolute',left:11,top:4,bottom:0,width:1,background:C.border }}/>}
+                  {panelTimeline.map(ev => {
+                    const SOURCE_ICON = {
+                      crm:        ev.tipo === 'nota' ? StickyNote : ArrowRight,
+                      whatsapp:   MessageSquare,
+                      agenda:     Flag,
+                      financeiro: ev.fintipo === 'receita' ? ArrowRight : ArrowRight,
+                    }
+                    const Icon = SOURCE_ICON[ev.source] || StickyNote
+                    const m = ev.meta
+                    const fmtDate = d => {
+                      const dt = new Date(d)
+                      return dt.toLocaleDateString('pt-BR',{day:'2-digit',month:'short'}) + ' ' + dt.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})
+                    }
+                    const isMsg = ev.source === 'whatsapp'
+                    const msgBubble = isMsg && ev.subtype === 'cliente'
+
+                    return (
+                      <div key={ev.id} style={{ display:'flex',gap:10,marginBottom:10,position:'relative' }}>
+                        <div style={{ width:22,height:22,borderRadius:'50%',background:m.bg,border:`1.5px solid ${m.color}40`,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,zIndex:1,marginTop:1 }}>
+                          <Icon size={10} color={m.color}/>
+                        </div>
+                        <div style={{ flex:1,minWidth:0,paddingTop:0 }}>
+                          {isMsg ? (
+                            <div style={{
+                              background: msgBubble ? '#ECFDF5' : '#EFF6FF',
+                              border:`1px solid ${msgBubble ? '#A7F3D0' : '#BFDBFE'}`,
+                              borderRadius: msgBubble ? '0 8px 8px 8px' : '8px 0 8px 8px',
+                              padding:'6px 10px', fontSize:11.5, color:C.navy, lineHeight:1.45,
+                              wordBreak:'break-word',
+                            }}>
+                              {ev.conteudo || '(mídia)'}
+                              <div style={{ fontSize:9.5,color:C.muted,marginTop:3,textAlign:msgBubble?'left':'right' }}>
+                                {ev.subtype==='cliente'?'Paciente':ev.subtype==='ia'?'IA':'Equipe'} · {fmtDate(ev.date)}
+                              </div>
+                            </div>
+                          ) : (
+                            <>
+                              <div style={{ fontSize:12,color:ev.source==='financeiro'?(ev.fintipo==='receita'?'#059669':'#DC2626'):C.navy,lineHeight:1.4,wordBreak:'break-word' }}>
+                                {ev.conteudo}
+                              </div>
+                              <div style={{ fontSize:9.5,color:C.muted,marginTop:2 }}>
+                                {ev.autor && <span>{ev.autor} · </span>}
+                                {fmtDate(ev.date)}
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
             </div>
 
             {/* Panel footer */}
