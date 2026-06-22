@@ -548,7 +548,11 @@ export default function CompanyPatientDetail() {
           { key: 'resumo',      label: 'Resumo' },
           { key: 'cadastro',    label: 'Cadastro' },
           { key: 'saude',       label: 'Saúde' },
-          { key: 'prontuario',  label: `Prontuário (${appointments.filter(a => a.prontuario).length})` },
+          { key: 'prontuario',  label: `Prontuário (${
+            new Set([
+              ...appointments.filter(a => a.prontuario || attachments.some(att => att.appointment_id === a.id)).map(a => a.id),
+            ]).size + (attachments.filter(a => !a.appointment_id).length > 0 ? 1 : 0)
+          })` },
           { key: 'anamneses',   label: `Anamneses (${anamneses.length})` },
           { key: 'orcamentos',  label: `Orçamentos (${orcamentos.length})` },
           { key: 'historico',   label: `Histórico (${appointments.length})` },
@@ -1603,6 +1607,7 @@ function AnamneseModal({ modal, setModal, templates, onSave, onCreateTemplate })
 function OrcamentoModal({ form, setForm, onSave, procedures = [], patientName = '' }) {
   const [saving, setSaving] = useState(false)
   const [acIdx, setAcIdx] = useState(null) // which row has autocomplete open
+  const [showDental, setShowDental] = useState(false)
   const upd = (key, val) => setForm(f => ({ ...f, [key]: val }))
   const updItem = (i, key, val) => setForm(f => ({ ...f, items: f.items.map((it, idx) => idx === i ? { ...it, [key]: val } : it) }))
   const addItem = () => setForm(f => ({ ...f, items: [...f.items, { procedimento:'', dente:'', faces:'', valor:'' }] }))
@@ -1652,13 +1657,22 @@ function OrcamentoModal({ form, setForm, onSave, procedures = [], patientName = 
         <div style={{ flex:1, overflowY:'auto', padding:20 }}>
           {/* Itens */}
           <div style={{ marginBottom:16 }}>
-            <div style={{ fontSize:12, fontWeight:700, color:'var(--text-secondary)', marginBottom:8, textTransform:'uppercase', letterSpacing:'0.5px' }}>Procedimentos</div>
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
+              <div style={{ fontSize:12, fontWeight:700, color:'var(--text-secondary)', textTransform:'uppercase', letterSpacing:'0.5px' }}>Procedimentos</div>
+              <button type="button" onClick={() => setShowDental(v => !v)}
+                style={{ fontSize:11, fontWeight:600, color: showDental ? '#2563EB' : 'var(--text-muted)',
+                  background: showDental ? '#EFF6FF' : 'var(--bg-subtle, #F8FAFC)',
+                  border: `1px solid ${showDental ? '#BFDBFE' : 'var(--border)'}`,
+                  borderRadius:6, padding:'3px 10px', cursor:'pointer' }}>
+                🦷 Odontologia
+              </button>
+            </div>
             <table style={{ width:'100%', borderCollapse:'collapse' }}>
               <thead>
                 <tr style={{ fontSize:11, color:'var(--text-muted)' }}>
                   <th style={{ textAlign:'left', padding:'4px 4px', fontWeight:600 }}>Procedimento</th>
-                  <th style={{ textAlign:'left', padding:'4px 4px', fontWeight:600, width:70 }}>Dente</th>
-                  <th style={{ textAlign:'left', padding:'4px 4px', fontWeight:600, width:70 }}>Faces</th>
+                  {showDental && <th style={{ textAlign:'left', padding:'4px 4px', fontWeight:600, width:70 }}>Dente</th>}
+                  {showDental && <th style={{ textAlign:'left', padding:'4px 4px', fontWeight:600, width:70 }}>Faces</th>}
                   <th style={{ textAlign:'right', padding:'4px 4px', fontWeight:600, width:110 }}>Valor (R$)</th>
                   <th style={{ width:32 }}></th>
                 </tr>
@@ -1695,12 +1709,12 @@ function OrcamentoModal({ form, setForm, onSave, procedures = [], patientName = 
                         </div>
                       )}
                     </td>
-                    <td style={{ padding:'3px 4px' }}>
+                    {showDental && <td style={{ padding:'3px 4px' }}>
                       <input className="nx-input" placeholder="Ex: 16" value={it.dente} onChange={e => updItem(i, 'dente', e.target.value)} style={{ fontSize:12 }} />
-                    </td>
-                    <td style={{ padding:'3px 4px' }}>
+                    </td>}
+                    {showDental && <td style={{ padding:'3px 4px' }}>
                       <input className="nx-input" placeholder="—" value={it.faces} onChange={e => updItem(i, 'faces', e.target.value)} style={{ fontSize:12 }} />
-                    </td>
+                    </td>}
                     <td style={{ padding:'3px 4px' }}>
                       <input className="nx-input" type="number" step="0.01" placeholder="0,00" value={it.valor} onChange={e => updItem(i, 'valor', e.target.value)} style={{ fontSize:12, textAlign:'right' }} />
                     </td>
