@@ -90,6 +90,7 @@ export default function CompanyPatientDetail() {
   const attachInputRef = useRef(null)
   const [anamneses, setAnamneses] = useState([])
   const [orcamentos, setOrcamentos] = useState([])
+  const [procedures, setProcedures] = useState([])
   const [anamneseTemplates, setAnamneseTemplates] = useState([])
   const [anamneseModal, setAnamneseModal] = useState(null)
   const [orcamentoModal, setOrcamentoModal] = useState(null)
@@ -136,6 +137,10 @@ export default function CompanyPatientDetail() {
       .select('*').eq('instancia', instance)
       .order('nome', { ascending: true })
       .then(({ data: t }) => { if (t) setAnamneseTemplates(t) })
+    supabase.from('procedures')
+      .select('id,name,price_particular')
+      .eq('instancia', instance).order('name')
+      .then(({ data: pr }) => { if (pr) setProcedures(pr) })
   }, [id, instance])
 
   async function handleAttachUpload(files) {
@@ -213,7 +218,7 @@ export default function CompanyPatientDetail() {
 
   async function handleSaveOrcamento(form) {
     const numDigits = (patient.numero || '').replace(/@.*$/, '').replace(/\D/g, '')
-    const { data: orc } = await supabase.from('orcamentos').insert({
+    const { data: orc, error } = await supabase.from('orcamentos').insert({
       instancia: instance,
       contact_id: id,
       contact_numero: numDigits,
@@ -224,25 +229,88 @@ export default function CompanyPatientDetail() {
       notes: form.notes?.trim() || null,
       created_by: session?.user?.name || session?.user?.email || null,
     }).select().single()
-    if (orc) {
-      const validItems = form.items.filter(it => it.procedimento?.trim())
-      let savedItems = []
-      if (validItems.length > 0) {
-        const { data } = await supabase.from('orcamento_items').insert(
-          validItems.map((it, i) => ({
-            orcamento_id: orc.id,
-            procedimento: it.procedimento.trim(),
-            dente: it.dente?.trim() || null,
-            faces: it.faces?.trim() || null,
-            valor: parseFloat(it.valor) || 0,
-            ordem: i,
-          }))
-        ).select()
-        savedItems = data || []
-      }
-      setOrcamentos(prev => [{ ...orc, orcamento_items: savedItems }, ...prev])
+    if (error || !orc) {
+      alert('Erro ao salvar orçamento: ' + (error?.message || 'tente novamente'))
+      return false
     }
+    const validItems = form.items.filter(it => it.procedimento?.trim())
+    let savedItems = []
+    if (validItems.length > 0) {
+      const { data } = await supabase.from('orcamento_items').insert(
+        validItems.map((it, i) => ({
+          orcamento_id: orc.id,
+          procedimento: it.procedimento.trim(),
+          dente: it.dente?.trim() || null,
+          faces: it.faces?.trim() || null,
+          valor: parseFloat(it.valor) || 0,
+          ordem: i,
+        }))
+      ).select()
+      savedItems = data || []
+    }
+    const saved = { ...orc, orcamento_items: savedItems }
+    setOrcamentos(prev => [saved, ...prev])
     setOrcamentoModal(null)
+    return saved
+  }
+
+  function printOrcamento(orc, pat) {
+    const items = orc.orcamento_items || []
+    const subtotal = items.reduce((s, it) => s + Number(it.valor || 0), 0)
+    const desconto = Number(orc.desconto || 0)
+    const total = subtotal - desconto
+    const parcelas = Number(orc.parcelas || 1)
+    const entrada = Number(orc.entrada || 0)
+    const parcVal = parcelas > 0 && (total - entrada) > 0 ? (total - entrada) / parcelas : 0
+    const fmt = v => Number(v).toLocaleString('pt-BR', { style:'currency', currency:'BRL' })
+    const fmtD = d => d ? new Date(d).toLocaleDateString('pt-BR') : '—'
+    const w = window.open('', '_blank', 'width=750,height=900')
+    w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Orçamento</title>
+      <style>
+        body { font-family: Arial, sans-serif; font-size: 13px; color: #111; margin: 0; padding: 32px; }
+        h1 { font-size: 20px; margin: 0 0 4px; }
+        .sub { color: #666; font-size: 12px; margin-bottom: 24px; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+        th { background: #f3f4f6; padding: 8px 10px; text-align: left; font-size: 11px; font-weight: 700; text-transform: uppercase; border: 1px solid #e5e7eb; }
+        td { padding: 8px 10px; border: 1px solid #e5e7eb; }
+        .totals { margin-left: auto; width: 260px; }
+        .totals td { border: none; }
+        .total-row td { font-weight: 700; font-size: 15px; border-top: 2px solid #111; }
+        .footer { margin-top: 32px; font-size: 11px; color: #888; border-top: 1px solid #e5e7eb; padding-top: 12px; }
+        @media print { button { display: none; } }
+      </style></head><body>
+      <h1>Orçamento</h1>
+      <div class="sub">
+        Paciente: <strong>${pat?.nome || pat?.numero || '—'}</strong> &nbsp;·&nbsp;
+        Data: ${fmtD(orc.created_at)} &nbsp;·&nbsp;
+        Status: ${orc.status}
+        ${orc.created_by ? ' &nbsp;·&nbsp; Por: ' + orc.created_by : ''}
+      </div>
+      <table>
+        <thead><tr><th>#</th><th>Procedimento</th><th>Dente</th><th>Faces</th><th style="text-align:right">Valor</th></tr></thead>
+        <tbody>
+          ${items.map((it, i) => `
+            <tr>
+              <td>${i + 1}</td>
+              <td>${it.procedimento || '—'}</td>
+              <td>${it.dente || '—'}</td>
+              <td>${it.faces || '—'}</td>
+              <td style="text-align:right">${fmt(it.valor)}</td>
+            </tr>`).join('')}
+        </tbody>
+      </table>
+      <table class="totals">
+        <tr><td>Subtotal</td><td style="text-align:right">${fmt(subtotal)}</td></tr>
+        ${desconto > 0 ? `<tr><td style="color:#dc2626">Desconto</td><td style="text-align:right;color:#dc2626">− ${fmt(desconto)}</td></tr>` : ''}
+        <tr class="total-row"><td>Total</td><td style="text-align:right">${fmt(total)}</td></tr>
+        ${entrada > 0 ? `<tr><td style="font-size:11px;color:#666">Entrada</td><td style="text-align:right;font-size:11px;color:#666">${fmt(entrada)}</td></tr>` : ''}
+        ${parcelas > 1 ? `<tr><td style="font-size:11px;color:#666">${parcelas}x de</td><td style="text-align:right;font-size:11px;color:#666">${fmt(parcVal)}</td></tr>` : ''}
+      </table>
+      ${orc.notes ? `<div style="font-size:12px;color:#555;margin-top:8px"><strong>Obs:</strong> ${orc.notes}</div>` : ''}
+      <div class="footer">Documento gerado em ${new Date().toLocaleString('pt-BR')}</div>
+      <script>window.onload = () => { window.print() }</script>
+      </body></html>`)
+    w.document.close()
   }
 
   async function handleUpdateOrcamentoStatus(orcId, newStatus) {
@@ -790,6 +858,10 @@ export default function CompanyPatientDetail() {
                             Recusar
                           </button>
                         )}
+                        <button onClick={() => printOrcamento(orc, patient)}
+                          style={{ fontSize:11, padding:'4px 10px', background:'#F1F5F9', color:'#475569', border:'1px solid #E2E8F0', borderRadius:6, cursor:'pointer', fontWeight:600, display:'flex', alignItems:'center', gap:4 }}>
+                          🖨️ Imprimir
+                        </button>
                         <button onClick={() => handleDeleteOrcamento(orc)}
                           style={{ background:'transparent', border:'1px solid #FCA5A5', borderRadius:6, padding:'4px 7px', cursor:'pointer', color:'#DC2626', display:'flex', alignItems:'center' }}>
                           <Trash2 size={12} />
@@ -937,6 +1009,8 @@ export default function CompanyPatientDetail() {
           form={orcamentoModal}
           setForm={setOrcamentoModal}
           onSave={handleSaveOrcamento}
+          procedures={procedures}
+          patientName={patient?.nome || patient?.numero || ''}
         />
       )}
 
@@ -1434,8 +1508,9 @@ function AnamneseModal({ modal, setModal, templates, onSave, onCreateTemplate })
   )
 }
 
-function OrcamentoModal({ form, setForm, onSave }) {
+function OrcamentoModal({ form, setForm, onSave, procedures = [], patientName = '' }) {
   const [saving, setSaving] = useState(false)
+  const [acIdx, setAcIdx] = useState(null) // which row has autocomplete open
   const upd = (key, val) => setForm(f => ({ ...f, [key]: val }))
   const updItem = (i, key, val) => setForm(f => ({ ...f, items: f.items.map((it, idx) => idx === i ? { ...it, [key]: val } : it) }))
   const addItem = () => setForm(f => ({ ...f, items: [...f.items, { procedimento:'', dente:'', faces:'', valor:'' }] }))
@@ -1447,6 +1522,20 @@ function OrcamentoModal({ form, setForm, onSave }) {
   const entrada = parseFloat(form.entrada) || 0
   const parcelas = parseInt(form.parcelas) || 1
   const parcVal = parcelas > 0 && (total - entrada) > 0 ? (total - entrada) / parcelas : 0
+
+  function acSuggestions(i) {
+    const q = (form.items[i]?.procedimento || '').toLowerCase().trim()
+    if (!q || q.length < 1) return procedures.slice(0, 8)
+    return procedures.filter(p => p.name.toLowerCase().includes(q)).slice(0, 8)
+  }
+
+  function selectProcedure(i, proc) {
+    setForm(f => ({ ...f, items: f.items.map((it, idx) => idx === i
+      ? { ...it, procedimento: proc.name, valor: proc.price_particular ? String(proc.price_particular) : it.valor }
+      : it
+    )}))
+    setAcIdx(null)
+  }
 
   async function handleSave() {
     setSaving(true)
@@ -1482,8 +1571,34 @@ function OrcamentoModal({ form, setForm, onSave }) {
               <tbody>
                 {form.items.map((it, i) => (
                   <tr key={i}>
-                    <td style={{ padding:'3px 4px' }}>
-                      <input className="nx-input" placeholder="Nome do procedimento" value={it.procedimento} onChange={e => updItem(i, 'procedimento', e.target.value)} style={{ fontSize:12 }} />
+                    <td style={{ padding:'3px 4px', position:'relative' }}>
+                      <input
+                        className="nx-input"
+                        placeholder="Nome do procedimento"
+                        value={it.procedimento}
+                        onChange={e => { updItem(i, 'procedimento', e.target.value); setAcIdx(i) }}
+                        onFocus={() => setAcIdx(i)}
+                        onBlur={() => setTimeout(() => setAcIdx(null), 150)}
+                        style={{ fontSize:12 }}
+                      />
+                      {acIdx === i && acSuggestions(i).length > 0 && (
+                        <div style={{ position:'absolute', top:'100%', left:0, right:0, background:'#fff', border:'1px solid #E2E8F0', borderRadius:8, boxShadow:'0 8px 24px rgba(0,0,0,0.12)', zIndex:100, maxHeight:200, overflowY:'auto' }}>
+                          {acSuggestions(i).map(proc => (
+                            <div key={proc.id}
+                              onMouseDown={() => selectProcedure(i, proc)}
+                              style={{ padding:'8px 12px', cursor:'pointer', display:'flex', justifyContent:'space-between', alignItems:'center', fontSize:12, borderBottom:'1px solid #F1F5F9' }}
+                              onMouseEnter={e => e.currentTarget.style.background='#F8FAFC'}
+                              onMouseLeave={e => e.currentTarget.style.background='transparent'}>
+                              <span style={{ fontWeight:500, color:'#0F172A' }}>{proc.name}</span>
+                              {proc.price_particular > 0 && (
+                                <span style={{ fontSize:11, color:'#2563EB', fontWeight:700 }}>
+                                  {Number(proc.price_particular).toLocaleString('pt-BR',{style:'currency',currency:'BRL'})}
+                                </span>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </td>
                     <td style={{ padding:'3px 4px' }}>
                       <input className="nx-input" placeholder="Ex: 16" value={it.dente} onChange={e => updItem(i, 'dente', e.target.value)} style={{ fontSize:12 }} />
