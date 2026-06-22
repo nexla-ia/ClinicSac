@@ -179,6 +179,7 @@ export default function CompanyPatientDetail() {
   }
 
   async function handleDeleteAnamnese(resp) {
+    if (!confirm('Apagar esta anamnese? Esta ação não pode ser desfeita.')) return
     await supabase.from('anamnese_responses').delete().eq('id', resp.id)
     setAnamneses(prev => prev.filter(r => r.id !== resp.id))
   }
@@ -201,17 +202,22 @@ export default function CompanyPatientDetail() {
   }
 
   async function handleCreateTemplate(nome, questions) {
-    const { data } = await supabase.from('anamnese_templates').insert({
+    const { data, error } = await supabase.from('anamnese_templates').insert({
       instancia: instance,
       nome,
       questions,
       created_by: session?.user?.name || session?.user?.email || null,
     }).select().single()
-    if (data) setAnamneseTemplates(prev => [...prev, data].sort((a, b) => a.nome.localeCompare(b.nome)))
+    if (error || !data) {
+      alert('Erro ao salvar modelo: ' + (error?.message || 'tente novamente'))
+      return null
+    }
+    setAnamneseTemplates(prev => [...prev, data].sort((a, b) => a.nome.localeCompare(b.nome)))
     return data
   }
 
   async function handleDeleteOrcamento(orc) {
+    if (!confirm('Apagar este orçamento? Esta ação não pode ser desfeita.')) return
     await supabase.from('orcamentos').delete().eq('id', orc.id)
     setOrcamentos(prev => prev.filter(o => o.id !== orc.id))
   }
@@ -1348,6 +1354,7 @@ function AnamneseModal({ modal, setModal, templates, onSave, onCreateTemplate })
   const [newTplNome, setNewTplNome] = useState('')
   const [newTplQuestions, setNewTplQuestions] = useState([{ id: crypto.randomUUID(), text: '', type: 'yes_no_dontknow' }])
   const [creatingTpl, setCreatingTpl] = useState(false)
+  const [tplErr, setTplErr] = useState('')
 
   function addQuestion() {
     setNewTplQuestions(qs => [...qs, { id: crypto.randomUUID(), text: '', type: 'yes_no_dontknow' }])
@@ -1356,22 +1363,38 @@ function AnamneseModal({ modal, setModal, templates, onSave, onCreateTemplate })
     setNewTplQuestions(qs => qs.filter((_, i) => i !== idx))
   }
   function updateQ(idx, key, val) {
+    setTplErr('')
     setNewTplQuestions(qs => qs.map((q, i) => i === idx ? { ...q, [key]: val } : q))
   }
 
   async function handleSaveTemplate() {
-    if (!newTplNome.trim() || newTplQuestions.some(q => !q.text.trim())) return
+    if (!newTplNome.trim()) { setTplErr('Informe o nome do modelo.'); return }
+    const emptyQ = newTplQuestions.findIndex(q => !q.text.trim())
+    if (emptyQ !== -1) { setTplErr(`Preencha o texto da pergunta ${emptyQ + 1}.`); return }
+    setTplErr('')
     setCreatingTpl(true)
-    const tpl = await onCreateTemplate(newTplNome.trim(), newTplQuestions)
-    setCreatingTpl(false)
-    if (tpl) { setSelected(tpl); setStep('fill') }
+    try {
+      const tpl = await onCreateTemplate(newTplNome.trim(), newTplQuestions)
+      if (tpl) {
+        setSelected(tpl)
+        setAnswers({})
+        setNewTplNome('')
+        setNewTplQuestions([{ id: crypto.randomUUID(), text: '', type: 'yes_no_dontknow' }])
+        setStep('fill')
+      }
+    } finally {
+      setCreatingTpl(false)
+    }
   }
 
   async function handleSave() {
     if (!selected) return
     setSaving(true)
-    await onSave(selected.nome, selected.id, selected.questions, answers)
-    setSaving(false)
+    try {
+      await onSave(selected.nome, selected.id, selected.questions, answers)
+    } finally {
+      setSaving(false)
+    }
   }
 
   const OVERLAY = { position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', zIndex:9999, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }
@@ -1451,6 +1474,11 @@ function AnamneseModal({ modal, setModal, templates, onSave, onCreateTemplate })
                   <Plus size={12} /> Adicionar pergunta
                 </button>
               </div>
+              {tplErr && (
+                <div style={{ background:'#FEF2F2', border:'1px solid #FECACA', borderRadius:7, padding:'8px 12px', fontSize:12, color:'#DC2626', fontWeight:600 }}>
+                  ⚠️ {tplErr}
+                </div>
+              )}
             </div>
           )}
 
@@ -1491,7 +1519,7 @@ function AnamneseModal({ modal, setModal, templates, onSave, onCreateTemplate })
             {step === 'select' ? 'Cancelar' : '← Voltar'}
           </button>
           {step === 'create' && (
-            <button onClick={handleSaveTemplate} disabled={creatingTpl || !newTplNome.trim()}
+            <button onClick={handleSaveTemplate} disabled={creatingTpl}
               style={{ flex:2, padding:'9px', background:'#2563EB', color:'#fff', border:'none', borderRadius:8, cursor:'pointer', fontWeight:700, fontSize:13, opacity: creatingTpl?0.6:1 }}>
               {creatingTpl ? 'Salvando...' : 'Salvar modelo e preencher'}
             </button>
@@ -1539,8 +1567,11 @@ function OrcamentoModal({ form, setForm, onSave, procedures = [], patientName = 
 
   async function handleSave() {
     setSaving(true)
-    await onSave(form)
-    setSaving(false)
+    try {
+      await onSave(form)
+    } finally {
+      setSaving(false)
+    }
   }
 
   const OVERLAY = { position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', zIndex:9999, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }
