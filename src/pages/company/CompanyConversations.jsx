@@ -134,6 +134,35 @@ const REASONS = [
 const AUTO_CLOSE_HOURS = 2
 const MANUAL_REASONS = REASONS.filter(r => r.value !== 'auto_encerrado')
 
+const SPEEDS = [1, 1.5, 2]
+
+function AudioPlayer({ src, style = {} }) {
+  const ref = React.useRef(null)
+  const [speed, setSpeed] = React.useState(1)
+  function changeSpeed(s) {
+    setSpeed(s)
+    if (ref.current) ref.current.playbackRate = s
+  }
+  return (
+    <div style={{ display:'flex', flexDirection:'column', gap:4, ...style }}>
+      <audio ref={ref} controls src={src} style={{ width:260, maxWidth:'100%', height:32, display:'block' }} />
+      <div style={{ display:'flex', gap:4 }}>
+        {SPEEDS.map(s => (
+          <button key={s} onClick={() => changeSpeed(s)}
+            style={{
+              fontSize:10, fontWeight:700, padding:'2px 7px', borderRadius:4, cursor:'pointer',
+              border: speed === s ? '1.5px solid #2563EB' : '1px solid #CBD5E1',
+              background: speed === s ? '#EFF6FF' : 'transparent',
+              color: speed === s ? '#2563EB' : '#64748B',
+            }}>
+            {s}x
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 export default function CompanyConversations() {
   const { session } = useAuth()
   const navigate = useNavigate()
@@ -1744,7 +1773,7 @@ export default function CompanyConversations() {
                             {media && (() => {
                               const src = `data:${media.mime};base64,${msg.base64}`
                               if (media.type === 'audio') return (
-                                <audio controls src={src} style={{ width: 280, maxWidth: '100%', display: 'block', marginBottom: hasOnlyMedia ? 0 : 6 }} />
+                                <AudioPlayer src={src} style={{ marginBottom: hasOnlyMedia ? 0 : 6 }} />
                               )
                               if (media.type === 'image') return (
                                 <img src={src} alt="mídia" style={{ maxWidth: 280, width: '100%', borderRadius: 8, display: 'block', marginBottom: hasOnlyMedia ? 0 : 6, cursor: 'zoom-in' }}
@@ -1954,8 +1983,7 @@ export default function CompanyConversations() {
                     background: '#F0FDF4', border: '1px solid #BBF7D0',
                     borderRadius: 8, padding: '8px 12px', marginBottom: 8,
                   }}>
-                    <audio controls src={`data:${recordedAudio.mime};base64,${recordedAudio.base64}`}
-                      style={{ flex: 1, height: 32 }} />
+                    <AudioPlayer src={`data:${recordedAudio.mime};base64,${recordedAudio.base64}`} style={{ flex: 1 }} />
                     <button onClick={discardAudio} title="Descartar áudio"
                       style={{
                         display: 'inline-flex', alignItems: 'center', gap: 4,
