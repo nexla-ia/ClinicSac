@@ -154,7 +154,7 @@ export default function CompanyCRM() {
         .eq('instancia', instance).eq('numero', phone)
         .order('created_at', { ascending: false }).limit(40),
       supabase.from('appointments')
-        .select('id,patient_name,patient_phone,starts_at,status,price,procedure_name:procedures(name)')
+        .select('id,contact_nome,contact_numero,starts_at,status,price,procedure_name:procedures(name)')
         .eq('instancia', instance)
         .order('starts_at', { ascending: false }).limit(30),
       supabase.from('financial_transactions')
@@ -170,7 +170,7 @@ export default function CompanyCRM() {
 
     if (usrs) setUsers(usrs)
 
-    const myAppts = (appts||[]).filter(a => cleanNum(a.patient_phone) === phone)
+    const myAppts = (appts||[]).filter(a => cleanNum(a.contact_numero) === phone)
     const nome0 = (contact.nome||'').toLowerCase().split(' ')[0]
     const myFin = (finTx||[]).filter(t =>
       nome0 && t.contact_nome && t.contact_nome.toLowerCase().includes(nome0)

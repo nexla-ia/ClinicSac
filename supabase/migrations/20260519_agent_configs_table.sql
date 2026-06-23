@@ -23,24 +23,12 @@ create trigger trg_agent_configs_updated_at
   before update on agent_configs
   for each row execute function update_agent_configs_updated_at();
 
--- RLS
+-- RLS — política aberta (auth customizada via JWT próprio, não Supabase Auth)
+-- Acesso real é controlado pela instancia no backend/n8n com service_role key
 alter table agent_configs enable row level security;
 
--- Empresa só lê/escreve a própria config
-create policy "company lê própria config"
-  on agent_configs for select
-  using (
-    instancia = (
-      select instance from companies
-      where id = (select company_id from users where id = auth.uid() limit 1)
-    )
-  );
-
-create policy "company escreve própria config"
-  on agent_configs for all
-  using (
-    instancia = (
-      select instance from companies
-      where id = (select company_id from users where id = auth.uid() limit 1)
-    )
-  );
+DO $$ BEGIN
+  CREATE POLICY "agent_configs_all" ON public.agent_configs
+    FOR ALL TO authenticated, anon USING (true) WITH CHECK (true);
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;

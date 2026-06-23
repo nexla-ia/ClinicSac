@@ -63,3 +63,8 @@ $$;
 ALTER TABLE public.mensagens_geral SET (autovacuum_vacuum_scale_factor = 0.05);
 ALTER TABLE public.attendances     REPLICA IDENTITY FULL;
 ALTER TABLE public.conversations   REPLICA IDENTITY FULL;
+ALTER TABLE public.mensagens_geral REPLICA IDENTITY FULL;
+ALTER TABLE public.appointments    REPLICA IDENTITY FULL;
+ALTER TABLE public.kanban_cards    REPLICA IDENTITY FULL;
+ALTER TABLE public.saved_contacts  REPLICA IDENTITY FULL;
+ALTER TABLE public.alerts          REPLICA IDENTITY FULL;
