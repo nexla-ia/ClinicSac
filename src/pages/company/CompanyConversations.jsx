@@ -137,8 +137,8 @@ const MANUAL_REASONS = REASONS.filter(r => r.value !== 'auto_encerrado')
 const SPEEDS = [1, 1.5, 2]
 
 function AudioPlayer({ src, style = {} }) {
-  const ref = React.useRef(null)
-  const [speed, setSpeed] = React.useState(1)
+  const ref = useRef(null)
+  const [speed, setSpeed] = useState(1)
   function changeSpeed(s) {
     setSpeed(s)
     if (ref.current) ref.current.playbackRate = s
