@@ -2882,6 +2882,9 @@ ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
 -- PostgreSQL database dump complete
 --
 
+-- Restaura search_path para public (o pg_dump seta como empty para seguranca,
+-- mas as migrations seguintes usam nomes nao-qualificados em RETURNS SETOF)
+SET search_path TO public;
 
 
 
